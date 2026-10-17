@@ -205,6 +205,22 @@ export class PictWriter {
 		return this;
 	}
 
+	/** A pen pixel pattern, from a 'ppat' resource (type 1, unpacked rows of fewer than 8 bytes). */
+	pnPixPat(ppat: Uint8Array): this {
+		const u16 = (o: number) => (ppat[o]! << 8) | ppat[o + 1]!;
+		const u32 = (o: number) => ((u16(o) << 16) | u16(o + 2)) >>> 0;
+		const m = u32(2);
+		const rowBytes = u16(m + 4) & 0x3fff;
+		const height = u16(m + 10) - u16(m + 6);
+		const ct = u32(m + 42);
+		const ctLength = 8 + (u16(ct + 6) + 1) * 8;
+		const w = this.op(0x13).u16(u16(0)).bytes(ppat.subarray(20, 28));
+		// The pixel map from rowBytes to pmReserved (without baseAddr), its color table, and its pixels.
+		w.bytes(ppat.subarray(m + 4, m + 50)).bytes(ppat.subarray(ct, ct + ctLength));
+		w.bytes(ppat.subarray(u32(6), u32(6) + rowBytes * height));
+		return this;
+	}
+
 	shortComment(kind: number): this {
 		this.op(0xa0).u16(kind);
 		return this;

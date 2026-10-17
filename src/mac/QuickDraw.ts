@@ -8,7 +8,7 @@
 import { colorToIndex, ctDeviceFlag, GetMainDevice, makeColorTable, oldColorToRGB } from './Color.ts';
 import { type FontStrike, fontStrike, glyphOf } from './Fonts.ts';
 import { encodeMacRoman } from './MacRoman.ts';
-import { resolve, type Ptr } from './Memory.ts';
+import { bytesAt, DisposPtr, NewPtr, resolve, type Ptr } from './Memory.ts';
 import {
 	type Band,
 	addInversionPoint,
@@ -146,9 +146,23 @@ export class GrafPort {
 	rgnSave: Map<number, number[]> | null = null;
 }
 
+/**
+ * A pixel pattern (PixPatHandle): an old-style pattern (type 0), or a pixel map pattern (type 1)
+ * whose pixels are drawn in their own colors.
+ */
+export interface PixPat {
+	patType: Integer;
+	/** The pattern's pixel map; its pixels are in patData, not in memory. */
+	patMap: PixMap;
+	patData: Uint8Array;
+	pat1Data: Pattern;
+}
+
 /** A color graphics port. Its portBits is its portPixMap, so drawing code treats both alike. */
 export class CGrafPort extends GrafPort {
 	portPixMap: PixMap = newPixMap();
+	/** A pixel map pattern the pen draws with, or null for the old-style pnPat. */
+	pnPixPat: PixPat | null = null;
 	rgbFgColor: RGBColor = { red: 0, green: 0, blue: 0 };
 	rgbBkColor: RGBColor = { red: 0xffff, green: 0xffff, blue: 0xffff };
 	override fgColor: LongInt = 0;
@@ -479,12 +493,54 @@ export function PenMode(mode: Integer): void {
 
 export function PenPat(pat: Pattern): void {
 	thePort.pnPat = [...pat];
+	if (thePort instanceof CGrafPort) {
+		thePort.pnPixPat = null;
+	}
 }
 
 export function PenNormal(): void {
 	thePort.pnSize = { h: 1, v: 1 };
 	thePort.pnMode = patCopy;
-	thePort.pnPat = black;
+	PenPat(black);
+}
+
+/** Sets a color port's pen to a pixel pattern; a type 0 pixel pattern acts as its old-style pattern. */
+export function PenPixPat(pp: PixPat): void {
+	const port = thePort;
+	if (port instanceof CGrafPort) {
+		port.pnPat = [...pp.pat1Data];
+		port.pnPixPat = pp.patType === 1 ? pp : null;
+	} else {
+		port.pnPat = [...pp.pat1Data];
+	}
+}
+
+/** Parses a 'ppat' resource (Inside Macintosh V-79). */
+export function parsePixPat(d: Uint8Array): PixPat {
+	const u16 = (o: number) => (d[o]! << 8) | d[o + 1]!;
+	const s16 = (o: number) => (u16(o) << 16) >> 16;
+	const u32 = (o: number) => ((u16(o) << 16) | u16(o + 2)) >>> 0;
+	const patType = u16(0);
+	const pat1Data = [...d.subarray(20, 28)];
+	if (patType !== 1) {
+		return { patType, patMap: newPixMap(), patData: new Uint8Array(0), pat1Data };
+	}
+	const m = u32(2);
+	const pm = newPixMap();
+	pm.rowBytes = u16(m + 4);
+	pm.bounds = { top: s16(m + 6), left: s16(m + 8), bottom: s16(m + 10), right: s16(m + 12) };
+	pm.pixelSize = s16(m + 32);
+	const ct = u32(m + 42);
+	const ctSize = s16(ct + 6);
+	pm.pmTable = {
+		ctSeed: u32(ct),
+		ctFlags: u16(ct + 4),
+		ctSize,
+		ctTable: Array.from({ length: ctSize + 1 }, (_, i) => ({ value: s16(ct + 8 + i * 8), rgb: { red: u16(ct + 10 + i * 8), green: u16(ct + 12 + i * 8), blue: u16(ct + 14 + i * 8) } })),
+	};
+	const data = u32(6);
+	const size = (pm.rowBytes & 0x3fff) * (pm.bounds.bottom - pm.bounds.top);
+	return { patType, patMap: pm, patData: d.slice(data, data + size), pat1Data };
 }
 
 export function MoveTo(h: Integer, v: Integer): void {
@@ -657,9 +713,13 @@ function clipToPort(rgn: Region): Region {
  * Fills a clipped region with a pattern in a pattern transfer mode. Patterns are aligned with the
  * bitmap: pattern row 0 is at bounds.top, and every eighth row after it.
  */
-function fillRegion(rgn: Region, pat: Pattern, mode: number): void {
+function fillRegion(rgn: Region, pat: Pattern, mode: number, pixPat: PixPat | null = null): void {
 	const port = thePort;
 	const s = surfaceOf(port.portBits);
+	if (pixPat !== null && port instanceof CGrafPort) {
+		fillPixPat(rgn, pixPat, mode, port, s);
+		return;
+	}
 	if (mode >= 32 && port instanceof CGrafPort) {
 		fillArithmetic(rgn, pat, mode, port, s);
 		return;
@@ -674,6 +734,44 @@ function fillRegion(rgn: Region, pat: Pattern, mode: number): void {
 				for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
 					const p = (row >> (7 - ((h - s.bounds.left) & 7))) & 1;
 					transferBit(s, h, v, notPat ? p ^ 1 : p, op, fg, bk);
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Fills a region with a pixel map pattern, its pixels in their own colors matched to the port's
+ * table. In transparent mode, pixels of the background color leave the destination alone.
+ */
+function fillPixPat(rgn: Region, pp: PixPat, mode: number, port: CGrafPort, s: Surface): void {
+	const pm = pp.patMap;
+	const w = pm.bounds.right - pm.bounds.left;
+	const h = pm.bounds.bottom - pm.bounds.top;
+	const rowBytes = pm.rowBytes & 0x3fff;
+	const depth = pm.pixelSize;
+	const table = port.portPixMap.pmTable;
+	const colors = pm.pmTable.ctTable.map((c) => c.rgb);
+	const map = colors.map((c) => colorToIndex(table, c));
+	const bk = port.rgbBkColor;
+	const isBk = colors.map((c) => c.red === bk.red && c.green === bk.green && c.blue === bk.blue);
+	const op = mode & 0x2f;
+	if (op !== patCopy && op !== srcCopy && (mode & ~8) !== transparent) {
+		throw new Error(`pixel patterns in mode ${mode} are not implemented`);
+	}
+	const transparentMode = (mode & ~8) === transparent;
+	for (const band of rgn.bands) {
+		for (let v = band.top; v < band.bottom; v++) {
+			const py = (((v - s.bounds.top) % h) + h) % h;
+			for (let k = 0; k < band.xs.length; k += 2) {
+				for (let x = band.xs[k]!; x < band.xs[k + 1]!; x++) {
+					const px = (((x - s.bounds.left) % w) + w) % w;
+					const bit = px * depth;
+					const value = (pp.patData[py * rowBytes + (bit >> 3)]! >> (8 - depth - (bit & 7))) & ((1 << depth) - 1);
+					if (transparentMode && isBk[value]) {
+						continue;
+					}
+					setPixel(s, x, v, map[value] ?? 0);
 				}
 			}
 		}
@@ -791,7 +889,7 @@ function drawShape(verb: GrafVerb, shape: Region, frameRgn?: () => Region): void
 		case paint: {
 			const pen = penTransfer(port);
 			if (pen !== null) {
-				fillRegion(clipToPort(verb === frame ? frameRgn!() : shape), pen.pat, pen.mode);
+				fillRegion(clipToPort(verb === frame ? frameRgn!() : shape), pen.pat, pen.mode, port instanceof CGrafPort ? port.pnPixPat : null);
 			}
 			break;
 		}
@@ -1384,8 +1482,26 @@ export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRec
 }
 
 /**
- * Copies the pixels of a source where a one-bit mask is black (Inside Macintosh IV-24).
- * Port: clipped like CopyBits; the rectangles must be the same size, as in the Mac Plus ROM.
+ * How source pixel values become destination pixel values in srcCopy: unchanged between the same
+ * colors, the port's colors for one-bit sources in color, and the closest color otherwise.
+ */
+function pixelConverter(srcBits: BitMap, dstBits: BitMap, src: Surface, dst: Surface): (value: number) => number {
+	if (src.depth === 1 && dst.depth > 1) {
+		const { fg, bk } = portColors(thePort, dst);
+		return (v) => (v ? fg : bk);
+	}
+	const srcTable = colorTableOf(srcBits);
+	const dstTable = colorTableOf(dstBits);
+	if (src.depth === dst.depth && sameColors(srcTable, dstTable)) {
+		return (v) => v;
+	}
+	const map = srcTable.ctTable.map((spec) => colorToIndex(dstTable, spec.rgb));
+	return (v) => map[v] ?? 0;
+}
+
+/**
+ * Copies the pixels of a source where a one-bit mask is black (Inside Macintosh IV-24 and V-72).
+ * Port: clipped like CopyBits; the rectangles must be the same size.
  */
 export function CopyMask(srcBits: BitMap, maskBits: BitMap, dstBits: BitMap, srcRect: Rect, maskRect: Rect, dstRect: Rect): void {
 	const w = dstRect.right - dstRect.left;
@@ -1396,17 +1512,117 @@ export function CopyMask(srcBits: BitMap, maskBits: BitMap, dstBits: BitMap, src
 	const src = surfaceOf(srcBits);
 	const dst = surfaceOf(dstBits);
 	const mask = surfaceOf(maskBits);
-	if (src.depth !== dst.depth) {
-		throw new Error(`CopyMask: copying ${src.depth}-bit pixels to ${dst.depth}-bit pixels is not implemented`);
-	}
-	const clip = sect(copyClip(srcBits, dstBits, srcRect, dstRect, null), (() => {
-		const m = sect(rectRegion(maskRect), rectRegion(maskBits.bounds));
-		offsetRegion(m, dstRect.left - maskRect.left, dstRect.top - maskRect.top);
-		return m;
-	})());
+	const maskClip = sect(rectRegion(maskRect), rectRegion(maskBits.bounds));
+	offsetRegion(maskClip, dstRect.left - maskRect.left, dstRect.top - maskRect.top);
+	const clip = sect(copyClip(srcBits, dstBits, srcRect, dstRect, null), maskClip);
+	const dh = srcRect.left - dstRect.left;
+	const dv = srcRect.top - dstRect.top;
 	const mh = maskRect.left - dstRect.left;
 	const mv = maskRect.top - dstRect.top;
-	blit(src, dst, clip, srcRect.left - dstRect.left, srcRect.top - dstRect.top, srcCopy, (x, y) => getPixel(mask, x + mh, y + mv) !== 0);
+	const convert = pixelConverter(srcBits, dstBits, src, dst);
+	for (const band of clip.bands) {
+		for (let v = band.top; v < band.bottom; v++) {
+			for (let k = 0; k < band.xs.length; k += 2) {
+				for (let x = band.xs[k]!; x < band.xs[k + 1]!; x++) {
+					if (getPixel(mask, x + mh, v + mv) !== 0) {
+						setPixel(dst, x, v, convert(getPixel(src, x + dh, v + dv)));
+					}
+				}
+			}
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// Icons
+
+/** A 32-by-32 black-and-white icon ('ICON'), as its 128 bytes. */
+export function PlotIcon(r: Rect, icon: { data: Uint8Array } | null): void {
+	if (icon === null) {
+		return;
+	}
+	const ptr = NewPtr(128);
+	bytesAt(ptr, 128).set(icon.data.subarray(0, 128));
+	const bounds = { top: 0, left: 0, bottom: 32, right: 32 };
+	CopyBits({ baseAddr: ptr, rowBytes: 4, bounds }, thePort.portBits, bounds, r, srcCopy, null);
+	DisposPtr(ptr);
+}
+
+/** A color icon (CIconHandle): a pixel map, a mask, and a one-bit image for shallow screens. */
+export interface CIcon {
+	iconPMap: PixMap;
+	iconMask: BitMap;
+	iconBMap: BitMap;
+	/** The pixel map's, mask's, and bitmap's pixels, in memory. */
+	pixels: Ptr;
+	mask: Ptr;
+	bits: Ptr;
+}
+
+/** Reads a 'cicn' resource (Inside Macintosh V-80) into memory. */
+export function parseCIcon(d: Uint8Array): CIcon {
+	const u16 = (o: number) => (d[o]! << 8) | d[o + 1]!;
+	const s16 = (o: number) => (u16(o) << 16) >> 16;
+	const u32 = (o: number) => ((u16(o) << 16) | u16(o + 2)) >>> 0;
+	const rect = (o: number) => ({ top: s16(o), left: s16(o + 2), bottom: s16(o + 4), right: s16(o + 6) });
+	const pm = newPixMap();
+	pm.rowBytes = u16(4);
+	pm.bounds = rect(6);
+	pm.pixelSize = s16(32);
+	const mask: BitMap = { baseAddr: 0, rowBytes: u16(54), bounds: rect(56) };
+	const bmap: BitMap = { baseAddr: 0, rowBytes: u16(68), bounds: rect(70) };
+	const height = (r: Rect) => r.bottom - r.top;
+	let o = 82;
+	const maskSize = mask.rowBytes * height(mask.bounds);
+	const bmapSize = bmap.rowBytes * height(bmap.bounds);
+	const copy = (size: number): Ptr => {
+		const p = NewPtr(Math.max(1, size));
+		bytesAt(p, Math.max(1, size)).set(d.subarray(o, o + size));
+		o += size;
+		return p;
+	};
+	mask.baseAddr = copy(maskSize);
+	bmap.baseAddr = copy(bmapSize);
+	const ctSize = s16(o + 6);
+	pm.pmTable = {
+		ctSeed: u32(o),
+		ctFlags: u16(o + 4),
+		ctSize,
+		ctTable: Array.from({ length: ctSize + 1 }, (_, i) => ({ value: s16(o + 8 + i * 8), rgb: { red: u16(o + 10 + i * 8), green: u16(o + 12 + i * 8), blue: u16(o + 14 + i * 8) } })),
+	};
+	o += 8 + (ctSize + 1) * 8;
+	pm.baseAddr = copy((pm.rowBytes & 0x3fff) * height(pm.bounds));
+	return { iconPMap: pm, iconMask: mask, iconBMap: bmap, pixels: pm.baseAddr, mask: mask.baseAddr, bits: bmap.baseAddr };
+}
+
+export function DisposCIcon(icon: CIcon | null): void {
+	if (icon !== null) {
+		DisposPtr(icon.pixels);
+		DisposPtr(icon.mask);
+		DisposPtr(icon.bits);
+	}
+}
+
+/**
+ * Draws a color icon through its mask, in its own colors on screens of more than 2 bits per pixel
+ * and as its one-bit image otherwise, ignoring the port's colors (as Executor does).
+ */
+export function PlotCIcon(r: Rect, icon: CIcon | null): void {
+	if (icon === null) {
+		return;
+	}
+	const port = thePort;
+	const color = port instanceof CGrafPort;
+	const saved = color ? { fg: { ...port.rgbFgColor }, bk: { ...port.rgbBkColor } } : null;
+	RGBForeColor({ red: 0, green: 0, blue: 0 });
+	RGBBackColor({ red: 0xffff, green: 0xffff, blue: 0xffff });
+	const deep = surfaceOf(port.portBits).depth > 2 || icon.iconBMap.rowBytes === 0;
+	const source = deep ? icon.iconPMap : icon.iconBMap;
+	CopyMask(source, icon.iconMask, port.portBits, source.bounds, icon.iconMask.bounds, r);
+	if (saved !== null) {
+		RGBForeColor(saved.fg);
+		RGBBackColor(saved.bk);
+	}
 }
 
 // ---------------------------------------------------------------------------------------------

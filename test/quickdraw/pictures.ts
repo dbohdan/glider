@@ -337,6 +337,19 @@ export const colorPictures: Record<string, () => Uint8Array> = {
 		return p.toBytes();
 	},
 
+	/** Glider's air current pixel patterns, painted as Glider paints them (transparent) and copied. */
+	colorAirPatterns() {
+		const p = colorPicture();
+		const glider = parseResourceFork(glider406().get('Glider 4.06')!.rsrc);
+		[128, 129].forEach((id, i) => {
+			const ppat = glider.get('ppat', id)!.data;
+			p.rgbFgColor(rgbColors.black).rgbBkColor(rgbColors.white).pnPixPat(ppat);
+			p.penMode(36).rect('paint', rect(4 + i * 3, 30 + i * 80, 508, 100 + i * 80));
+			p.penMode(8).rect('paint', rect(10, 200 + i * 60, 500, 250 + i * 60 + i));
+		});
+		return p.toBytes();
+	},
+
 	gliderTitle: gliderPicture('Glider 4.06', 210),
 	...Object.fromEntries([128, 129, 130, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209].map((id) => [`colorArt${id}`, gliderPicture('Color Art', id)])),
 	bwTitle: gliderPicture('Glider 4.06', 200),

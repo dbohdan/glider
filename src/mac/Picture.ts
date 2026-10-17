@@ -271,6 +271,19 @@ export function DrawPicture(pic: Picture | null, dstRect: Rect): void {
 				case 0x0c00:
 					r.bytes(24);
 					break;
+				case 0x12:
+				case 0x13:
+				case 0x14: {
+					const pp = readPixPat(r);
+					if (op === 0x13) {
+						QD.PenPixPat(pp);
+					} else if (op === 0x12) {
+						port.bkPat = pp.pat1Data;
+					} else {
+						port.fillPat = pp.pat1Data;
+					}
+					break;
+				}
 				case 0x15:
 				case 0x16:
 					r.u16();
@@ -389,6 +402,30 @@ function readPixMap(r: Reader, rowBytes: number, bounds: Rect, baseAddr: number)
 	}
 	pm.pmTable = { ctSeed, ctFlags, ctSize, ctTable };
 	return pm;
+}
+
+/** A pixel pattern in a picture: its type, old-style pattern, and for type 1 a pixel map and pixels. */
+function readPixPat(r: Reader): QD.PixPat {
+	const patType = r.u16();
+	const pat1Data = r.pattern();
+	if (patType !== 1) {
+		return { patType, patMap: QD.newPixMap(), patData: new Uint8Array(0), pat1Data };
+	}
+	const rowBytesWord = r.u16();
+	const rowBytes = rowBytesWord & 0x3fff;
+	const bounds = r.rect();
+	const pm = readPixMap(r, rowBytes, bounds, 0);
+	const height = bounds.bottom - bounds.top;
+	const patData = new Uint8Array(rowBytes * height);
+	for (let y = 0; y < height; y++) {
+		const row = patData.subarray(y * rowBytes, (y + 1) * rowBytes);
+		if (rowBytes < 8) {
+			row.set(r.bytes(rowBytes));
+		} else {
+			unpackBits(r.bytes(rowBytes > 250 ? r.u16() : r.u8()), row);
+		}
+	}
+	return { patType, patMap: pm, patData, pat1Data };
 }
 
 /** BitsRect, BitsRgn, PackBitsRect, PackBitsRgn, with bitmaps or pixel maps. */
