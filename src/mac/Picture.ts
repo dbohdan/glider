@@ -92,6 +92,7 @@ export function unpackBits(src: Uint8Array, out: Uint8Array): void {
 /** Port state that DrawPicture saves and restores. */
 function savePortState(port: QD.GrafPort) {
 	return {
+		...(port instanceof QD.CGrafPort ? { rgbFgColor: { ...port.rgbFgColor }, rgbBkColor: { ...port.rgbBkColor } } : {}),
 		pnLoc: { ...port.pnLoc },
 		pnSize: { ...port.pnSize },
 		pnMode: port.pnMode,
@@ -144,8 +145,8 @@ export function DrawPicture(pic: Picture | null, dstRect: Rect): void {
 	port.txMode = QD.srcOr;
 	port.txSize = 0;
 	port.spExtra = 0;
-	port.fgColor = QD.blackColor;
-	port.bkColor = QD.whiteColor;
+	QD.ForeColor(QD.blackColor);
+	QD.BackColor(QD.whiteColor);
 
 	const r = new Reader(pic.data, 10);
 	let version = 1;
@@ -270,6 +271,24 @@ export function DrawPicture(pic: Picture | null, dstRect: Rect): void {
 				case 0x0c00:
 					r.bytes(24);
 					break;
+				case 0x15:
+				case 0x16:
+					r.u16();
+					break;
+				case 0x1a: {
+					const c = { red: r.u16(), green: r.u16(), blue: r.u16() };
+					QD.RGBForeColor(c);
+					break;
+				}
+				case 0x1b: {
+					const c = { red: r.u16(), green: r.u16(), blue: r.u16() };
+					QD.RGBBackColor(c);
+					break;
+				}
+				case 0x1d:
+				case 0x1f:
+					r.bytes(6);
+					break;
 				case 0x1e:
 					break;
 				case 0x28: {
@@ -343,15 +362,42 @@ export function DrawPicture(pic: Picture | null, dstRect: Rect): void {
 	}
 }
 
-/** BitsRect, BitsRgn, PackBitsRect, PackBitsRgn. */
+/** A pixel map's fields after its bounds, and its color table, in a picture. */
+function readPixMap(r: Reader, rowBytes: number, bounds: Rect, baseAddr: number): QD.PixMap {
+	const pm = QD.newPixMap();
+	pm.baseAddr = baseAddr;
+	pm.rowBytes = rowBytes | 0x8000;
+	pm.bounds = bounds;
+	pm.pmVersion = r.s16();
+	pm.packType = r.s16();
+	pm.packSize = r.u32();
+	pm.hRes = r.u32();
+	pm.vRes = r.u32();
+	pm.pixelType = r.s16();
+	pm.pixelSize = r.s16();
+	pm.cmpCount = r.s16();
+	pm.cmpSize = r.s16();
+	pm.planeBytes = r.u32();
+	r.u32(); // pmTable
+	pm.pmReserved = r.u32();
+	const ctSeed = r.u32();
+	const ctFlags = r.u16();
+	const ctSize = r.s16();
+	const ctTable = [];
+	for (let i = 0; i <= ctSize; i++) {
+		ctTable.push({ value: r.s16(), rgb: { red: r.u16(), green: r.u16(), blue: r.u16() } });
+	}
+	pm.pmTable = { ctSeed, ctFlags, ctSize, ctTable };
+	return pm;
+}
+
+/** BitsRect, BitsRgn, PackBitsRect, PackBitsRgn, with bitmaps or pixel maps. */
 function bits(r: Reader, op: number, mapRect: (r: Rect) => Rect, mapRgn: (r: Region) => Region): void {
 	const rowBytesWord = r.u16();
 	const isPixMap = (rowBytesWord & 0x8000) !== 0;
 	const rowBytes = rowBytesWord & 0x3fff;
 	const bounds = r.rect();
-	if (isPixMap) {
-		throw new Error('DrawPicture: pixel maps are not implemented');
-	}
+	const pixMap = isPixMap ? readPixMap(r, rowBytes, bounds, 0) : null;
 	const srcRect = r.rect();
 	const dstRect = mapRect(r.rect());
 	const mode = r.s16();
@@ -370,7 +416,7 @@ function bits(r: Reader, op: number, mapRect: (r: Rect) => Rect, mapRgn: (r: Reg
 				row.set(r.bytes(rowBytes));
 			}
 		}
-		const src: QD.BitMap = { baseAddr: ptr, rowBytes, bounds };
+		const src: QD.BitMap = pixMap === null ? { baseAddr: ptr, rowBytes, bounds } : { ...pixMap, baseAddr: ptr };
 		QD.CopyBits(src, QD.thePort.portBits, srcRect, dstRect, mode, maskRgn);
 	} finally {
 		DisposPtr(ptr);

@@ -5,6 +5,7 @@
 // Shapes become regions, regions are clipped, and the clipped region is filled with a pattern in a
 // transfer mode: the same pipeline as QuickDraw's, which decides which pixels a shape covers.
 
+import { colorToIndex, ctDeviceFlag, GetMainDevice, makeColorTable, oldColorToRGB } from './Color.ts';
 import { type FontStrike, fontStrike, glyphOf } from './Fonts.ts';
 import { encodeMacRoman } from './MacRoman.ts';
 import { resolve, type Ptr } from './Memory.ts';
@@ -145,6 +146,35 @@ export class GrafPort {
 	rgnSave: Map<number, number[]> | null = null;
 }
 
+/** A color graphics port. Its portBits is its portPixMap, so drawing code treats both alike. */
+export class CGrafPort extends GrafPort {
+	portPixMap: PixMap = newPixMap();
+	rgbFgColor: RGBColor = { red: 0, green: 0, blue: 0 };
+	rgbBkColor: RGBColor = { red: 0xffff, green: 0xffff, blue: 0xffff };
+	override fgColor: LongInt = 0;
+	override bkColor: LongInt = 0;
+}
+
+export function newPixMap(): PixMap {
+	return {
+		baseAddr: 0,
+		rowBytes: 0x8000,
+		bounds: { top: 0, left: 0, bottom: 0, right: 0 },
+		pmVersion: 0,
+		packType: 0,
+		packSize: 0,
+		hRes: 72 << 16,
+		vRes: 72 << 16,
+		pixelType: 0,
+		pixelSize: 1,
+		cmpCount: 1,
+		cmpSize: 1,
+		planeBytes: 0,
+		pmTable: { ctSeed: 0, ctFlags: 0, ctSize: -1, ctTable: [] },
+		pmReserved: 0,
+	};
+}
+
 // ---------------------------------------------------------------------------------------------
 // Globals
 
@@ -158,8 +188,23 @@ export const screenBits: BitMap = { baseAddr: 0, rowBytes: 0, bounds: { top: 0, 
 export let thePort: GrafPort = new GrafPort();
 export let randSeed: LongInt = 1;
 
+/**
+ * Port: whether the machine has Color QuickDraw (a Mac II) or the original QuickDraw (a Mac Plus).
+ * They differ in details such as source modes used as pen modes, whatever the port.
+ */
+export let hasColorQD = false;
+
+/** The color arithmetic modes blend with and pin to (Pascal `OpColor`); black by default. */
+let opColor: RGBColor = { red: 0, green: 0, blue: 0 };
+
+export function OpColor(c: RGBColor): void {
+	opColor = { ...c };
+}
+
 /** Sets up QuickDraw for a screen: its memory, row width, and size. */
-export function InitGraf(screen: BitMap): void {
+export function InitGraf(screen: BitMap, colorQD = false): void {
+	hasColorQD = colorQD;
+	opColor = { red: 0, green: 0, blue: 0 };
 	screenBits.baseAddr = screen.baseAddr;
 	screenBits.rowBytes = screen.rowBytes;
 	screenBits.bounds = { ...screen.bounds };
@@ -296,6 +341,76 @@ export function GetPort(): GrafPort {
 
 export function SetPortBits(bm: BitMap): void {
 	thePort.portBits = bm;
+}
+
+/** Initializes a color port on the main device, as the current port. */
+export function InitCPort(port: CGrafPort): void {
+	const device = GetMainDevice();
+	if (device === null) {
+		throw new Error('OpenCPort needs Color QuickDraw');
+	}
+	InitPort(port);
+	const pm = device.gdPMap;
+	port.portPixMap = { ...pm, bounds: { ...pm.bounds } };
+	port.portBits = port.portPixMap;
+	port.portRect = { ...pm.bounds };
+	port.visRgn = rectRegion(pm.bounds);
+	RGBForeColor({ red: 0, green: 0, blue: 0 });
+	RGBBackColor({ red: 0xffff, green: 0xffff, blue: 0xffff });
+}
+
+export function OpenCPort(port: CGrafPort): void {
+	InitCPort(port);
+}
+
+export function CloseCPort(port: CGrafPort): void {
+	ClosePort(port);
+}
+
+export function RGBForeColor(c: RGBColor): void {
+	const port = thePort;
+	if (port instanceof CGrafPort) {
+		port.rgbFgColor = { ...c };
+		port.fgColor = colorToIndex(port.portPixMap.pmTable, c);
+	}
+}
+
+export function RGBBackColor(c: RGBColor): void {
+	const port = thePort;
+	if (port instanceof CGrafPort) {
+		port.rgbBkColor = { ...c };
+		port.bkColor = colorToIndex(port.portPixMap.pmTable, c);
+	}
+}
+
+/** Pascal `GetForeColor(var color)`. */
+export function GetForeColor(c: RGBColor): void {
+	const port = thePort;
+	Object.assign(c, port instanceof CGrafPort ? port.rgbFgColor : oldColorToRGB(port.fgColor));
+}
+
+export function GetBackColor(c: RGBColor): void {
+	const port = thePort;
+	Object.assign(c, port instanceof CGrafPort ? port.rgbBkColor : oldColorToRGB(port.bkColor));
+}
+
+/** Old-style colors: in a color port they become RGB colors. */
+export function ForeColor(color: LongInt): void {
+	const port = thePort;
+	if (port instanceof CGrafPort) {
+		RGBForeColor(oldColorToRGB(color));
+	} else {
+		port.fgColor = color;
+	}
+}
+
+export function BackColor(color: LongInt): void {
+	const port = thePort;
+	if (port instanceof CGrafPort) {
+		RGBBackColor(oldColorToRGB(color));
+	} else {
+		port.bkColor = color;
+	}
 }
 
 export function PortSize(width: Integer, height: Integer): void {
@@ -545,44 +660,123 @@ function clipToPort(rgn: Region): Region {
 function fillRegion(rgn: Region, pat: Pattern, mode: number): void {
 	const port = thePort;
 	const s = surfaceOf(port.portBits);
+	if (mode >= 32 && port instanceof CGrafPort) {
+		fillArithmetic(rgn, pat, mode, port, s);
+		return;
+	}
+	const { fg, bk } = portColors(port, s);
 	const op = mode & 3;
 	const notPat = (mode & 4) !== 0;
-	const ones = (1 << s.depth) - 1;
-	// Black and white: pattern 1 bits are black (all ones), 0 bits white.
-	const fg = ones;
-	const bk = 0;
 	for (const band of rgn.bands) {
 		for (let v = band.top; v < band.bottom; v++) {
 			const row = pat[(v - s.bounds.top) & 7]!;
 			for (let k = 0; k < band.xs.length; k += 2) {
 				for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
-					let p = (row >> (7 - ((h - s.bounds.left) & 7))) & 1;
-					if (notPat) {
-						p ^= 1;
-					}
-					switch (op) {
-						case 0:
-							setPixel(s, h, v, p ? fg : bk);
-							break;
-						case 1:
-							if (p) {
-								setPixel(s, h, v, fg);
-							}
-							break;
-						case 2:
-							if (p) {
-								setPixel(s, h, v, getPixel(s, h, v) ^ ones);
-							}
-							break;
-						case 3:
-							if (p) {
-								setPixel(s, h, v, bk);
-							}
-							break;
-					}
+					const p = (row >> (7 - ((h - s.bounds.left) & 7))) & 1;
+					transferBit(s, h, v, notPat ? p ^ 1 : p, op, fg, bk);
 				}
 			}
 		}
+	}
+}
+
+/**
+ * Fills a region with a pattern in an arithmetic mode (32 to 39, or 40 to 47 as pattern modes):
+ * pattern bits become the foreground or background color, the mode combines that color with the
+ * destination's, and the result becomes the closest color of the destination's table.
+ */
+function fillArithmetic(rgn: Region, pat: Pattern, mode: number, port: CGrafPort, s: Surface): void {
+	const table = port.portPixMap.pmTable;
+	const op = (mode & 7) | 32;
+	// Port: for regions that are not rectangles, the Mac II ROM inverts the pattern in transparent
+	// mode (seen in the oracle); Glider's color shadows, ovals and recorded regions painted in
+	// patCopy + transparent, show it. Some other arithmetic modes (subOver, adMin) seem to invert it
+	// too, and others (addOver, subPin) not; not used by Glider, not pinned down.
+	const flip = op === transparent && !rgn.isRect() ? 1 : 0;
+	const combine = (src: number, dst: number, pin: number): number => {
+		switch (op) {
+			case blend:
+				return Math.trunc((src * pin + dst * (0xffff - pin)) / 0xffff);
+			case addPin:
+				return Math.min(src + dst, pin);
+			case addOver:
+				return (src + dst) & 0xffff;
+			case subPin:
+				return Math.max(dst - src, pin);
+			case adMax:
+				return Math.max(src, dst);
+			case subOver:
+				return (dst - src) & 0xffff;
+			case adMin:
+				return Math.min(src, dst);
+			default:
+				return src;
+		}
+	};
+	for (const band of rgn.bands) {
+		for (let v = band.top; v < band.bottom; v++) {
+			const row = pat[(v - s.bounds.top) & 7]!;
+			for (let k = 0; k < band.xs.length; k += 2) {
+				for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
+					const bit = ((row >> (7 - ((h - s.bounds.left) & 7))) & 1) ^ flip;
+					if (op === transparent) {
+						// Background-colored pattern pixels leave the destination alone.
+						if (bit) {
+							setPixel(s, h, v, port.fgColor);
+						}
+						continue;
+					}
+					const src = bit ? port.rgbFgColor : port.rgbBkColor;
+					const dst = table.ctTable[getPixel(s, h, v)]?.rgb ?? { red: 0, green: 0, blue: 0 };
+					const out = {
+						red: combine(src.red, dst.red, opColor.red),
+						green: combine(src.green, dst.green, opColor.green),
+						blue: combine(src.blue, dst.blue, opColor.blue),
+					};
+					setPixel(s, h, v, colorToIndex(table, out));
+				}
+			}
+		}
+	}
+}
+
+/**
+ * The pixel values a port draws black and white bits of patterns, text, and bitmaps with: its
+ * foreground and background colors in a color port, black and white otherwise.
+ */
+function portColors(port: GrafPort, s: Surface): { fg: number; bk: number } {
+	if (port instanceof CGrafPort) {
+		return { fg: port.fgColor, bk: port.bkColor };
+	}
+	return { fg: (1 << s.depth) - 1, bk: 0 };
+}
+
+/**
+ * Transfers one bit of a one-bit source (a pattern, a glyph, a bitmap) to a pixel in a boolean
+ * transfer mode (the low two bits of the mode; "not" is applied by the caller). In color, a black
+ * bit copies or ors the foreground color, bics the background color, and xors by complementing the
+ * pixel value (Inside Macintosh V-57).
+ */
+function transferBit(s: Surface, h: number, v: number, bit: number, op: number, fg: number, bk: number): void {
+	switch (op) {
+		case 0:
+			setPixel(s, h, v, bit ? fg : bk);
+			return;
+		case 1:
+			if (bit) {
+				setPixel(s, h, v, fg);
+			}
+			return;
+		case 2:
+			if (bit) {
+				setPixel(s, h, v, getPixel(s, h, v) ^ ((1 << s.depth) - 1));
+			}
+			return;
+		case 3:
+			if (bit) {
+				setPixel(s, h, v, bk);
+			}
+			return;
 	}
 }
 
@@ -615,15 +809,20 @@ function drawShape(verb: GrafVerb, shape: Region, frameRgn?: () => Region): void
 
 /**
  * The pattern and pattern mode that shapes are drawn with in the pen's mode, or null to draw nothing.
- * Port: source modes (0 to 7) as pen modes ignore the pen pattern and act like pattern mode 14 - mode
- * with a black pattern, so that srcCopy and srcOr leave the destination alone, srcXor and srcBic
- * erase, notSrcCopy inverts, and notSrcOr and notSrcXor paint black. This is what the Mac Plus ROM
- * does (seen in the oracle); Glider sets source pen modes only before drawing lines and text.
+ * Port: on the original QuickDraw, source modes (0 to 7) as pen modes ignore the pen pattern and act
+ * like pattern mode 14 - mode with a black pattern, so that srcCopy and srcOr leave the destination
+ * alone, srcXor and srcBic erase, notSrcCopy inverts, and notSrcOr and notSrcXor paint black. Color
+ * QuickDraw uses the corresponding pattern modes instead. This is what the Mac Plus and Mac II ROMs
+ * do (seen in the oracle); Glider sets source pen modes before drawing text and lines.
  */
 function penTransfer(port: GrafPort): { pat: Pattern; mode: number } | null {
 	const mode = port.pnMode;
 	if (mode >= 8) {
 		return { pat: port.pnPat, mode };
+	}
+	if (hasColorQD) {
+		// Port: Color QuickDraw draws source pen modes as the corresponding pattern modes (seen in the oracle).
+		return { pat: port.pnPat, mode: mode | 8 };
 	}
 	return mode === 7 ? null : { pat: black, mode: 14 - mode };
 }
@@ -695,9 +894,10 @@ export function StdLine(newPt: Point): void {
 	if (port.rgnSave !== null) {
 		recordLine(port.rgnSave, from, newPt);
 	}
-	if (port.pnVis >= 0 && port.pnSize.h > 0 && port.pnSize.v > 0 && port.pnMode >= 8) {
-		// Port: lines in source modes (0 to 7) draw nothing on the Mac Plus ROM (seen in the oracle).
-		fillRegion(clipToPort(lineRegion(from, newPt, port.pnSize)), port.pnPat, port.pnMode);
+	// Port: lines in source modes (0 to 7) draw nothing on the original QuickDraw, and draw in the
+	// corresponding pattern modes on Color QuickDraw (seen in the oracle).
+	if (port.pnVis >= 0 && port.pnSize.h > 0 && port.pnSize.v > 0 && (port.pnMode >= 8 || hasColorQD)) {
+		fillRegion(clipToPort(lineRegion(from, newPt, port.pnSize)), port.pnPat, port.pnMode < 8 ? port.pnMode | 8 : port.pnMode);
 	}
 }
 
@@ -1038,36 +1238,37 @@ export function FillRgn(rgn: Region, pat: Pattern): void {
 // ---------------------------------------------------------------------------------------------
 // Bits
 
+/** Whether a bitmap is the current port's: drawing into it is clipped to the port's visRgn and clipRgn. */
+function isPortBits(bm: BitMap): boolean {
+	const pb = thePort.portBits;
+	return bm === pb || (bm.baseAddr === pb.baseAddr && EqualRect(bm.bounds, pb.bounds));
+}
+
 /**
- * Copies pixels between bitmaps, clipped to the current port's visRgn and clipRgn when the
- * destination is its bitmap, and to maskRgn (in destination coordinates) when given.
+ * The destination pixels a copy reaches: dstRect within the destination bitmap, the part of it the
+ * source rectangle has pixels for, the port's visRgn and clipRgn if the destination is the port's,
+ * and maskRgn.
  */
-export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRect: Rect, mode: Integer, maskRgn: Region | null): void {
-	if (srcRect.right - srcRect.left !== dstRect.right - dstRect.left || srcRect.bottom - srcRect.top !== dstRect.bottom - dstRect.top) {
-		throw new Error('CopyBits: stretching is not implemented');
-	}
-	const src = surfaceOf(srcBits);
-	const dst = surfaceOf(dstBits);
+function copyClip(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRect: Rect, maskRgn: Region | null): Region {
 	let clip = sect(rectRegion(dstRect), rectRegion(dstBits.bounds));
-	// The source rectangle is clipped to the source bitmap, too.
-	const srcClip = rectRegion(srcBits.bounds);
+	const srcClip = sect(rectRegion(srcRect), rectRegion(srcBits.bounds));
 	offsetRegion(srcClip, dstRect.left - srcRect.left, dstRect.top - srcRect.top);
 	clip = sect(clip, srcClip);
-	if (dstBits === thePort.portBits || (dstBits.baseAddr === thePort.portBits.baseAddr && EqualRect(dstBits.bounds, thePort.portBits.bounds))) {
+	if (isPortBits(dstBits)) {
 		clip = sect(sect(clip, thePort.visRgn), thePort.clipRgn);
 	}
-	if (maskRgn !== null) {
-		clip = sect(clip, maskRgn);
-	}
-	const dh = srcRect.left - dstRect.left;
-	const dv = srcRect.top - dstRect.top;
+	return maskRgn === null ? clip : sect(clip, maskRgn);
+}
+
+/**
+ * Transfers pixels from a source to a destination of the same depth in a source transfer mode,
+ * where `use` says so, over a clipped region. Rows and runs go in an order that copies correctly
+ * when source and destination overlap.
+ */
+function blit(src: Surface, dst: Surface, clip: Region, dh: number, dv: number, mode: number, use: (h: number, v: number) => boolean): void {
 	const op = mode & 3;
 	const notSrc = (mode & 4) !== 0;
 	const ones = (1 << dst.depth) - 1;
-	if (src.depth !== 1 || dst.depth !== 1) {
-		throw new Error('CopyBits: only 1-bit bitmaps are implemented');
-	}
-	// Rows are processed in an order that copies correctly when source and destination overlap.
 	const bands = dv < 0 ? [...clip.bands].reverse() : clip.bands;
 	for (const band of bands) {
 		for (let n = 0; n < band.bottom - band.top; n++) {
@@ -1080,34 +1281,132 @@ export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRec
 					row.push(getPixel(src, h + dh, v + dv));
 				}
 				for (let h = from; h < to; h++) {
+					if (!use(h, v)) {
+						continue;
+					}
 					let p = row[h - from]!;
 					if (notSrc) {
-						p ^= 1;
+						p ^= ones;
 					}
 					switch (op) {
 						case 0:
-							setPixel(dst, h, v, p ? ones : 0);
+							setPixel(dst, h, v, p);
 							break;
 						case 1:
-							if (p) {
-								setPixel(dst, h, v, ones);
-							}
+							setPixel(dst, h, v, getPixel(dst, h, v) | p);
 							break;
 						case 2:
-							if (p) {
-								setPixel(dst, h, v, getPixel(dst, h, v) ^ ones);
-							}
+							setPixel(dst, h, v, getPixel(dst, h, v) ^ p);
 							break;
 						case 3:
-							if (p) {
-								setPixel(dst, h, v, 0);
-							}
+							setPixel(dst, h, v, getPixel(dst, h, v) & ~p);
 							break;
 					}
 				}
 			}
 		}
 	}
+}
+
+/** The color table a bitmap's pixel values refer to: black and white for bitmaps. */
+function colorTableOf(bm: BitMap): ColorTable {
+	return isPixMap(bm) ? bm.pmTable : bwTable;
+}
+
+const bwTable: ColorTable = makeColorTable([
+	{ red: 0xffff, green: 0xffff, blue: 0xffff },
+	{ red: 0, green: 0, blue: 0 },
+]);
+
+/** Whether two color tables give the same pixel values the same colors. */
+function sameColors(a: ColorTable, b: ColorTable): boolean {
+	if (a === b || a.ctFlags & ctDeviceFlag || (a.ctSeed !== 0 && a.ctSeed === b.ctSeed)) {
+		return true;
+	}
+	return a.ctTable.length === b.ctTable.length && a.ctTable.every((x, i) => {
+		const y = b.ctTable[i]!;
+		return x.rgb.red === y.rgb.red && x.rgb.green === y.rgb.green && x.rgb.blue === y.rgb.blue;
+	});
+}
+
+/**
+ * Copies pixels between bitmaps, clipped to the current port's visRgn and clipRgn when the
+ * destination is its bitmap, and to maskRgn (in destination coordinates) when given.
+ * One-bit sources are drawn with the port's foreground and background colors in color ports.
+ * Pixel values change from the source's color table to the destination's by matching colors,
+ * unless the tables are the same or the source's is a device's.
+ */
+export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRect: Rect, mode: Integer, maskRgn: Region | null): void {
+	if (srcRect.right - srcRect.left !== dstRect.right - dstRect.left || srcRect.bottom - srcRect.top !== dstRect.bottom - dstRect.top) {
+		throw new Error('CopyBits: stretching is not implemented');
+	}
+	const src = surfaceOf(srcBits);
+	const dst = surfaceOf(dstBits);
+	const clip = copyClip(srcBits, dstBits, srcRect, dstRect, maskRgn);
+	const dh = srcRect.left - dstRect.left;
+	const dv = srcRect.top - dstRect.top;
+	if (src.depth === 1 && dst.depth > 1) {
+		const { fg, bk } = portColors(thePort, dst);
+		const op = mode & 3;
+		const not = (mode & 4) !== 0;
+		for (const band of clip.bands) {
+			for (let v = band.top; v < band.bottom; v++) {
+				for (let k = 0; k < band.xs.length; k += 2) {
+					for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
+						const p = getPixel(src, h + dh, v + dv);
+						transferBit(dst, h, v, not ? p ^ 1 : p, op, fg, bk);
+					}
+				}
+			}
+		}
+		return;
+	}
+	const srcTable = colorTableOf(srcBits);
+	const dstTable = colorTableOf(dstBits);
+	if (src.depth === dst.depth && sameColors(srcTable, dstTable)) {
+		blit(src, dst, clip, dh, dv, mode & 7, () => true);
+		return;
+	}
+	if ((mode & 7) !== srcCopy) {
+		throw new Error(`CopyBits: mode ${mode} between different color tables is not implemented`);
+	}
+	// Map each source pixel value to the destination's closest color.
+	const map = srcTable.ctTable.map((spec) => colorToIndex(dstTable, spec.rgb));
+	for (const band of clip.bands) {
+		for (let v = band.top; v < band.bottom; v++) {
+			for (let k = 0; k < band.xs.length; k += 2) {
+				for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
+					setPixel(dst, h, v, map[getPixel(src, h + dh, v + dv)] ?? 0);
+				}
+			}
+		}
+	}
+}
+
+/**
+ * Copies the pixels of a source where a one-bit mask is black (Inside Macintosh IV-24).
+ * Port: clipped like CopyBits; the rectangles must be the same size, as in the Mac Plus ROM.
+ */
+export function CopyMask(srcBits: BitMap, maskBits: BitMap, dstBits: BitMap, srcRect: Rect, maskRect: Rect, dstRect: Rect): void {
+	const w = dstRect.right - dstRect.left;
+	const h = dstRect.bottom - dstRect.top;
+	if (srcRect.right - srcRect.left !== w || srcRect.bottom - srcRect.top !== h || maskRect.right - maskRect.left !== w || maskRect.bottom - maskRect.top !== h) {
+		throw new Error('CopyMask: stretching is not implemented');
+	}
+	const src = surfaceOf(srcBits);
+	const dst = surfaceOf(dstBits);
+	const mask = surfaceOf(maskBits);
+	if (src.depth !== dst.depth) {
+		throw new Error(`CopyMask: copying ${src.depth}-bit pixels to ${dst.depth}-bit pixels is not implemented`);
+	}
+	const clip = sect(copyClip(srcBits, dstBits, srcRect, dstRect, null), (() => {
+		const m = sect(rectRegion(maskRect), rectRegion(maskBits.bounds));
+		offsetRegion(m, dstRect.left - maskRect.left, dstRect.top - maskRect.top);
+		return m;
+	})());
+	const mh = maskRect.left - dstRect.left;
+	const mv = maskRect.top - dstRect.top;
+	blit(src, dst, clip, srcRect.left - dstRect.left, srcRect.top - dstRect.top, srcCopy, (x, y) => getPixel(mask, x + mh, y + mv) !== 0);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1178,8 +1477,9 @@ export function StringWidth(s: string): Integer {
  * Draws characters at the pen location in the port's font and text mode and moves the pen past them.
  * Port: as in QuickDraw, the characters are first drawn into a buffer that covers their advance
  * widths, from the font's ascent to its descent, and the buffer is then transferred in the text mode,
- * so that copy modes fill that box. Spaces are never drawn, even when the font draws a missing
- * character in their place (seen in the oracle).
+ * so that copy modes fill that box. On Color QuickDraw the buffer begins kernMax pixels left of the
+ * pen. Spaces are never drawn, even when the font draws a missing character in their place.
+ * (All seen in the oracle.)
  */
 export function StdText(text: Uint8Array): void {
 	const port = thePort;
@@ -1195,11 +1495,13 @@ export function StdText(text: Uint8Array): void {
 		return;
 	}
 	// The buffer: one byte per pixel, set where a glyph has a black pixel.
+	const left = start + (hasColorQD ? Math.min(0, f.kernMax) : 0);
+	const bufferWidth = start + width - left;
 	const top = v - f.ascent;
 	const height = f.ascent + f.descent;
-	const buffer = new Uint8Array(width * height);
+	const buffer = new Uint8Array(bufferWidth * height);
 	const fontRowBytes = f.rowWords * 2;
-	let pen = 0;
+	let pen = start - left;
 	for (const ch of text) {
 		const g = glyphOf(f, ch);
 		if (ch !== 0x20) {
@@ -1207,21 +1509,21 @@ export function StdText(text: Uint8Array): void {
 				for (let i = 0; i < g.imageWidth; i++) {
 					const x = pen + g.imageOffset + i;
 					const col = g.locStart + i;
-					if (x >= 0 && x < width && (f.bitImage[y * fontRowBytes + (col >> 3)]! >> (7 - (col & 7))) & 1) {
-						buffer[y * width + x] = 1;
+					if (x >= 0 && x < bufferWidth && (f.bitImage[y * fontRowBytes + (col >> 3)]! >> (7 - (col & 7))) & 1) {
+						buffer[y * bufferWidth + x] = 1;
 					}
 				}
 			}
 		}
 		pen += g.width;
 	}
-	transferBuffer(buffer, { top, left: start, bottom: top + height, right: start + width }, port.txMode);
+	transferBuffer(buffer, { top, left, bottom: top + height, right: left + bufferWidth }, port.txMode);
 }
 
 /** Transfers a one-byte-per-pixel buffer of 0s and 1s (1 = black) to the current port in a source mode. */
 function transferBuffer(buffer: Uint8Array, r: Rect, mode: number): void {
 	const s = surfaceOf(thePort.portBits);
-	const ones = (1 << s.depth) - 1;
+	const { fg, bk } = portColors(thePort, s);
 	const op = mode & 3;
 	const not = (mode & 4) !== 0;
 	const width = r.right - r.left;
@@ -1229,30 +1531,8 @@ function transferBuffer(buffer: Uint8Array, r: Rect, mode: number): void {
 		for (let v = band.top; v < band.bottom; v++) {
 			for (let k = 0; k < band.xs.length; k += 2) {
 				for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
-					let p = buffer[(v - r.top) * width + h - r.left]!;
-					if (not) {
-						p ^= 1;
-					}
-					switch (op) {
-						case 0:
-							setPixel(s, h, v, p ? ones : 0);
-							break;
-						case 1:
-							if (p) {
-								setPixel(s, h, v, ones);
-							}
-							break;
-						case 2:
-							if (p) {
-								setPixel(s, h, v, getPixel(s, h, v) ^ ones);
-							}
-							break;
-						case 3:
-							if (p) {
-								setPixel(s, h, v, 0);
-							}
-							break;
-					}
+					const p = buffer[(v - r.top) * width + h - r.left]!;
+					transferBit(s, h, v, not ? p ^ 1 : p, op, fg, bk);
 				}
 			}
 		}

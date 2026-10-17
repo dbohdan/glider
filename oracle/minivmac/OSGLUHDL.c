@@ -38,6 +38,8 @@
 		r ADDR N PATH
 		             write N bytes of RAM starting at ADDR to PATH
 		t            print the tick count and the Mac's Ticks global
+		c            print the color table (index, then red, green, blue
+		             as 16-bit values), if the screen has colors
 		speed N      run 2^N times the instructions per tick (default 0)
 		date SECS    set the clock (seconds since 1904, default 1992-02-01)
 		q            quit
@@ -476,6 +478,15 @@ LOCALPROC RunScript(void)
 				(unsigned long)TrueEmulatedTime,
 				(unsigned long)RamLong(0x016A));
 			fflush(stdout);
+		} else if (0 == strcmp(cmd, "c")) {
+#if 0 != vMacScreenDepth
+			int i;
+			for (i = 0; i < (1 << (1 << vMacScreenDepth)); ++i) {
+				printf("clut %d %04X %04X %04X\n", i,
+					CLUT_reds[i], CLUT_greens[i], CLUT_blues[i]);
+			}
+			fflush(stdout);
+#endif
 		} else if (0 == strcmp(cmd, "speed")) {
 			SpeedValue = ScriptNum(a1);
 		} else if (0 == strcmp(cmd, "date")) {

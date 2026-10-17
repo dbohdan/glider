@@ -116,6 +116,8 @@ These keep the TypeScript recognizably the same program as the Pascal.
   - [x] Rectangles, regions, patterns, pattern modes, lines, ovals (known gaps), rounded rectangles, polygons, region recording from lines, 1-bit `CopyBits` in `srcCopy`, `DrawPicture` for these.
   - [ ] Text, all `CopyBits` modes, `CopyMask`, arcs, picture scaling.
 - [ ] **4. Color QuickDraw:** 4-bit pixel maps, color tables, inverse tables, fore and back colors, colorizing, arithmetic modes used by Glider.
+  - [x] Color ports, 4-bit pixel maps, the standard color table, RGB fore and back colors, pattern and text modes in color, transparent mode, version 2 pictures with pixel maps, `CopyBits` between depths and color tables.
+  - [ ] Pixel patterns (`ppat`), color icons (`cicn`), color cursors, the Palette Manager, the inverse table for arithmetic modes.
 - [ ] **5. Platform:** display, scaling, input, time, cursors.
 - [ ] **6. Toolbox user interface (System 6):** Window, Menu, Control, Dialog, TextEdit, and Alert managers.
 - [ ] **7. Files:** File Manager over the virtual file system, Standard File backed by the house library, preferences.
@@ -128,7 +130,7 @@ These keep the TypeScript recognizably the same program as the Pascal.
 ## Open questions
 
 - The exact oval rule (see the journal): the original QuickDraw source (Computer History Museum, 2010) is under a non-commercial license, so it could only be read for the algorithm, not copied; not consulted so far.
-- Exact Color QuickDraw behavior for: `patCopy + transparent` (mode 44), text in pattern modes, XOR and invert on 4-bit pixels, colorizing with a cyan background, inverse table matching.
+- Exact Color QuickDraw behavior for: colorizing with a cyan background (help screens), inverse table matching, arithmetic modes other than transparent on regions that are not rectangles.
 - Effective device color table after the Palette Manager applies `pltt` 128.
 - Initial values of uninitialized Pascal globals (affects the `is4Channel` preference bug).
 - Which keyboard type the port reports (`SysEnvirons`' `keyBoardType`): the shipped preferences say 4, so any other value shows the "New keyboard" alert at first launch, as the oracle does on both machines.
@@ -191,3 +193,16 @@ Findings, all checked pixel by pixel against the Mac Plus ROM:
   The exact rule probably needs the original algorithm (an incremental square-root scan, judging by the asymmetries); see open questions.
 - **Rounded rectangles** stretch the corner oval's edges, not its region: rows where a narrow corner oval's edges cross are empty in the oval but not in the rounded rectangle.
 - Glider's title picture and all 13 black-and-white backgrounds draw identically to the ROM.
+
+Color QuickDraw, checked against the Mac II ROM the same way (Glider's color title is drawn into a 4-bit offscreen pixel map):
+
+- The emulated Mac II's 16-color table is the standard `clut` 4 with 8-bit components; screenshots show the high byte of each.
+- Glider's color title, all 13 color backgrounds, and the black-and-white title drawn in color match the ROM.
+- Pattern, text, and bitmap bits draw in color as Inside Macintosh V says: copy and or use the foreground color, bic the background color, xor complements the pixel value.
+- **Source modes as pen modes** act as the corresponding pattern modes on Color QuickDraw, for shapes and lines alike: Glider's lightning bolts (`srcXor` lines) show in color.
+  The rule follows the machine's QuickDraw, not the port, so `InitGraf` takes a `hasColorQD` flag.
+- **Text:** Color QuickDraw's text buffer begins `kernMax` pixels left of the pen, which shows in the not-modes; the original QuickDraw's begins at the pen.
+- **Arithmetic modes** combine RGB colors (the default `OpColor` is black, so blend changes nothing and addPin gives black); modes 32 to 39 act like 40 to 47 for fills.
+  `srcCopy + transparent` and `patCopy + transparent`, which Glider uses for shadows, both draw only the foreground-colored pattern pixels.
+  For regions that are not rectangles the Mac II ROM inverts the pattern in transparent mode, so Glider's color shadows have the opposite dither phase from what the pattern suggests.
+- Other arithmetic modes pick colors through the ROM's 4-bit inverse table, which the port approximates with the nearest color; Glider does not use them.

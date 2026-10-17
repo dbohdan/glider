@@ -21,6 +21,9 @@ function picture(): PictWriter {
 	return new PictWriter(pictureFrame).clipRect(pictureFrame);
 }
 
+/** Glider's pen mode for shadows in color. */
+const patCopyTransparent = 8 + 36;
+
 /** A deterministic pseudo-random sequence for test shapes. */
 function random(seed: number): (n: number) => number {
 	let s = seed;
@@ -60,6 +63,8 @@ export const knownDifferences: Record<string, number> = {
 	ovals: 2,
 	bigOvals: 5,
 	roundRects: 4,
+	// Arithmetic modes other than transparent: colors matched through the ROM's inverse table.
+	'ii-colorArithmeticModes': 2304,
 };
 
 /** Glider's own pictures, from the oracle's copy of Glider 4.06. */
@@ -214,6 +219,29 @@ export const testPictures: Record<string, () => Uint8Array> = {
 		return p.toBytes();
 	},
 
+	/** CopyBits in every source mode, with and without a mask region, over half black. */
+	bits() {
+		const p = picture();
+		p.rect('paint', rect(256, 104, 512, 342));
+		// A 6-byte-wide image (48 by 24) of diagonal stripes and a frame.
+		const rows = new Uint8Array(6 * 24);
+		for (let y = 0; y < 24; y++) {
+			for (let x = 0; x < 48; x++) {
+				if ((x + y) % 7 < 3 || y === 0 || x === 0 || y === 23 || x === 47) {
+					rows[y * 6 + (x >> 3)]! |= 0x80 >> (x & 7);
+				}
+			}
+		}
+		const bounds = rect(0, 0, 48, 24);
+		for (let mode = 0; mode < 8; mode++) {
+			const x = 230 + (mode % 2) * 10;
+			const y = 110 + mode * 28;
+			p.bits(bounds, 6, rows, bounds, rect(x, y, x + 48, y + 24), mode);
+			p.bits(bounds, 6, rows, rect(5, 3, 40, 20), rect(x + 60, y, x + 95, y + 17), mode);
+		}
+		return p.toBytes();
+	},
+
 	/** Pattern transfer modes over a striped background. */
 	patternModes() {
 		const p = picture();
@@ -230,4 +258,86 @@ export const testPictures: Record<string, () => Uint8Array> = {
 		}
 		return p.toBytes();
 	},
+};
+
+const rgbColors = {
+	black: { red: 0, green: 0, blue: 0 },
+	white: { red: 0xffff, green: 0xffff, blue: 0xffff },
+	red: { red: 0xdd6b, green: 0x08c2, blue: 0x06a2 },
+	blue: { red: 0, green: 0, blue: 0xd400 },
+	yellow: { red: 0xfc00, green: 0xf37d, blue: 0x052f },
+	violet: { red: 0x46e3, green: 0, blue: 0xa53e },
+	tan: { red: 0x90d7, green: 0x7160, blue: 0x3a34 },
+	cyan: { red: 0x0241, green: 0xab54, blue: 0xeaff },
+};
+
+/** A version 2 picture over stripes of every color. */
+function colorPicture(): PictWriter {
+	const p = new PictWriter(pictureFrame, 2).clipRect(pictureFrame);
+	Object.values(rgbColors).forEach((c, i) => p.rgbFgColor(c).rect('paint', rect(i * 64, 20, i * 64 + 64, 342)));
+	return p.rgbFgColor(rgbColors.black).rgbBkColor(rgbColors.white);
+}
+
+/** Pictures drawn in color, as on a Mac II. */
+export const colorPictures: Record<string, () => Uint8Array> = {
+	/** Pattern modes with colors. */
+	colorPatternModes() {
+		const p = colorPicture();
+		const pairs = [[rgbColors.black, rgbColors.white], [rgbColors.red, rgbColors.white], [rgbColors.blue, rgbColors.yellow], [rgbColors.white, rgbColors.black]] as const;
+		pairs.forEach(([fg, bk], j) => {
+			for (let mode = 8; mode < 16; mode++) {
+				const y = 26 + j * 78 + (mode - 8) * 9;
+				p.rgbFgColor(fg).rgbBkColor(bk).penMode(mode).penPat(patterns.gray!).rect('paint', rect(4, y, 508, y + 7));
+			}
+		});
+		return p.toBytes();
+	},
+
+	/** The arithmetic modes, as Glider uses them: patCopy + transparent and srcCopy + transparent. */
+	colorArithmeticModes() {
+		const p = colorPicture();
+		for (let i = 0; i < 16; i++) {
+			const mode = 32 + i;
+			const y = 26 + i * 19;
+			p.rgbFgColor(rgbColors.black).rgbBkColor(rgbColors.white).penMode(mode).penPat(patterns.gray!).rect('paint', rect(4, y, 508, y + 8));
+			p.rgbFgColor(rgbColors.red).penPat(patterns.dkGray!).rect('paint', rect(4, y + 9, 508, y + 17));
+		}
+		return p.toBytes();
+	},
+
+	/** Source modes as pen modes in color, for shapes and lines (Glider's lightning bolts). */
+	colorSourcePenModes() {
+		const p = colorPicture();
+		for (let mode = 0; mode < 8; mode++) {
+			const y = 26 + mode * 38;
+			p.rgbFgColor(rgbColors.black).penMode(mode).penPat(patterns.gray!).rect('paint', rect(4, y, 508, y + 12));
+			p.penSize(2, 2).line({ h: 4, v: y + 16 }, { h: 508, v: y + 30 }).penSize(1, 1);
+			p.rgbFgColor(rgbColors.yellow).line({ h: 4, v: y + 34 }, { h: 508, v: y + 20 });
+		}
+		return p.toBytes();
+	},
+
+	/** Text in every source mode, in colors. */
+	colorText() {
+		const p = colorPicture();
+		for (let mode = 0; mode < 16; mode++) {
+			const fg = Object.values(rgbColors)[mode % 8]!;
+			p.rgbFgColor(fg).rgbBkColor(rgbColors.cyan).txFont(mode % 2 ? 16 : 0).txSize(12).txMode(mode).text({ v: 40 + mode * 19, h: 10 + (mode % 3) * 40 }, `mode ${mode}: The quick brown fox jumps over the lazy dog`);
+		}
+		return p.toBytes();
+	},
+
+	/** Shapes in colors. */
+	colorShapes() {
+		const p = colorPicture();
+		p.rgbFgColor(rgbColors.red).oval('paint', rect(10, 30, 110, 90)).rgbFgColor(rgbColors.blue).rRect('frame', rect(120, 30, 250, 90));
+		p.rgbFgColor(rgbColors.violet).fillPat(patterns.bricks!).rect('fill', rect(260, 30, 500, 90));
+		p.rgbBkColor(rgbColors.yellow).rect('erase', rect(10, 100, 200, 150)).rect('invert', rect(150, 120, 400, 180));
+		p.rgbFgColor(rgbColors.black).rgbBkColor(rgbColors.white).penPat(patterns.gray!).penMode(patCopyTransparent).poly('paint', [{ h: 60, v: 200 }, { h: 45, v: 215 }, { h: 45, v: 300 }, { h: 300, v: 300 }, { h: 315, v: 285 }, { h: 60, v: 285 }, { h: 60, v: 200 }]);
+		return p.toBytes();
+	},
+
+	gliderTitle: gliderPicture('Glider 4.06', 210),
+	...Object.fromEntries([128, 129, 130, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209].map((id) => [`colorArt${id}`, gliderPicture('Color Art', id)])),
+	bwTitle: gliderPicture('Glider 4.06', 200),
 };
