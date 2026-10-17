@@ -5,6 +5,8 @@
 // Shapes become regions, regions are clipped, and the clipped region is filled with a pattern in a
 // transfer mode: the same pipeline as QuickDraw's, which decides which pixels a shape covers.
 
+import { type FontStrike, fontStrike, glyphOf } from './Fonts.ts';
+import { encodeMacRoman } from './MacRoman.ts';
 import { resolve, type Ptr } from './Memory.ts';
 import {
 	type Band,
@@ -1106,6 +1108,167 @@ export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRec
 			}
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// Text
+
+export interface FontInfo {
+	ascent: Integer;
+	descent: Integer;
+	widMax: Integer;
+	leading: Integer;
+}
+
+export function TextFont(font: Integer): void {
+	thePort.txFont = font;
+}
+
+export function TextFace(face: Integer): void {
+	thePort.txFace = face;
+}
+
+export function TextMode(mode: Integer): void {
+	thePort.txMode = mode;
+}
+
+export function TextSize(size: Integer): void {
+	thePort.txSize = size;
+}
+
+export function SpaceExtra(extra: LongInt): void {
+	thePort.spExtra = extra;
+}
+
+function portStrike(): FontStrike {
+	return fontStrike(thePort.txFont, thePort.txSize);
+}
+
+export function GetFontInfo(info: FontInfo): void {
+	const f = portStrike();
+	info.ascent = f.ascent;
+	info.descent = f.descent;
+	info.widMax = f.widMax;
+	info.leading = f.leading;
+}
+
+function charCode(ch: string | number): number {
+	return typeof ch === 'number' ? ch : encodeMacRoman(ch)[0]!;
+}
+
+export function CharWidth(ch: string | number): Integer {
+	return glyphOf(portStrike(), charCode(ch)).width;
+}
+
+export function TextWidth(text: Uint8Array, firstByte: Integer, byteCount: Integer): Integer {
+	const f = portStrike();
+	let w = 0;
+	for (let i = firstByte; i < firstByte + byteCount; i++) {
+		w += glyphOf(f, text[i]!).width;
+	}
+	return w;
+}
+
+export function StringWidth(s: string): Integer {
+	const b = encodeMacRoman(s);
+	return TextWidth(b, 0, b.length);
+}
+
+/**
+ * Draws characters at the pen location in the port's font and text mode and moves the pen past them.
+ * Port: as in QuickDraw, the characters are first drawn into a buffer that covers their advance
+ * widths, from the font's ascent to its descent, and the buffer is then transferred in the text mode,
+ * so that copy modes fill that box. Spaces are never drawn, even when the font draws a missing
+ * character in their place (seen in the oracle).
+ */
+export function StdText(text: Uint8Array): void {
+	const port = thePort;
+	const f = portStrike();
+	const start = port.pnLoc.h;
+	const v = port.pnLoc.v;
+	let width = 0;
+	for (const ch of text) {
+		width += glyphOf(f, ch).width;
+	}
+	port.pnLoc = { h: start + width, v };
+	if (port.pnVis < 0 || width <= 0) {
+		return;
+	}
+	// The buffer: one byte per pixel, set where a glyph has a black pixel.
+	const top = v - f.ascent;
+	const height = f.ascent + f.descent;
+	const buffer = new Uint8Array(width * height);
+	const fontRowBytes = f.rowWords * 2;
+	let pen = 0;
+	for (const ch of text) {
+		const g = glyphOf(f, ch);
+		if (ch !== 0x20) {
+			for (let y = 0; y < height && y < f.fRectHeight; y++) {
+				for (let i = 0; i < g.imageWidth; i++) {
+					const x = pen + g.imageOffset + i;
+					const col = g.locStart + i;
+					if (x >= 0 && x < width && (f.bitImage[y * fontRowBytes + (col >> 3)]! >> (7 - (col & 7))) & 1) {
+						buffer[y * width + x] = 1;
+					}
+				}
+			}
+		}
+		pen += g.width;
+	}
+	transferBuffer(buffer, { top, left: start, bottom: top + height, right: start + width }, port.txMode);
+}
+
+/** Transfers a one-byte-per-pixel buffer of 0s and 1s (1 = black) to the current port in a source mode. */
+function transferBuffer(buffer: Uint8Array, r: Rect, mode: number): void {
+	const s = surfaceOf(thePort.portBits);
+	const ones = (1 << s.depth) - 1;
+	const op = mode & 3;
+	const not = (mode & 4) !== 0;
+	const width = r.right - r.left;
+	for (const band of clipToPort(rectRegion(r)).bands) {
+		for (let v = band.top; v < band.bottom; v++) {
+			for (let k = 0; k < band.xs.length; k += 2) {
+				for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
+					let p = buffer[(v - r.top) * width + h - r.left]!;
+					if (not) {
+						p ^= 1;
+					}
+					switch (op) {
+						case 0:
+							setPixel(s, h, v, p ? ones : 0);
+							break;
+						case 1:
+							if (p) {
+								setPixel(s, h, v, ones);
+							}
+							break;
+						case 2:
+							if (p) {
+								setPixel(s, h, v, getPixel(s, h, v) ^ ones);
+							}
+							break;
+						case 3:
+							if (p) {
+								setPixel(s, h, v, 0);
+							}
+							break;
+					}
+				}
+			}
+		}
+	}
+}
+
+export function DrawChar(ch: string | number): void {
+	StdText(new Uint8Array([charCode(ch)]));
+}
+
+export function DrawString(s: string): void {
+	StdText(encodeMacRoman(s));
+}
+
+export function DrawText(text: Uint8Array, firstByte: Integer, byteCount: Integer): void {
+	StdText(text.subarray(firstByte, firstByte + byteCount));
 }
 
 export { Region } from './Region.ts';

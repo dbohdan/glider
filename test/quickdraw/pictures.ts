@@ -184,6 +184,36 @@ export const testPictures: Record<string, () => Uint8Array> = {
 		return p.toBytes();
 	},
 
+	/** Text in the System font and Glider's fonts, in source text modes over half black. */
+	text() {
+		const p = picture();
+		p.rect('paint', rect(256, 104, 512, 342));
+		const sample = 'The quick brown fox jumps over 13 lazy dogs! @#$%&*()[]{}<>?\'s';
+		let y = 120;
+		for (const [font, size] of [[0, 12], [16, 12], [200, 12], [201, 12], [204, 32], [3, 9], [4, 9], [0, 0]] as const) {
+			p.txFont(font).txSize(size).txMode(1).text({ v: y, h: 4 }, sample);
+			y += size === 32 ? 34 : 15;
+		}
+		for (let mode = 0; mode < 8; mode++) {
+			p.txFont(0).txSize(12).txMode(mode).text({ v: y + mode * 14, h: 200 + (mode % 2) * 3 }, `mode ${mode}: Hello, World`);
+		}
+		p.txMode(1).text({ v: 40, h: 10 }, 'MacRoman: \u00e9\u00fc\u00df\u00a9\u2122\u2026\u00b0\u03c0\u2202\u2211 \u0001');
+		return p.toBytes();
+	},
+
+	/** Text in pattern modes, which Glider uses. */
+	textPatternModes() {
+		const p = picture();
+		p.rect('paint', rect(256, 104, 512, 342));
+		for (let mode = 8; mode < 16; mode++) {
+			p.txFont(0).txSize(12).txMode(mode).penPat(patterns.gray!).text({ v: 120 + (mode - 8) * 16, h: 200 }, `pattern mode ${mode}: Hello`);
+		}
+		for (let mode = 8; mode < 16; mode++) {
+			p.txFont(16).txSize(12).txMode(mode).penPat(patterns.black!).text({ v: 260 + (mode - 8) * 10, h: 200 + (mode % 2) * 7 }, `mode ${mode} pen black`);
+		}
+		return p.toBytes();
+	},
+
 	/** Pattern transfer modes over a striped background. */
 	patternModes() {
 		const p = picture();

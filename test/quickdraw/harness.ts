@@ -3,7 +3,10 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Image, writePNG } from '../../oracle/Image.ts';
-import { cacheDir, emulatorPath, macPlus } from '../../oracle/Oracle.ts';
+import { cacheDir, emulatorPath, glider406, macPlus, systemFiles } from '../../oracle/Oracle.ts';
+import { flushFonts } from '../../src/mac/Fonts.ts';
+import { initResources, openResourceFork } from '../../src/mac/Resources.ts';
+import { parseResourceFork, type ResourceFork } from '../../src/mac/ResourceFork.ts';
 import { drawWithROM, pictureFrame, pictureMask } from '../../oracle/Pictures.ts';
 import { initHeap, mapMemory, NewPtrClear, resetMemory, bytesAt } from '../../src/mac/Memory.ts';
 import * as QD from '../../src/mac/QuickDraw.ts';
@@ -14,8 +17,22 @@ export function oracleAvailable(): boolean {
 	return existsSync(emulatorPath(macPlus)) && existsSync(join(cacheDir, 'Glider.zip'));
 }
 
+/** The fonts the ROM draws with: the System file's, and Glider's own. */
+function setUpResources(): void {
+	if (systemFork === undefined) {
+		systemFork = parseResourceFork(systemFiles().find((f) => f.name === 'System')!.rsrc);
+		gliderFork = parseResourceFork(glider406().get('Glider 4.06')!.rsrc);
+	}
+	initResources(systemFork);
+	openResourceFork(gliderFork!, 'Glider 4.06');
+	flushFonts();
+}
+let systemFork: ResourceFork | undefined;
+let gliderFork: ResourceFork | undefined;
+
 /** Draws a picture as Glider draws its title: into an offscreen 512×342 bitmap through an old-style port. */
 export function drawWithPort(pict: Uint8Array): Image {
+	setUpResources();
 	resetMemory();
 	mapMemory(0, new Uint8Array(1 << 20));
 	initHeap(0x1000, 1 << 20);

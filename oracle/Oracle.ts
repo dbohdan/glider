@@ -202,7 +202,7 @@ function hfs(...args: string[]): string {
 }
 
 /** Extracts the System and Finder from the Infinite Mac disk. */
-function systemFiles(): MacFile[] {
+export function systemFiles(): MacFile[] {
 	const dir = join(cacheDir, 'system');
 	const names = ['System', 'Finder'];
 	if (!names.every((n) => existsSync(join(dir, n + '.bin')))) {

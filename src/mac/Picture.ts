@@ -152,6 +152,12 @@ export function DrawPicture(pic: Picture | null, dstRect: Rect): void {
 	let lastRect: Rect = { top: 0, left: 0, bottom: 0, right: 0 };
 	let lastRgn: Region | null = null;
 	let ovSize: Point = { h: 0, v: 0 };
+	/** Where the last text was drawn, which DHText and the like are relative to. */
+	let textLoc: Point = { h: 0, v: 0 };
+	const drawText = (at: Point, text: Uint8Array) => {
+		QD.MoveTo(at.h, at.v);
+		QD.StdText(text);
+	};
 	const shape = (kind: number, verb: QD.GrafVerb) => {
 		switch (kind) {
 			case 0x30:
@@ -266,6 +272,28 @@ export function DrawPicture(pic: Picture | null, dstRect: Rect): void {
 					break;
 				case 0x1e:
 					break;
+				case 0x28: {
+					textLoc = r.point();
+					drawText(mapPt(textLoc), r.bytes(r.u8()));
+					break;
+				}
+				case 0x29: {
+					textLoc = { h: textLoc.h + r.u8(), v: textLoc.v };
+					drawText(mapPt(textLoc), r.bytes(r.u8()));
+					break;
+				}
+				case 0x2a: {
+					textLoc = { h: textLoc.h, v: textLoc.v + r.u8() };
+					drawText(mapPt(textLoc), r.bytes(r.u8()));
+					break;
+				}
+				case 0x2b: {
+					const dh = r.u8();
+					const dv = r.u8();
+					textLoc = { h: textLoc.h + dh, v: textLoc.v + dv };
+					drawText(mapPt(textLoc), r.bytes(r.u8()));
+					break;
+				}
 				case 0x20: {
 					const a = mapPt(r.point());
 					const b = mapPt(r.point());
