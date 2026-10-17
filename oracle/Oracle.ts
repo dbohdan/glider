@@ -8,7 +8,8 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { encodeMacRoman } from '../src/mac/MacRoman.ts';
-import { fourCCAt, u16 } from '../src/mac/Binary.ts';
+import { fourCCAt, put16, u16 } from '../src/mac/Binary.ts';
+import { parseResourceFork, type ResourceFork, writeResourceFork } from '../src/mac/ResourceFork.ts';
 import { type MacFile, parseMacBinary, writeMacBinary } from '../src/mac/MacBinary.ts';
 import { type Image, readPNM, writePNG } from './Image.ts';
 import type { Script } from './Script.ts';
@@ -49,12 +50,15 @@ export interface Machine {
 	name: string;
 	rom: string;
 	setupOptions: string[];
+	/** What SysEnvirons reports as keyBoardType. */
+	keyboardType: number;
 }
 
-export const macPlus: Machine = { name: 'plus', rom: 'Mac-Plus.rom', setupOptions: ['-m', 'Plus'] };
+/** A Mac Plus with 4 MB. */
+export const macPlus: Machine = { name: 'plus', rom: 'Mac-Plus.rom', setupOptions: ['-m', 'Plus'], keyboardType: 3 };
 
-/** A Mac II with a 640×480 display of up to 16 colors. */
-export const macII: Machine = { name: 'ii', rom: 'Mac-II.rom', setupOptions: ['-m', 'II', '-hres', '640', '-vres', '480', '-depth', '2'] };
+/** A Mac II with 8 MB and a 640×480 display of up to 16 colors, and a standard ADB keyboard. */
+export const macII: Machine = { name: 'ii', rom: 'Mac-II.rom', setupOptions: ['-m', 'II', '-hres', '640', '-vres', '480', '-depth', '2'], keyboardType: 5 };
 
 function sha256(b: Uint8Array): string {
 	return createHash('sha256').update(b).digest('hex');
@@ -163,6 +167,34 @@ export function alternateScreenFile(): MacFile {
 	});
 	return { name: 'MacsBug', type: 'dbgr', creator: 'GLor', finderFlags: 0, created: 0, modified: 0, data, rsrc: new Uint8Array(0) };
 }
+
+/** Returns a copy of a file with its resources edited. */
+export function editResources(f: MacFile, edit: (rf: ResourceFork) => void): MacFile {
+	const rf = parseResourceFork(f.rsrc);
+	edit(rf);
+	return { ...f, rsrc: writeResourceFork(rf) };
+}
+
+/**
+ * Glider 4.06 set up for a machine: its preferences name the machine's keyboard,
+ * so that the "New keyboard" alert does not appear.
+ */
+export function gliderFor(m: Machine, edit?: (rf: ResourceFork) => void): MacFile {
+	return editResources(glider406().get('Glider 4.06')!, (rf) => {
+		const prefs = rf.get('Gprf', 128)!;
+		const data = new Uint8Array(prefs.data);
+		put16(data, prefsKeyboardOffset, m.keyboardType);
+		rf.put({ ...prefs, data });
+		edit?.(rf);
+	});
+}
+
+/** The offset of keyBoardIs in the prefType record of G-GameBody.p. */
+const prefsKeyboardOffset = 168;
+
+/** The title screen pictures, which the oracle replaces with test pictures. */
+export const rIdleID = 200;
+export const rColorIdleID = 210;
 
 // hfsutils keeps the current volume in $HOME/.hcwd; give it a home of its own.
 function hfs(...args: string[]): string {

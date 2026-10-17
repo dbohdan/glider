@@ -93,6 +93,11 @@ export class ByteWriter {
 		return this;
 	}
 
+	/** A QuickDraw rectangle: top, left, bottom, right. */
+	rect(r: { top: number; left: number; bottom: number; right: number }): this {
+		return this.u16(r.top).u16(r.left).u16(r.bottom).u16(r.right);
+	}
+
 	fourCC(code: string): this {
 		this.ensure(4);
 		putFourCC(this.buf, this.length, code);
