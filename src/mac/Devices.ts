@@ -72,3 +72,27 @@ export function SetDepth(gd: GDevice, depth: Integer, _whichFlags: Integer, _fla
 	}
 	return 0;
 }
+
+// Port: the compact Macs' second screen page. The VIA's port A bit 6 (vPage2) chooses what the
+// video circuit shows: set, the main screen; clear, the alternate screen 32K below it. Glider's
+// SetPage library routine sets or clears the bit directly.
+
+let alternatePage = false;
+let onPageChange: (alternate: boolean) => void = () => {};
+
+/** Port: shows the alternate screen page (vPage2 clear) or the main one (vPage2 set). */
+export function setScreenPage(alternate: boolean): void {
+	if (alternatePage !== alternate) {
+		alternatePage = alternate;
+		onPageChange(alternate);
+	}
+}
+
+export function isAlternatePage(): boolean {
+	return alternatePage;
+}
+
+/** Port: the platform's hook, called when the page shown changes. */
+export function onScreenPageChange(f: (alternate: boolean) => void): void {
+	onPageChange = f;
+}

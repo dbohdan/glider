@@ -28,6 +28,9 @@ import {
 } from '../mac/Toolbox.ts';
 import { PArray, PBoolean, PInteger, PLongInt, PRecord, PRect, PString, type ValueOf, zeroOf } from '../mac/PascalLayout.ts';
 
+/** THINK Pascal's compile-time flag for the demo version (`{$IFC DemoVersion}`): this is the full game. */
+export const DemoVersion = false;
+
 export const kGlideVersion = 0x0100; // version of house format
 
 export const kStackSize = 24576; // must be even - stack size

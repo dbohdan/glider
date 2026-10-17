@@ -58,7 +58,7 @@ import { GetResource, type Handle } from './Resources.ts';
 import { pascalString } from './MacRoman.ts';
 import { s16, u16 } from './Binary.ts';
 import { drawInScreenPort, GetMBarHeight, menuBarRegion, screenDrawingPort } from './Windows.ts';
-import type { Integer, LongInt, Point, Rect } from './Types.ts';
+import type { Integer, LongInt, Point, Rect, Ref } from './Types.ts';
 
 /** Mark and key equivalent characters. */
 export const noMark = 0;
@@ -677,9 +677,10 @@ export function GetItemStyle(menu: MenuInfo, item: Integer): Integer {
 	return menu.items[item - 1]?.style ?? 0;
 }
 
-/** Pascal `HMGetHelpMenuHandle`: the Help Manager is System 7's; System 6 has no such trap. */
-export function HMGetHelpMenuHandle(): { err: Integer; menu: MenuInfo | null } {
-	return { err: -1, menu: null };
+/** Pascal `HMGetHelpMenuHandle(var mh)`: the Help Manager is System 7's; under System 6 the call fails. */
+export function HMGetHelpMenuHandle(mh: Ref<MenuInfo | null>): Integer {
+	mh.v = null;
+	return -1;
 }
 
 // ---------------------------------------------------------------------------------------------
