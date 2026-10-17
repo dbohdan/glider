@@ -4,7 +4,8 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseMacBinary, writeMacBinary, type MacFile } from '../src/mac/MacBinary.ts';
-import { writeResourceFork } from '../src/mac/ResourceFork.ts';
+import { ResourceFork, writeResourceFork } from '../src/mac/ResourceFork.ts';
+import { bdfToFontResource, readBdf } from './Bdf.ts';
 import type { VolumeManifest } from '../src/mac/Volume.ts';
 import { parseDeRez } from './DeRez.ts';
 
@@ -47,6 +48,24 @@ export function bundledFiles(): MacFile[] {
 	return files;
 }
 
+/**
+ * The port's System file: what Glider uses of the System's resources, made by the port. The system
+ * font is Ozma (Chicago 12's glyphs); the desktop pattern is 50% gray.
+ */
+export function systemFork(): ResourceFork {
+	const rf = new ResourceFork();
+	const ozma = bdfToFontResource(readBdf(readFileSync(join(root, 'assets/fonts/Ozma-12.bdf'), 'latin1')));
+	rf.put({ type: 'FONT', id: 0, name: 'Chicago', attrs: 0, data: new Uint8Array(0) });
+	rf.put({ type: 'FONT', id: 12, name: null, attrs: 0, data: ozma });
+	const gray = [0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55];
+	rf.put({ type: 'PAT ', id: 16, name: null, attrs: 0, data: new Uint8Array(gray) });
+	// A pixel pattern of type 0 is drawn as its one-bit pattern.
+	const ppat = new Uint8Array(28);
+	ppat.set(gray, 20);
+	rf.put({ type: 'ppat', id: 16, name: null, attrs: 0, data: ppat });
+	return rf;
+}
+
 /** File names on the Mac may contain characters that are awkward in URLs and on other file systems. */
 function storageName(index: number, name: string): string {
 	const safe = name.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-|-$/g, '');
@@ -63,6 +82,7 @@ function main(outDir: string): void {
 		manifest.files.push({ name: f.name, type: f.type, creator: f.creator, path, dataSize: f.data.length, rsrcSize: f.rsrc.length });
 	});
 	writeFileSync(join(outDir, 'volume.json'), JSON.stringify(manifest, null, '\t') + '\n');
+	writeFileSync(join(outDir, 'System.rsrc'), writeResourceFork(systemFork()));
 	console.log(`Wrote ${manifest.files.length} files to ${volumeDir}`);
 }
 
