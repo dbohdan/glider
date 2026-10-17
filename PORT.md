@@ -78,13 +78,79 @@ These keep the TypeScript recognizably the same program as the Pascal.
 - `div` truncates toward zero (`div()` helper); `mod` is `%`.
 - Records are objects. Pascal record assignment copies, so every record assignment is an explicit copy.
 - Arrays keep their Pascal index ranges: an `array[1..16]` is a JavaScript array whose index 0 is unused; negative lower bounds (`animateRct[0..2, -1..16]`) use the `-1` property.
+  `pArray(lo, hi, make)` makes one.
 - `with` statements are expanded, usually with a local alias named after the record (`const theGlider = G.theGlider`).
 - `Exit(ThisProc)` is `return`; the one non-local `Exit` (`ExitGracefully` leaving `AdvanceAFile`) throws a sentinel caught by the outer procedure.
 - `Leave` is `break`; `Cycle` is `continue`; `repeat … until c` is `do { … } while (!(c))`.
 - `var` parameters: records are passed by reference and mutated; scalar `var` parameters use a `Ref<T>` box (`{ v }`).
 - Strings are JavaScript strings, converted from and to MacRoman at file and resource boundaries.
+  `Length`, `Copy`, `Concat`, `Pos`, `Chr`, and `Ord` are in `Types.ts`; an assignment to a `string[n]` that can be longer than n keeps the first n characters with `pString(s, n)`.
 - Busy-wait loops keep their shape but yield inside the body (`await Yield()`), so input and display keep working.
 - Comments in the Pascal are carried over; comments added by the port are marked `// Port:`.
+
+### Toolbox calls
+
+The Toolbox is `src/mac/Toolbox.ts`, which gathers every manager; a Glider module imports what it uses from it by name.
+
+- Routines, types, and constants keep their Inside Macintosh names (`GetNewDialog`, `WindowPtr`, `inMenuBar`).
+- A Toolbox procedure whose only `var` parameter is a scalar returns it: `NumToString(n, s)` is `s = NumToString(n)`, `GetPort(savePort)` is `savePort = GetPort()`, `ModalDialog(nil, itemHit)` is `itemHit = await ModalDialog(null)`, `Delay(n, ticks)` is `ticks = await Delay(n)`, `GetIndString(s, id, i)` is `s = GetIndString(id, i)`, `GetItem(menu, i, s)` is `s = GetItem(menu, i)`, `GetSoundVol(v)` is `v = GetSoundVol()`.
+- Other scalar `var` parameters, and those of functions, are `Ref` boxes: `FSOpen(name, vol, refNum)` is `G.theErr = FSOpen(name, vol, refNum)` with `refNum: Ref<Integer>`; `GetDItem(d, i, itemT, itemH, box)` takes `Ref`s for the type and handle and fills `box`.
+- Record parameters, `var` or not, are passed as is and filled in or read.
+- Handles and pointers to Toolbox records are the records: `WindowPtr`, `DialogPtr`, `MenuHandle`, `ControlHandle`, `RgnHandle` (a `Region`), `PicHandle` (a `Picture`), `CursHandle` (a `Cursor`), and so on. `h^^.field` is `h.field`; `nil` is `null`.
+- Casts between them disappear: `GrafPtr(mainWndo)` is `mainWndo`; `BitMapPtr(virginCPtr^.portPixMap^)^` is `virginCPtr.portPixMap`.
+  A cast from a generic handle names the type: `ControlHandle(itemH)` is `itemH.v as ControlHandle`.
+- An event's message naming a window is `eventWindow(theEvent.message)`.
+- `WindowPtr(-1)` and `Pointer(-1)` as a "behind" argument are `inFront`.
+- Memory calls that only matter to the Memory Manager (`HLock`, `HUnlock`, `MoveHHi`, `HGetState`, `HSetState`, `MoreMasters`) stay in the code and do nothing.
+- Glider's `inline` routines become Toolbox calls of the same name: `GetGrayRgn`, `GetMBarHeight`, `SetMBarHeight`, `GetWindowList` (Windows.ts), `SetDepth` (Devices.ts).
+  `IncInt(i)` and `IncLong(l)` are `i.v = int16(i.v + 1)` and `l.v = int32(l.v + 1)`.
+- Low-memory reads through pointers use the address space: `initsPointer^` is `peek8(initsPointer)`.
+
+### Resources and files as bytes
+
+- Typed handles over resource bytes read and write the bytes with a layout: Glider's `alertHandle^^.boundsRect := alertRect` writes a `PRect` at offset 0 of the 'ALRT' handle's data (`writeLayout(PRect, alertRect, h.data, 0)`).
+- `FSRead(ref, count, @record)` reads into the record's bytes: the record is written to a buffer first, the buffer is read into, and the record is read back, so a short read leaves the rest of the record as it was.
+  `FSWrite` writes the record's bytes. `SIZEOF(houseRec)` is `sizeOf(houseRecLayout)`.
+- Records that only live in memory are TypeScript types with a `new…()` function that makes a zeroed one.
+
+### Async
+
+A routine is `async` if it waits: it calls an async Toolbox routine, a routine that is async, or loops until time passes or input arrives.
+Async Toolbox routines: `GetNextEvent`, `WaitNextEvent`, `Delay`, `MenuSelect`, `ModalDialog`, `Alert` (and `StopAlert`, `NoteAlert`, `CautionAlert`), `TrackControl`, `TEClick`, `DialogSelect`, `SFGetFile`, `SFPGetFile`, `SFPutFile`, `SFPPutFile`.
+A busy-wait loop (on `TickCount`, `Button`, `StillDown`, `GetKeys`, or `EventAvail`) awaits `Yield()` in its body.
+Dialog filter procedures and the `ErrorSound` procedure may be async; the Dialog Manager awaits them.
+Every call to an async routine is awaited; the type checker and the lint rules catch a missing `await`.
+
+These 83 of Glider's 173 routines are async (`Unit.Routine.Nested`):
+`GameBody` main program, `ErrorSound`'s `DoErrorSound`, `GenericAlert`, `IOCheck`, `SaveGame`, `SaveGameAs`, `WriteGame`, `ReadGame`, `GetGame`, `WriteHouse`, `OpenHouse`, `GetHouse`, `DoOpen`, `DoClose`, `OpenSFGetHook`, `SavePrefs`, `WriteScores`, `SortHiScores`, `GetName`, `DoAbout`, `idleFilter`, `DoSoundSettings`, `DoCustomizeKeys`, `DoQuit`, `LetsQuit`, `LetsSave`, `LetsEnd`, `DoEndGame`, `WrapItUp`, `GameOver`, `OffAMortal`, `StartNewGame`, `DoStartUp`, `DoUpdate`, `RedrawWindowFrame`, `LoadABackground`, `ReadyRoom`, `DoIdle`, `DoKeyDown`, `DoMouseDown`, `HandleMenu`, `DoLoadHouse`, `DoSpecial`, `SearchRects`, `SetRoomState`, `CheckForTimeBonus`, `Collision`, `Coordinate`, `MoveAnimates`, `ResetAnimate`, `ClosingAnimation`, `Transport`, `UpAFlight`, `DownAFlight`, `AdvanceARoom`, `RetreatARoom`, `AdvanceAFile` (and its `ExitGracefully`), `ScrollForward`, `ScrollBackward`, `ScrollUp`, `ScrollDown`, `DrawAllObjects`, `DrawStair`, `OpenHelpScreens`, `NextPageHelpScreens`, `DisplayAHelpScreen`, `CloseUpShop`, and `InitializeAll` with its nested `CheckOurEnvirons` (and its `CheckAndSwitch`, `DepthAlert`, `ForceBlackAndWhite`), `GetPrefs`, `LoadCursors`, `LoadPicts`, `NewBitMap`, `PrepareSounds`, `SetUpBitMaps`, `SetUpMainWndo`, `SetUpMenus`, `SetUpOffMask`, `SetUpPixMaps`.
+(Measured by a call-graph closure over the sources; the compiler has the last word.)
+
+### An example
+
+```pascal
+GetDItem(theDlgPtr, soundOnItem, itemT, itemH, tempRect);
+if (soundOn) then
+  SetCtlValue(ControlHandle(itemH), 1)
+else
+  SetCtlValue(ControlHandle(itemH), 0);
+repeat
+  ModalDialog(nil, itemHit);
+  …
+until leaveDlg;
+```
+
+```ts
+GetDItem(theDlgPtr, soundOnItem, itemT, itemH, tempRect);
+if (G.soundOn) {
+	SetCtlValue(itemH.v as ControlHandle, 1);
+} else {
+	SetCtlValue(itemH.v as ControlHandle, 0);
+}
+do {
+	itemHit = await ModalDialog(null);
+	…
+} while (!leaveDlg);
+```
 
 ## Architecture
 
@@ -101,6 +167,12 @@ These keep the TypeScript recognizably the same program as the Pascal.
 - **Resources:** the build converts `Glider.r` (a DeRez listing) and the MacBinary art files into binary resource files, which the Resource Manager reads at run time as a Mac would.
 - **Files:** a virtual file system with Finder types and resource forks; bundled files are read-only, changes go to browser storage, and files can be imported and exported.
 - **Sound:** Buckland's SMS reimplemented in an AudioWorklet, mixing 8-bit samples at 22254.5 Hz.
+  `src/mac/SMS.ts` keeps SMS's interface over a pluggable backend; without one the program is silent.
+- **User interface managers:** the Window, Menu, Control, Dialog, and TextEdit managers draw into the screen through QuickDraw as System 6 does, with geometry measured from the oracle.
+  The desktop and window frames are drawn in the Window Manager's port; menus save and restore the pixels they cover.
+  Toolbox tests (`test/toolbox/`) boot a simulated Mac with the System and Glider resources from the oracle, run scripted input on a virtual clock, and compare the screen with the oracle's screenshots.
+- **Standard File:** the program's file filter and dialog hook run; choosing the file is the browser page's (`setStandardFileHost`).
+- **Cursor:** the program sets the cursor's image and visibility (`src/mac/Cursors.ts`); the platform layer draws it.
 
 ## Roadmap
 
@@ -120,7 +192,11 @@ These keep the TypeScript recognizably the same program as the Pascal.
   - [ ] Pixel patterns (`ppat`), color icons (`cicn`), color cursors, the Palette Manager, the inverse table for arithmetic modes.
 - [ ] **5. Platform:** display, scaling, input, time, cursors.
 - [ ] **6. Toolbox user interface (System 6):** Window, Menu, Control, Dialog, TextEdit, and Alert managers.
+  - [x] Every Toolbox routine Glider calls exists with its Inside Macintosh name (`src/mac/Toolbox.ts`).
+  - [x] Glider's menus, its "New keyboard" alert, and its Sound Settings dialog match the oracle pixel for pixel on both machines.
+  - [ ] The other dialogs (Configure, high scores, About), menu blinking, button flashing on Return, document windows (for the Room Editor).
 - [ ] **7. Files:** File Manager over the virtual file system, Standard File backed by the house library, preferences.
+  - [x] File Manager over the in-memory volume; `OpenResFile` writes resource changes back; Standard File's filter and hook.
 - [ ] **8. Sound:** SMS reimplementation.
 - [ ] **9. Glider:** port the 11 units.
 - [ ] **10. Launcher page:** house library, settings, credits, manual.
@@ -132,7 +208,11 @@ These keep the TypeScript recognizably the same program as the Pascal.
 - The exact oval rule (see the journal): the original QuickDraw source (Computer History Museum, 2010) is under a non-commercial license, so it could only be read for the algorithm, not copied; not consulted so far.
 - Exact Color QuickDraw behavior for: colorizing with a cyan background (help screens), inverse table matching, arithmetic modes other than transparent on regions that are not rectangles.
 - Effective device color table after the Palette Manager applies `pltt` 128.
-- Initial values of uninitialized Pascal globals (affects the `is4Channel` preference bug).
+- Initial values of uninitialized Pascal globals (affects the `is4Channel` preference bug); `Globals.ts` starts them at zero.
+- Whether the Palette Manager changes the Mac II's color table for `pltt` 128, whose colors differ from `clut` 4 in their low bytes (tolerance 0). The oracle's CLUT dump (`c`) can tell.
+- How many times a chosen menu item blinks with the oracle's parameter RAM (the port assumes 3), and whether the Dialog Manager flashes the default button when Return is pressed.
+- Where System 6 puts a submenu in general: the oracle shows it 4 pixels inside the parent's right edge and 7 pixels below the parent item's top, for Glider's one submenu.
+- Whether the cursor is drawn into screen memory, as the ROM does: the oracle's color title screen keeps a ghost of the arrow where Glider copied the screen while the cursor was on it.
 - Which keyboard type the port reports (`SysEnvirons`' `keyBoardType`): the shipped preferences say 4, so any other value shows the "New keyboard" alert at first launch, as the oracle does on both machines.
 - SMS semantics: priorities, channel allocation, 2- and 4-channel mixing.
 - Which of the Windows palette variants needs what exact values (6-bit DAC levels such as 195 versus requested 192).
@@ -206,3 +286,30 @@ Color QuickDraw, checked against the Mac II ROM the same way (Glider's color tit
   `srcCopy + transparent` and `patCopy + transparent`, which Glider uses for shadows, both draw only the foreground-colored pattern pixels.
   For regions that are not rectangles the Mac II ROM inverts the pattern in transparent mode, so Glider's color shadows have the opposite dither phase from what the pattern suggests.
 - Other arithmetic modes pick colors through the ROM's 4-bit inverse table, which the port approximates with the nearest color; Glider does not use them.
+
+### 2026-10-17 (Toolbox)
+
+The Toolbox surface Glider calls is complete (`src/mac/Toolbox.ts`): the Event Manager, OS utilities, Window, Menu, Control, Dialog, and TextEdit managers, the File Manager and Standard File, depth switching, palettes, cursors, and SMS's interface.
+`src/glider/Globals.ts` and the translation guide above are ready for porting the units.
+
+Oracle cases `menus`, `menusColor`, `menuDetails`, `dialogs`, and `dialogsColor` pull down Glider's menus and open its dialogs on both machines.
+The Toolbox tests compare the port's menus, alert, and Sound Settings dialog with them; all match pixel for pixel.
+Findings:
+
+- **Desktop:** the gray region is the screen with 16-pixel rounded corners, less the 20-pixel menu bar; the corners are black, and the menu bar is white with the same top corners and a line at its bottom.
+- **dBoxProc** frames are a line in the frame color, two pixels of the content color, two of the frame color, and three of the content color; on the Mac II the colors come from the 'actb', 'dctb', or 'wctb' with the window's ID (Glider's alerts are gray with a blue frame), and the content color becomes the port's background color.
+- **Menu bar:** titles start at 10 and are spaced by their width plus 13, with the text 8 pixels in and its baseline at 14; a highlighted title is inverted from 1 pixel left of its start to 17 past its width, rows 1 to 18.
+  On a color screen the Apple menu's title is a 12-by-14 color apple 2 pixels from the top, not the font's apple.
+- **Menus** hang from the bar's bottom line at their title's left, in 16-pixel rows with text 14 pixels in and marks 2 in; they are as wide as their widest item plus 20, or plus 52 with a command key, whose ⌘ is drawn 24 pixels from the right.
+  The frame is 1 pixel with a 1-pixel shadow starting 3 pixels from the corners. Dividers are gray lines through the middle of their row.
+  Disabled items are dimmed by clearing the pixels where the gray pattern is set (`patBic`), on both machines; the Mac II does not use a gray color.
+  Highlighted items are inverted on the Plus; on the Mac II their background takes the item's text color and the text the background color.
+  The hierarchical arrow is 6 by 11 at 14 from the right, in the item's key color.
+- **Submenus** open about 10 ticks after the mouse comes to rest on their item, 4 pixels inside the parent's right edge and 7 below the parent item's top.
+- **mctb** entries are as Inside Macintosh V says: a title entry's four colors are the title, the bar behind it, the default item color, and the menu's background; an item's are its mark, text, key equivalent, and background.
+- **Buttons:** corners rounded by half the button's height; titles start `(height - line height) div 2` below the top and `(width - title width) div 2` from the left.
+  Check boxes and radio buttons are 12 pixels, 2 from the left and centered vertically, with the title 18 from the left.
+  The default button's outline is a 3-pixel 16-by-16 rounded rectangle 4 pixels outside it.
+- **Static text** is drawn 1 pixel right of the item's left edge, with its first baseline the font's ascent below the top.
+- **Color icons:** pixel values index their own color table by each entry's value, not its position; the port had them by position, which turned the alert icon's black to white. Fixed for pixel patterns too.
+- Glider centers its alerts horizontally and a third of the way down, by rewriting the 'ALRT' rectangle, and centers the Sound Settings dialog in the screen.

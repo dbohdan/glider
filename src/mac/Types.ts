@@ -4,6 +4,8 @@
 // The compiled Glider 4.05 code has no overflow or range checks, so arithmetic that
 // overflows wraps silently. Code that can overflow wraps explicitly with int16() or int32().
 
+import { macRomanChar, macRomanCode } from './MacRoman.ts';
+
 /** A 16-bit signed integer (Pascal `Integer`). */
 export type Integer = number;
 /** A 32-bit signed integer (Pascal `LongInt`). */
@@ -124,4 +126,54 @@ export function fourCC(code: OSType): LongInt {
 		v = (v << 8) | (code.charCodeAt(i) & 0xff);
 	}
 	return int32(v);
+}
+
+/**
+ * A Pascal `array[lo..hi] of T`: a JavaScript array indexed lo to hi, each element made by `make`.
+ * Indexes below lo (index 0 of an array[1..n]) are unused; negative indexes are properties, so an
+ * `array[-1..16]` works as written.
+ */
+export function pArray<T>(lo: number, hi: number, make: (i: number) => T): T[] {
+	const a: T[] = [];
+	for (let i = lo; i <= hi; i++) {
+		a[i] = make(i);
+	}
+	return a;
+}
+
+/**
+ * Pascal assignment to a `string[n]` variable or field: keeps the first n characters (as MacRoman
+ * bytes; every character the program uses is one byte).
+ */
+export function pString(s: string, n: number): string {
+	return s.length > n ? s.slice(0, n) : s;
+}
+
+/** Pascal `Length` of a string: its characters, each one MacRoman byte. */
+export function Length(s: string): Integer {
+	return s.length;
+}
+
+/** Pascal `Copy(s, index, count)`: count characters from the 1-based index. */
+export function Copy(s: string, index: Integer, count: Integer): string {
+	return s.substr(Math.max(0, index - 1), Math.max(0, count));
+}
+
+/** Pascal `Concat`. */
+export function Concat(...parts: string[]): string {
+	return parts.join('');
+}
+
+/** Pascal `Pos(substr, s)`: the 1-based position of substr in s, or 0. */
+export function Pos(substr: string, s: string): Integer {
+	return s.indexOf(substr) + 1;
+}
+
+/** Pascal `Chr` and `Ord`: characters are MacRoman codes, held in strings as Unicode. */
+export function Chr(code: Integer): string {
+	return macRomanChar(code & 0xff);
+}
+
+export function Ord(ch: string | boolean): Integer {
+	return typeof ch === 'boolean' ? (ch ? 1 : 0) : macRomanCode(ch);
 }

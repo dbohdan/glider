@@ -1,39 +1,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { PArray, PBoolean, PInteger, PLongInt, PRecord, PRect, PString, readLayout, sizeOf, writeLayout } from '../../src/mac/PascalLayout.ts';
+import { PBoolean, PInteger, PRecord, PString, readLayout, sizeOf, writeLayout } from '../../src/mac/PascalLayout.ts';
 import { parseDeRez } from '../../tools/DeRez.ts';
+import { houseRecLayout, objectDataLayout, roomDataLayout } from '../../src/glider/Globals.ts';
 
 const root = new URL('../../', import.meta.url).pathname;
 
 // The declarations of G-Globals.p.
-const objectData = PRecord({ objectIs: PInteger, boundRect: PRect, amount: PInteger, extra: PInteger, isOn: PBoolean });
-const roomData = PRecord({
-	roomName: PString(24),
-	numberOObjects: PInteger,
-	backPictID: PInteger,
-	tileOrder: PArray(0, 7, PInteger),
-	leftOpen: PBoolean,
-	rightOpen: PBoolean,
-	animateKind: PInteger,
-	animateNumber: PInteger,
-	animateDelay: PLongInt,
-	conditionCode: PInteger,
-	theObjects: PArray(1, 16, objectData),
-});
-const houseRec = PRecord({
-	version: PInteger,
-	numberORooms: PInteger,
-	timeStamp: PLongInt,
-	hiScores: PArray(0, 19, PLongInt),
-	hiLevel: PArray(0, 19, PInteger),
-	hiName: PArray(0, 19, PString(24)),
-	hiRoom: PArray(0, 19, PString(24)),
-	pictFile: PString(32),
-	nextFile: PString(32),
-	firstFile: PString(32),
-	theRooms: PArray(1, 40, roomData),
-});
+const objectData = objectDataLayout;
+const roomData = roomDataLayout;
+const houseRec = houseRecLayout;
 
 // The prefType record of G-GameBody.p, stored as 'Gprf' 128.
 const prefType = PRecord({
