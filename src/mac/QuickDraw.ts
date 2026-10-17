@@ -1364,6 +1364,19 @@ export function FillRgn(rgn: Region, pat: Pattern): void {
 	StdRgn(fill, rgn);
 }
 
+/** Fills a region with a pixel pattern (Color QuickDraw); in an old-style port, with its 1-bit pattern. */
+export function FillCRgn(rgn: Region, pp: PixPat): void {
+	if (thePort.pnVis >= 0 && rgn.bands.length > 0) {
+		fillRegion(clipToPort(rgn), pp.pat1Data, patCopy, isColorPort(thePort) && pp.patType !== 0 ? pp : null);
+	}
+}
+
+export function FillCRect(r: Rect, pp: PixPat): void {
+	if (!EmptyRect(r)) {
+		FillCRgn(rectRegion(r), pp);
+	}
+}
+
 // ---------------------------------------------------------------------------------------------
 // Bits
 

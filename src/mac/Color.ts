@@ -1,6 +1,7 @@
 // Port: Color QuickDraw's colors (Inside Macintosh V): color tables, the main graphics device,
 // and matching RGB colors to the pixel values of a device.
 
+import { s16, s32, u16 } from './Binary.ts';
 import type { BitMap, ColorSpec, ColorTable, PixMap, RGBColor } from './QuickDraw.ts';
 import type { Integer } from './Types.ts';
 
@@ -36,6 +37,17 @@ export function makeColorTable(colors: RGBColor[], flags = 0, seed = 0): ColorTa
 		ctSize: colors.length - 1,
 		ctTable: colors.map((c, i): ColorSpec => ({ value: i, rgb: { ...c } })),
 	};
+}
+
+/** Reads a color table resource ('clut', 'wctb', 'actb', 'dctb', 'cctb', 'mctb' entries aside). */
+export function parseColorTable(d: Uint8Array): ColorTable {
+	const ctSize = s16(d, 6);
+	const ctTable: ColorSpec[] = [];
+	for (let i = 0; i <= ctSize; i++) {
+		const o = 8 + i * 8;
+		ctTable.push({ value: s16(d, o), rgb: { red: u16(d, o + 2), green: u16(d, o + 4), blue: u16(d, o + 6) } });
+	}
+	return { ctSeed: s32(d, 0), ctFlags: u16(d, 4), ctSize, ctTable };
 }
 
 /** A graphics device (GDHandle): the screen's pixel map and its color table. */

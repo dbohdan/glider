@@ -147,3 +147,36 @@ export function DisposPtr(p: Ptr): void {
 export function GetPtrSize(p: Ptr): number {
 	return heap?.used.get(p) ?? 0;
 }
+
+// Port: Toolbox records that programs pass around as 32-bit values, such as the window an update
+// event's message names, get addresses outside RAM that stand for them.
+
+const objectsByAddress = new Map<number, object>();
+const addressesOfObjects = new WeakMap<object, number>();
+let nextObjectAddress = 0x7f000000;
+
+/** The stand-in address of a Toolbox record, assigned on first use. */
+export function addressOf(obj: object): Ptr {
+	let addr = addressesOfObjects.get(obj);
+	if (addr === undefined) {
+		addr = nextObjectAddress;
+		nextObjectAddress += 4;
+		addressesOfObjects.set(obj, addr);
+		objectsByAddress.set(addr, obj);
+	}
+	return addr;
+}
+
+/** The record a stand-in address names, or null (Pascal `WindowPtr(theEvent.message)`). */
+export function objectAt<T extends object>(addr: Ptr): T | null {
+	return (objectsByAddress.get(addr) as T | undefined) ?? null;
+}
+
+/** Forgets a record's address when it is disposed of. */
+export function forgetAddress(obj: object): void {
+	const addr = addressesOfObjects.get(obj);
+	if (addr !== undefined) {
+		objectsByAddress.delete(addr);
+		addressesOfObjects.delete(obj);
+	}
+}
