@@ -3,6 +3,7 @@
 
 export * from './Types.ts';
 export * from './Memory.ts';
+export * from './MacRoman.ts';
 export * from './OS.ts';
 export * from './OSUtils.ts';
 export * from './Resources.ts';

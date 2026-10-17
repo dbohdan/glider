@@ -70,10 +70,10 @@ interface OpenFork {
 let volume: Volume | null = null;
 const open = new Map<Integer, OpenFork>();
 let nextRefNum: Integer = 100;
-let onChange: (file: MacFile) => void = () => {};
+let onChange: (file: MacFile, deleted: boolean) => void = () => {};
 
-/** Port: mounts the volume, and the platform's hook that keeps files when they change. */
-export function mountVolume(v: Volume, changed: (file: MacFile) => void = () => {}): void {
+/** Port: mounts the volume, and the platform's hook that keeps files when they change or are deleted. */
+export function mountVolume(v: Volume, changed: (file: MacFile, deleted: boolean) => void = () => {}): void {
 	volume = v;
 	onChange = changed;
 	open.clear();
@@ -98,7 +98,7 @@ function setBytes(f: OpenFork, b: Uint8Array): void {
 		f.file.data = b;
 	}
 	f.file.modified = GetDateTime() >>> 0;
-	onChange(f.file);
+	onChange(f.file, false);
 }
 
 function openFork(fileName: string, permission: Integer, refNum: Ref<Integer>, rsrc: boolean): OSErr {
@@ -249,7 +249,7 @@ export function Create(fileName: string, _vRefNum: Integer, creator: OSType, fil
 	const now = GetDateTime() >>> 0;
 	const file: MacFile = { name: fileName, type: fileType, creator, finderFlags: 0, created: now, modified: now, data: new Uint8Array(0), rsrc: new Uint8Array(0) };
 	volume.put(file);
-	onChange(file);
+	onChange(file, false);
 	return noErr;
 }
 
@@ -262,7 +262,7 @@ export function FSDelete(fileName: string, _vRefNum: Integer): OSErr {
 		return fBsyErr;
 	}
 	volume!.delete(fileName);
-	onChange({ ...file, data: new Uint8Array(0), rsrc: new Uint8Array(0), name: '' });
+	onChange(file, true);
 	return noErr;
 }
 
@@ -275,9 +275,10 @@ export function Rename(oldName: string, _vRefNum: Integer, newName: string): OSE
 		return dupFNErr;
 	}
 	volume!.delete(oldName);
+	onChange({ ...file }, true);
 	file.name = newName;
 	volume!.put(file);
-	onChange(file);
+	onChange(file, false);
 	return noErr;
 }
 
@@ -303,7 +304,7 @@ export function SetFInfo(fileName: string, _vRefNum: Integer, fndrInfo: FInfo): 
 	file.type = fndrInfo.fdType;
 	file.creator = fndrInfo.fdCreator;
 	file.finderFlags = fndrInfo.fdFlags;
-	onChange(file);
+	onChange(file, false);
 	return noErr;
 }
 
@@ -339,6 +340,6 @@ export function OpenResFile(fileName: string): Integer {
 	return openResourceFork(fork, file.name, (f) => {
 		file.rsrc = writeResourceFork(f);
 		file.modified = GetDateTime() >>> 0;
-		onChange(file);
+		onChange(file, false);
 	});
 }
