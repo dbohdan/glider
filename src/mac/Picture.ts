@@ -92,7 +92,7 @@ export function unpackBits(src: Uint8Array, out: Uint8Array): void {
 /** Port state that DrawPicture saves and restores. */
 function savePortState(port: QD.GrafPort) {
 	return {
-		...(port instanceof QD.CGrafPort ? { rgbFgColor: { ...port.rgbFgColor }, rgbBkColor: { ...port.rgbBkColor } } : {}),
+		...(QD.isColorPort(port) ? { rgbFgColor: { ...port.rgbFgColor }, rgbBkColor: { ...port.rgbBkColor } } : {}),
 		pnLoc: { ...port.pnLoc },
 		pnSize: { ...port.pnSize },
 		pnMode: port.pnMode,

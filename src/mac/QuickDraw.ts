@@ -144,6 +144,28 @@ export class GrafPort {
 	patStretch: Integer = 0;
 	/** Port: the region being recorded by OpenRgn, as inversion points by scan line. */
 	rgnSave: Map<number, number[]> | null = null;
+
+	// Color port fields (Inside Macintosh V-49), used when portVersion marks a color port.
+	/** $C000 for a color port (CGrafPort), 0 for an old-style port. */
+	portVersion: Integer = 0;
+	portPixMap: PixMap = newPixMap();
+	rgbFgColor: RGBColor = { red: 0, green: 0, blue: 0 };
+	rgbBkColor: RGBColor = { red: 0xffff, green: 0xffff, blue: 0xffff };
+	/** A pixel map pattern the pen draws with, or null for the old-style pnPat. */
+	pnPixPat: PixPat | null = null;
+}
+
+/**
+ * Port: one class serves for GrafPort and CGrafPort, so that windows and dialogs can be either;
+ * isColorPort tells them apart. A color port's portBits is its portPixMap.
+ */
+export const CGrafPort = GrafPort;
+export type CGrafPort = GrafPort;
+export type GrafPtr = GrafPort;
+export type CGrafPtr = GrafPort;
+
+export function isColorPort(port: GrafPort): boolean {
+	return (port.portVersion & 0xc000) === 0xc000;
 }
 
 /**
@@ -156,17 +178,6 @@ export interface PixPat {
 	patMap: PixMap;
 	patData: Uint8Array;
 	pat1Data: Pattern;
-}
-
-/** A color graphics port. Its portBits is its portPixMap, so drawing code treats both alike. */
-export class CGrafPort extends GrafPort {
-	portPixMap: PixMap = newPixMap();
-	/** A pixel map pattern the pen draws with, or null for the old-style pnPat. */
-	pnPixPat: PixPat | null = null;
-	rgbFgColor: RGBColor = { red: 0, green: 0, blue: 0 };
-	rgbBkColor: RGBColor = { red: 0xffff, green: 0xffff, blue: 0xffff };
-	override fgColor: LongInt = 0;
-	override bkColor: LongInt = 0;
 }
 
 export function newPixMap(): PixMap {
@@ -332,6 +343,8 @@ export function InitPort(port: GrafPort): void {
 	port.colrBit = 0;
 	port.patStretch = 0;
 	port.rgnSave = null;
+	port.portVersion = 0;
+	port.pnPixPat = null;
 	thePort = port;
 }
 
@@ -364,6 +377,7 @@ export function InitCPort(port: CGrafPort): void {
 		throw new Error('OpenCPort needs Color QuickDraw');
 	}
 	InitPort(port);
+	port.portVersion = 0xc000;
 	const pm = device.gdPMap;
 	port.portPixMap = { ...pm, bounds: { ...pm.bounds } };
 	port.portBits = port.portPixMap;
@@ -383,7 +397,7 @@ export function CloseCPort(port: CGrafPort): void {
 
 export function RGBForeColor(c: RGBColor): void {
 	const port = thePort;
-	if (port instanceof CGrafPort) {
+	if (isColorPort(port)) {
 		port.rgbFgColor = { ...c };
 		port.fgColor = colorToIndex(port.portPixMap.pmTable, c);
 	}
@@ -391,7 +405,7 @@ export function RGBForeColor(c: RGBColor): void {
 
 export function RGBBackColor(c: RGBColor): void {
 	const port = thePort;
-	if (port instanceof CGrafPort) {
+	if (isColorPort(port)) {
 		port.rgbBkColor = { ...c };
 		port.bkColor = colorToIndex(port.portPixMap.pmTable, c);
 	}
@@ -400,18 +414,18 @@ export function RGBBackColor(c: RGBColor): void {
 /** Pascal `GetForeColor(var color)`. */
 export function GetForeColor(c: RGBColor): void {
 	const port = thePort;
-	Object.assign(c, port instanceof CGrafPort ? port.rgbFgColor : oldColorToRGB(port.fgColor));
+	Object.assign(c, isColorPort(port) ? port.rgbFgColor : oldColorToRGB(port.fgColor));
 }
 
 export function GetBackColor(c: RGBColor): void {
 	const port = thePort;
-	Object.assign(c, port instanceof CGrafPort ? port.rgbBkColor : oldColorToRGB(port.bkColor));
+	Object.assign(c, isColorPort(port) ? port.rgbBkColor : oldColorToRGB(port.bkColor));
 }
 
 /** Old-style colors: in a color port they become RGB colors. */
 export function ForeColor(color: LongInt): void {
 	const port = thePort;
-	if (port instanceof CGrafPort) {
+	if (isColorPort(port)) {
 		RGBForeColor(oldColorToRGB(color));
 	} else {
 		port.fgColor = color;
@@ -420,7 +434,7 @@ export function ForeColor(color: LongInt): void {
 
 export function BackColor(color: LongInt): void {
 	const port = thePort;
-	if (port instanceof CGrafPort) {
+	if (isColorPort(port)) {
 		RGBBackColor(oldColorToRGB(color));
 	} else {
 		port.bkColor = color;
@@ -493,7 +507,7 @@ export function PenMode(mode: Integer): void {
 
 export function PenPat(pat: Pattern): void {
 	thePort.pnPat = [...pat];
-	if (thePort instanceof CGrafPort) {
+	if (isColorPort(thePort)) {
 		thePort.pnPixPat = null;
 	}
 }
@@ -507,7 +521,7 @@ export function PenNormal(): void {
 /** Sets a color port's pen to a pixel pattern; a type 0 pixel pattern acts as its old-style pattern. */
 export function PenPixPat(pp: PixPat): void {
 	const port = thePort;
-	if (port instanceof CGrafPort) {
+	if (isColorPort(port)) {
 		port.pnPat = [...pp.pat1Data];
 		port.pnPixPat = pp.patType === 1 ? pp : null;
 	} else {
@@ -716,11 +730,11 @@ function clipToPort(rgn: Region): Region {
 function fillRegion(rgn: Region, pat: Pattern, mode: number, pixPat: PixPat | null = null): void {
 	const port = thePort;
 	const s = surfaceOf(port.portBits);
-	if (pixPat !== null && port instanceof CGrafPort) {
+	if (pixPat !== null && isColorPort(port)) {
 		fillPixPat(rgn, pixPat, mode, port, s);
 		return;
 	}
-	if (mode >= 32 && port instanceof CGrafPort) {
+	if (mode >= 32 && isColorPort(port)) {
 		fillArithmetic(rgn, pat, mode, port, s);
 		return;
 	}
@@ -843,7 +857,7 @@ function fillArithmetic(rgn: Region, pat: Pattern, mode: number, port: CGrafPort
  * foreground and background colors in a color port, black and white otherwise.
  */
 function portColors(port: GrafPort, s: Surface): { fg: number; bk: number } {
-	if (port instanceof CGrafPort) {
+	if (isColorPort(port)) {
 		return { fg: port.fgColor, bk: port.bkColor };
 	}
 	return { fg: (1 << s.depth) - 1, bk: 0 };
@@ -889,7 +903,7 @@ function drawShape(verb: GrafVerb, shape: Region, frameRgn?: () => Region): void
 		case paint: {
 			const pen = penTransfer(port);
 			if (pen !== null) {
-				fillRegion(clipToPort(verb === frame ? frameRgn!() : shape), pen.pat, pen.mode, port instanceof CGrafPort ? port.pnPixPat : null);
+				fillRegion(clipToPort(verb === frame ? frameRgn!() : shape), pen.pat, pen.mode, isColorPort(port) ? port.pnPixPat : null);
 			}
 			break;
 		}
@@ -1612,7 +1626,7 @@ export function PlotCIcon(r: Rect, icon: CIcon | null): void {
 		return;
 	}
 	const port = thePort;
-	const color = port instanceof CGrafPort;
+	const color = isColorPort(port);
 	const saved = color ? { fg: { ...port.rgbFgColor }, bk: { ...port.rgbBkColor } } : null;
 	RGBForeColor({ red: 0, green: 0, blue: 0 });
 	RGBBackColor({ red: 0xffff, green: 0xffff, blue: 0xffff });
