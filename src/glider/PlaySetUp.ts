@@ -402,18 +402,67 @@ async function GameOver(): Promise<void> {
 	SetRect(dest, 0, 0, 34, 45);
 	OffsetRect(dest, 113, 100);
 
-	// The letters G, a, m, e, O, v, e, r, one by one.
-	for (const letter of [0, 1, 2, 3, 4, 5, 3, 6]) {
-		if (letter !== 0) {
-			OffsetRect(dest, 36, 0);
-			_dummyLong = await Delay(timeBetween);
-		}
-		DoTheSound(21);
-		if (G.inColor) {
-			CopyBits(G.objectCPtr!.portPixMap, G.mainWndo!.portBits, letters[letter]!, dest, srcCopy, null);
-		} else {
-			CopyBits(G.offPlayerMap, G.mainWndo!.portBits, letters[letter]!, dest, srcCopy, null);
-		}
+	DoTheSound(21);
+	if (G.inColor) {
+		CopyBits(G.objectCPtr!.portPixMap, G.mainWndo!.portBits, letters[0]!, dest, srcCopy, null);
+	} else {
+		CopyBits(G.offPlayerMap, G.mainWndo!.portBits, letters[0]!, dest, srcCopy, null);
+	}
+	OffsetRect(dest, 36, 0);
+	_dummyLong = await Delay(timeBetween);
+	DoTheSound(21);
+	if (G.inColor) {
+		CopyBits(G.objectCPtr!.portPixMap, G.mainWndo!.portBits, letters[1]!, dest, srcCopy, null);
+	} else {
+		CopyBits(G.offPlayerMap, G.mainWndo!.portBits, letters[1]!, dest, srcCopy, null);
+	}
+	OffsetRect(dest, 36, 0);
+	_dummyLong = await Delay(timeBetween);
+	DoTheSound(21);
+	if (G.inColor) {
+		CopyBits(G.objectCPtr!.portPixMap, G.mainWndo!.portBits, letters[2]!, dest, srcCopy, null);
+	} else {
+		CopyBits(G.offPlayerMap, G.mainWndo!.portBits, letters[2]!, dest, srcCopy, null);
+	}
+	OffsetRect(dest, 36, 0);
+	_dummyLong = await Delay(timeBetween);
+	DoTheSound(21);
+	if (G.inColor) {
+		CopyBits(G.objectCPtr!.portPixMap, G.mainWndo!.portBits, letters[3]!, dest, srcCopy, null);
+	} else {
+		CopyBits(G.offPlayerMap, G.mainWndo!.portBits, letters[3]!, dest, srcCopy, null);
+	}
+	OffsetRect(dest, 36, 0);
+	_dummyLong = await Delay(timeBetween);
+	DoTheSound(21);
+	if (G.inColor) {
+		CopyBits(G.objectCPtr!.portPixMap, G.mainWndo!.portBits, letters[4]!, dest, srcCopy, null);
+	} else {
+		CopyBits(G.offPlayerMap, G.mainWndo!.portBits, letters[4]!, dest, srcCopy, null);
+	}
+	OffsetRect(dest, 36, 0);
+	_dummyLong = await Delay(timeBetween);
+	DoTheSound(21);
+	if (G.inColor) {
+		CopyBits(G.objectCPtr!.portPixMap, G.mainWndo!.portBits, letters[5]!, dest, srcCopy, null);
+	} else {
+		CopyBits(G.offPlayerMap, G.mainWndo!.portBits, letters[5]!, dest, srcCopy, null);
+	}
+	OffsetRect(dest, 36, 0);
+	_dummyLong = await Delay(timeBetween);
+	DoTheSound(21);
+	if (G.inColor) {
+		CopyBits(G.objectCPtr!.portPixMap, G.mainWndo!.portBits, letters[3]!, dest, srcCopy, null);
+	} else {
+		CopyBits(G.offPlayerMap, G.mainWndo!.portBits, letters[3]!, dest, srcCopy, null);
+	}
+	OffsetRect(dest, 36, 0);
+	_dummyLong = await Delay(timeBetween);
+	DoTheSound(21);
+	if (G.inColor) {
+		CopyBits(G.objectCPtr!.portPixMap, G.mainWndo!.portBits, letters[6]!, dest, srcCopy, null);
+	} else {
+		CopyBits(G.offPlayerMap, G.mainWndo!.portBits, letters[6]!, dest, srcCopy, null);
 	}
 
 	for (i = 1; i <= 20; i++) {
@@ -930,17 +979,6 @@ async function SetRoomState(): Promise<void> {
 }
 
 //=================================
-
-/** The glider's rectangles after it enters a room, as the Scroll procedures set them. */
-function placeGlider(): void {
-	const theGlider = G.theGlider;
-	theGlider.oldRect = { ...theGlider.destRect };
-	theGlider.wholeRect = { ...theGlider.destRect };
-	theGlider.oldShado = { ...theGlider.shadoDest };
-	theGlider.wholeShado = { ...theGlider.shadoDest };
-	theGlider.touchRect = { ...theGlider.destRect };
-	InsetRect(theGlider.touchRect, 10, 5);
-}
 
 async function ScrollForward(): Promise<void> {
 	const srcRect = newRect();
