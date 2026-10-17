@@ -23,6 +23,7 @@ Do not relitigate these without discussing them first.
    Whatever the operating system provided is replaced by the browser's equivalent: the Finder, Standard File's file browsing, file storage, launching and quitting, desk accessories.
    Toolbox calls stay in the ported code; only their system-level implementations change.
 3. **System version:** System 6 user interface only (`hasSys7 = FALSE`, so "Help" is appended to the Options menu).
+   The Finder without MultiFinder, so the menu bar has no application menu.
    System 7 may be revisited after the Room Editor.
 4. **Machines:** a Mac Plus (512×342, black and white, page flipping) and a Mac II (640×480, 16 colors or black and white).
    A "Windows" look uses the Glider for Windows palette (the 256-color variant by default, the 16-color VGA variant as an option) and, later, Windows art.
@@ -31,7 +32,7 @@ Do not relitigate these without discussing them first.
    No Web Worker, `SharedArrayBuffer`, or service worker.
    Every routine that can block (directly or by calling one that does) is `async`; about half of all routines.
    Lint rules (`no-floating-promises` and related) guard against missing `await`s.
-6. **Tooling:** GNU Make, TypeScript 7 (the Go compiler) for type checking and for emitting one ES module per source file (no bundler), `node:test` on Node 24 with built-in type stripping, oxlint with tsgolint for type-aware lint rules, Playwright for browser and emulator tests.
+6. **Tooling:** GNU Make, TypeScript 7 (the Go compiler) for type checking and for emitting one ES module per source file (no bundler), `node:test` on Node 24 with built-in type stripping, oxlint with tsgolint for type-aware lint rules, Playwright for browser tests.
    Tools are installed with `npm ci` from a lockfile but are compiled binaries; there is no JavaScript build tooling.
    Rolldown with `inlineConst: false` is the fallback if load time ever requires a bundle.
 7. **Hosting:** GitHub Pages; no custom headers.
@@ -101,7 +102,11 @@ These keep the TypeScript recognizably the same program as the Pascal.
 
 - [x] **0. Scaffolding:** Makefile, tool installation, TypeScript configuration, lint, test runner, smoke test.
 - [x] **1. Resources and data formats:** DeRez listing, MacBinary, AppleDouble, and resource fork parsers; resource file writer; house, saved game, and preference records.
-- [ ] **2. Oracle:** run the original (Glider 4.06 under System 6.0.8, and a rebuilt 4.05 if feasible) in an emulator driven by Playwright; capture reference screenshots of test houses.
+- [ ] **2. Oracle:** run the original in a deterministic headless emulator and capture reference screenshots.
+  - [x] Headless Mini vMac (Mac Plus, Mac II), fetched inputs, boot disks, scripts, screenshots.
+  - [x] Glider 4.06 boots to the title screen and plays on both machines.
+  - [ ] Test houses, RAM inspection of game state, the cursor in screenshots.
+  - [ ] A rebuilt 4.05 (THINK Pascal 4.0 is in Infinite Mac's library), if 4.06 differences get in the way.
 - [ ] **3. QuickDraw, black and white:** rectangles, regions, patterns, pen, lines, shapes, `CopyBits`, `CopyMask`, text, PICT playback.
 - [ ] **4. Color QuickDraw:** 4-bit pixel maps, color tables, inverse tables, fore and back colors, colorizing, arithmetic modes used by Glider.
 - [ ] **5. Platform:** display, scaling, input, time, cursors.
@@ -118,6 +123,7 @@ These keep the TypeScript recognizably the same program as the Pascal.
 - Exact Color QuickDraw behavior for: `patCopy + transparent` (mode 44), text in pattern modes, XOR and invert on 4-bit pixels, colorizing with a cyan background, inverse table matching.
 - Effective device color table after the Palette Manager applies `pltt` 128.
 - Initial values of uninitialized Pascal globals (affects the `is4Channel` preference bug).
+- Which keyboard type the port reports (`SysEnvirons`' `keyBoardType`): the shipped preferences say 4, so any other value shows the "New keyboard" alert at first launch, as the oracle does on both machines.
 - SMS semantics: priorities, channel allocation, 2- and 4-channel mixing.
 - Which of the Windows palette variants needs what exact values (6-bit DAC levels such as 195 versus requested 192).
 
@@ -136,3 +142,25 @@ Explored the repository and related material; see `docs/versions.md` for version
 
 Settled the decisions above with the user.
 Next: scaffolding.
+
+### 2026-10-17 (continued)
+
+Scaffolding and the resource pipeline are done (roadmap 0 and 1).
+
+Built the oracle (roadmap 2); see [`oracle/README.md`](oracle/README.md).
+
+- Mini vMac with a headless front end of our own: no window, no real-time clock, scripted input, PBM and PPM screenshots.
+  Emulated time is decoupled from wall-clock time, so runs repeat bit for bit; booting to Glider's first room takes 0.4 seconds.
+  Playwright is not needed for the oracle after all.
+- Each run gets a fresh HFS disk (hfsutils) with only the System and Finder from Infinite Mac's System 6.0.8 disk, Glider 4.06, and test files.
+  The boot blocks' `bbHelloName` launches Glider directly, without MultiFinder.
+- Glider's "MacsBug" file is C. Holmén's "Mission Screen" INIT ("Alternate screen init", version 2.0) as a `dbgr` file, which the System loads at startup like a debugger.
+  On a 68000 it lowers `BufPtr` by `$8020` and writes the Pascal string "alternate screen present" at `ScrnBase - $8020`, which is Glider's `kPointerBase` (`$3F2700 - $20`).
+  Glider accepts "alt" or "Hol" there; otherwise it shows alert 30 ("Place the "MacsBug" extension…") and turns page flipping off.
+  The Infinite Mac copy of Glider lacks the file, so the oracle uses a 20-instruction stand-in of our own.
+- Behavior to reproduce, seen in the oracle:
+  - At first launch on either machine, alert 33 ("New keyboard. Switching to default keyboard controls.") appears over the title screen.
+  - After it is dismissed, the title screen keeps a white rectangle where the alert was until something redraws it.
+  - On the Mac II, Glider draws its side panels and centers the 512×342 play area in 640×480.
+
+Next: test houses for the oracle, then QuickDraw (roadmap 3).

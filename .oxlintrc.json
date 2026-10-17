@@ -12,7 +12,8 @@
   "ignorePatterns": [
     "dist",
     "build",
-    "node_modules"
+    "node_modules",
+    "oracle/cache"
   ],
   "overrides": [
     {

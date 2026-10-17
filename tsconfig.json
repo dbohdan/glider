@@ -4,5 +4,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src", "tools", "test"]
+  "include": ["src", "tools", "test", "oracle"],
+  "exclude": ["oracle/cache"]
 }

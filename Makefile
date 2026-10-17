@@ -6,7 +6,7 @@ NPM ?= npm
 BIN := node_modules/.bin
 DIST := dist
 
-.PHONY: all check lint test build resources serve clean distclean node-version
+.PHONY: all check lint test build resources serve oracle oracle-shots clean distclean node-version
 
 all: check lint test
 
@@ -21,7 +21,7 @@ check: node_modules/.installed
 	$(BIN)/tsc -p tsconfig.json
 
 lint: node_modules/.installed
-	$(BIN)/oxlint --type-aware --deny-warnings src tools test
+	$(BIN)/oxlint --type-aware --deny-warnings src tools test oracle
 
 test: node_modules/.installed
 	$(NODE) --test 'test/**/*.test.ts'
@@ -35,6 +35,13 @@ build: node_modules/.installed resources
 
 serve: build
 	$(NODE) tools/serve.ts $(DIST)
+
+# The oracle (see oracle/README.md) also needs gcc, git, and hfsutils.
+oracle: node_modules/.installed
+	$(NODE) oracle/main.ts setup
+
+oracle-shots: oracle
+	$(NODE) oracle/main.ts shoot
 
 clean:
 	rm -rf $(DIST) build
