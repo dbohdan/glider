@@ -23,6 +23,8 @@ interface OpenFile {
 	name: string;
 	/** Handles given out for this file's resources, so the same resource gives the same handle. */
 	handles: Map<Resource, Handle>;
+	/** Port: writes the fork back to its file, for files opened from a volume. */
+	save?: (fork: ResourceFork) => void;
 }
 
 /** Open files, most recently opened last. The System file is first. */
@@ -39,15 +41,18 @@ export function initResources(system: ResourceFork, name = 'System'): void {
 	resErr = noErr;
 }
 
-/** Port: opens a resource fork that is already in memory; returns its reference number. */
-export function openResourceFork(fork: ResourceFork, name: string): Integer {
+/**
+ * Port: opens a resource fork that is already in memory; returns its reference number. `save`
+ * writes the fork back to its file when resources are written.
+ */
+export function openResourceFork(fork: ResourceFork, name: string, save?: (fork: ResourceFork) => void): Integer {
 	const existing = chain.find((f) => f.fork === fork);
 	if (existing !== undefined) {
 		current = existing.refNum;
 		return existing.refNum;
 	}
 	const refNum = nextRefNum++;
-	chain.push({ refNum, fork, name, handles: new Map() });
+	chain.push({ refNum, fork, name, handles: new Map(), ...(save === undefined ? {} : { save }) });
 	current = refNum;
 	resErr = noErr;
 	return refNum;
@@ -75,6 +80,7 @@ export function CloseResFile(refNum: Integer): void {
 	if (i <= 0) {
 		return;
 	}
+	UpdateResFile(refNum);
 	chain.splice(i, 1);
 	if (!chain.some((f) => f.refNum === current)) {
 		current = chain.at(-1)!.refNum;
@@ -171,7 +177,27 @@ export function WriteResource(h: Handle): void {
 		return;
 	}
 	found.res.data = h.data;
+	found.file.save?.(found.file.fork);
 	resErr = noErr;
+}
+
+/** Pascal `UpdateResFile`: writes the file's resource map and changed resources. */
+export function UpdateResFile(refNum: Integer): void {
+	const file = chain.find((f) => f.refNum === refNum);
+	if (file === undefined) {
+		resErr = resFNotFound;
+		return;
+	}
+	for (const [res, h] of file.handles) {
+		res.data = h.data;
+	}
+	file.save?.(file.fork);
+	resErr = noErr;
+}
+
+/** Port: the names of the open resource files, for OpenResFile to find one already open. */
+export function openResourceFileNamed(name: string): Integer | null {
+	return chain.find((f) => f.name.toUpperCase() === name.toUpperCase())?.refNum ?? null;
 }
 
 export function CountResources(type: OSType): Integer {

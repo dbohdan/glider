@@ -2,7 +2,7 @@
 // 'NFNT' resources found through 'FOND' families or the old FONT numbering (family * 128 + size).
 
 import { s16, u16 } from './Binary.ts';
-import { GetResource } from './Resources.ts';
+import { GetNamedResource, GetResInfo, GetResource } from './Resources.ts';
 import type { Integer } from './Types.ts';
 
 export const systemFont = 0;
@@ -133,4 +133,15 @@ export function fontStrike(txFont: Integer, txSize: Integer): FontStrike {
 /** Pascal `RealFont`: whether a family is available in a size without scaling. */
 export function RealFont(fontNum: Integer, size: Integer): boolean {
 	return strikeID(fontNum === applFont ? apFontID : fontNum, size === 0 ? defaultSize : size) !== null;
+}
+
+/** Pascal `InitFonts`: fonts are read from the open resource files when first used. */
+export function InitFonts(): void {
+	flushFonts();
+}
+
+/** Pascal `GetFNum(fontName, var theNum)`: a font family's number from its 'FOND' name, or 0. */
+export function GetFNum(fontName: string): Integer {
+	const fond = GetNamedResource('FOND', fontName);
+	return fond === null ? 0 : (GetResInfo(fond)?.id ?? 0);
 }

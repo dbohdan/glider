@@ -7,6 +7,7 @@
 // and adds it to its update region, which brings an update event.
 
 import { GetMainDevice } from './Color.ts';
+import { clearDepthChangeHooks, onDepthChange } from './Devices.ts';
 import { activateEvt, type EventRecord, setWindowEventSource, updateEvt } from './Events.ts';
 import { addressOf, forgetAddress, objectAt } from './Memory.ts';
 import { DrawPicture, type Picture } from './Picture.ts';
@@ -346,6 +347,27 @@ export function InitWindows(): void {
 	}
 	SetPort(save);
 	setWindowEventSource({ activateEvent, updateEvent });
+	clearDepthChangeHooks();
+	onDepthChange(repaintScreen);
+}
+
+/** After the screen's depth changes: the corners, the desktop, and every window are redrawn. */
+function repaintScreen(): void {
+	withDrawingPort(() => {
+		const screen = screenBits.bounds;
+		ClipRect(screen);
+		const world = new Region();
+		OpenRgn();
+		FrameRoundRect(screen, 16, 16);
+		CloseRgn(world);
+		const corners = rectRegion(screen);
+		DiffRgn(corners, world, corners);
+		PenNormal();
+		penColor({ red: 0, green: 0, blue: 0 });
+		PaintRgn(corners);
+		SetClip(grayRgn);
+	});
+	PaintBehind(windowList, grayRgn);
 }
 
 function paintDesktop(rgn: Region): void {

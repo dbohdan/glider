@@ -372,7 +372,11 @@ export function OpenPort(port: GrafPort): void {
 export function ClosePort(port: GrafPort): void {
 	port.visRgn = new Region();
 	port.clipRgn = new Region();
+	colorPorts.delete(port);
 }
+
+/** Port: open color ports, whose pixel maps follow the screen's when its depth changes (SetDepth). */
+export const colorPorts = new Set<GrafPort>();
 
 export function SetPort(port: GrafPort): void {
 	thePort = port;
@@ -395,6 +399,7 @@ export function InitCPort(port: CGrafPort): void {
 	}
 	InitPort(port);
 	port.portVersion = 0xc000;
+	colorPorts.add(port);
 	const pm = device.gdPMap;
 	port.portPixMap = { ...pm, bounds: { ...pm.bounds } };
 	port.portBits = port.portPixMap;

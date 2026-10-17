@@ -10,6 +10,7 @@
 
 import { macRomanCode } from './MacRoman.ts';
 import { GetMainDevice } from './Color.ts';
+import { onDepthChange } from './Devices.ts';
 import { getHost, mouse, TickCount, tickTime } from './OS.ts';
 import { bytesAt, DisposPtr, NewPtr } from './Memory.ts';
 import {
@@ -220,6 +221,7 @@ export function InitMenus(): void {
 		SetMCEntries(parseMenuColors(mctb.data));
 	}
 	DrawMenuBar();
+	onDepthChange(DrawMenuBar);
 }
 
 export function NewMenu(menuID: Integer, menuTitle: string): MenuInfo {
