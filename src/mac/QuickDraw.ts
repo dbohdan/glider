@@ -222,6 +222,23 @@ export let hasColorQD = false;
 /** The color arithmetic modes blend with and pin to (Pascal `OpColor`); black by default. */
 let opColor: RGBColor = { red: 0, green: 0, blue: 0 };
 
+/**
+ * A pseudo-random integer from -32767 to 32767 (Inside Macintosh I-194): randSeed becomes
+ * randSeed * 16807 mod (2^31 - 1), and the result is its low word, with -32768 made 0.
+ * InitGraf sets randSeed to 1, so a program that never sets it gets the same numbers every run.
+ */
+export function Random(): Integer {
+	const seed = randSeed >>> 0 >= 0x80000000 ? (randSeed & 0x7fffffff) + 1 : randSeed >>> 0;
+	randSeed = (seed * 16807) % 0x7fffffff;
+	const r = (randSeed << 16) >> 16;
+	return r === -32768 ? 0 : r;
+}
+
+/** Pascal assignment to the QuickDraw global `randSeed`. */
+export function setRandSeed(seed: LongInt): void {
+	randSeed = seed | 0;
+}
+
 export function OpColor(c: RGBColor): void {
 	opColor = { ...c };
 }
