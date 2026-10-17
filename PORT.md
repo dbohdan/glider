@@ -88,7 +88,11 @@ These keep the TypeScript recognizably the same program as the Pascal.
 
 ## Architecture
 
-- **QuickDraw** draws into offscreen bitmaps and pixel maps stored one byte per pixel (1-bit and 4-bit semantics) and into the screen, which is one such bitmap.
+- **Memory:** pointers are addresses in a flat 32-bit address space (`src/mac/Memory.ts`) holding RAM, with the compact Macs' screen buffers at its top, and video memory on a Mac II.
+  Only raw data lives there (pixel buffers, screens, `NewPtr` blocks), so Glider's `Pointer(kSecondaryAddr)` and its own offscreen buffers work as written.
+  Toolbox records (ports, regions, handles) are JavaScript objects.
+- **QuickDraw** draws into bitmaps and pixel maps with the Mac's layout (`rowBytes`, packed pixels, 1 = black).
+  Shapes become regions, regions are clipped to the bitmap, visRgn, and clipRgn, and the result is filled with a pattern in a transfer mode, as in QuickDraw.
   The screen is copied to a canvas at display refresh, scaled by an integer factor.
 - **Time:** `TickCount` advances at 60.15 Hz from a virtual clock.
   In the browser the clock follows `performance.now()` and freezes when the page is hidden; in tests it advances instantly when the program waits.
@@ -108,6 +112,9 @@ These keep the TypeScript recognizably the same program as the Pascal.
   - [ ] Test houses, RAM inspection of game state, the cursor in screenshots.
   - [ ] A rebuilt 4.05 (THINK Pascal 4.0 is in Infinite Mac's library), if 4.06 differences get in the way.
 - [ ] **3. QuickDraw, black and white:** rectangles, regions, patterns, pen, lines, shapes, `CopyBits`, `CopyMask`, text, PICT playback.
+  - [x] Picture oracle: test pictures drawn by the ROM and by the port, compared pixel by pixel (`test/quickdraw/`).
+  - [x] Rectangles, regions, patterns, pattern modes, lines, ovals (known gaps), rounded rectangles, polygons, region recording from lines, 1-bit `CopyBits` in `srcCopy`, `DrawPicture` for these.
+  - [ ] Text, all `CopyBits` modes, `CopyMask`, arcs, picture scaling.
 - [ ] **4. Color QuickDraw:** 4-bit pixel maps, color tables, inverse tables, fore and back colors, colorizing, arithmetic modes used by Glider.
 - [ ] **5. Platform:** display, scaling, input, time, cursors.
 - [ ] **6. Toolbox user interface (System 6):** Window, Menu, Control, Dialog, TextEdit, and Alert managers.
@@ -120,6 +127,7 @@ These keep the TypeScript recognizably the same program as the Pascal.
 
 ## Open questions
 
+- The exact oval rule (see the journal): the original QuickDraw source (Computer History Museum, 2010) is under a non-commercial license, so it could only be read for the algorithm, not copied; not consulted so far.
 - Exact Color QuickDraw behavior for: `patCopy + transparent` (mode 44), text in pattern modes, XOR and invert on 4-bit pixels, colorizing with a cyan background, inverse table matching.
 - Effective device color table after the Palette Manager applies `pltt` 128.
 - Initial values of uninitialized Pascal globals (affects the `is4Channel` preference bug).
@@ -164,3 +172,22 @@ Built the oracle (roadmap 2); see [`oracle/README.md`](oracle/README.md).
   - On the Mac II, Glider draws its side panels and centers the 512×342 play area in 640×480.
 
 Next: test houses for the oracle, then QuickDraw (roadmap 3).
+
+Started QuickDraw with a picture oracle, which turned out to be the most useful part of the oracle so far.
+Glider draws its title picture with `DrawPicture`, so a copy of Glider with the title picture replaced shows how the ROM draws any picture; test pictures come from `oracle/PictWriter.ts`.
+Runs get 32 times the instructions per tick (`speed 5`) and are shot at tick 100, when the picture is up and Glider has drawn little over it; the pixels Glider does draw over are masked by comparing an all-black and an all-white picture.
+
+Findings, all checked pixel by pixel against the Mac Plus ROM:
+
+- **Pictures:** `DrawPicture` draws nothing until the picture sets a clip region; every real picture does.
+- **Pen modes 0 to 7** (source modes): shapes ignore the pen pattern and act like pattern mode `14 - mode` with a black pattern; lines draw nothing.
+  Glider's lightning bolts use `PenMode(srcXOr)` with `LineTo`, so they may be invisible in black and white; to be checked in color and in the game.
+- **Lines:** taken from top to bottom; along the major axis the minor coordinate steps after `(k + 1/2) * major / minor` pixels, a 16.16 number truncated for shallow lines and rounded up for steep lines and diagonals, and a pixel exactly at a step counts before it except on shallow lines going left.
+  Thick pens spread each pixel of the one-pixel line over the pen rectangle.
+- **Region recording and polygons:** a non-horizontal edge splits each scan line at the leftmost pixel of the drawn line on the next scan line (going right) or the same scan line (going left); horizontal edges add nothing.
+- **Ovals:** a pixel is inside when its center satisfies `x²h² <= w²(h² + 1 - y²)` in half-pixel units, with special cases for ovals one or two pixels tall.
+  This matches 98.8% of rows and every size Glider draws; the top row of short, wide ovals and a row near the ends of some tall, narrow ones differ by a pixel.
+  The Mac Plus and the Mac II draw ovals identically. Executor's oval code (2019 and 2020) does not match either.
+  The exact rule probably needs the original algorithm (an incremental square-root scan, judging by the asymmetries); see open questions.
+- **Rounded rectangles** stretch the corner oval's edges, not its region: rows where a narrow corner oval's edges cross are empty in the oval but not in the rounded rectangle.
+- Glider's title picture and all 13 black-and-white backgrounds draw identically to the ROM.
