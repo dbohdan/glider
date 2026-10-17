@@ -169,9 +169,44 @@ The repo's high-score table for The House also contains many "Ozma" entries, the
   - The object sheet and its mask, which are re-laid out.
     New sprites include banner-towing paper planes reading "C&G Forever…", "Good Flying Ace!!", and "Gliding Away…"; a cassette with a glider (the flight recorder); and a crumpled glider in the wastebasket.
     The "Game Over" letters and the glider fade masks moved.
-- Unknown: how the Windows version draws the shapes the Mac draws in code (tables, shelves, cabinets, windows, shadows), and whether GDI dithers colors that are not in the palette.
-  The archive.org screenshots are cropped 639×412 JPEGs and can't settle this.
 - The layout is the same as the Mac color version on a 640×480 screen: a menu bar, then the 512×342 play area centered between the two 64-pixel side panels.
+- Shapes the Mac draws in code (tables, shelves, cabinets, window frames, shadows) are drawn with dithered brushes.
+  For example, a table top is a 1:1 checkerboard of olive and dark red standing in for the Mac's brown.
+  See the screenshots below.
+
+### Screenshots
+
+Captured in 2026 with `scrot` from the archive.org in-browser emulator (DOSBox running Windows 3.1 in Firefox), then cropped.
+The PNGs are lossless and use 11–12 colors each.
+The archive.org page's own screenshots are cropped 639×412 JPEGs and are not usable for pixel comparisons.
+
+| File | Content |
+|---|---|
+| [`room-03-under-me.png`](images/windows/room-03-under-me.png) | The House, room 3, with visible air |
+| [`room-04-looking-at-you.png`](images/windows/room-04-looking-at-you.png) | Room 4: mirror, shelf, cabinet, battery |
+| [`room-05-youre-invited.png`](images/windows/room-05-youre-invited.png) | Room 5: window with lightning, balloon, floating score |
+| [`high-scores.png`](images/windows/high-scores.png) | High score table |
+| [`high-score-name-entry.png`](images/windows/high-score-name-entry.png) | Name entry for a new high score |
+
+Findings:
+
+- **The emulator runs Windows in 256-color mode.**
+  The screenshots contain Windows' static gray (160, 160, 164), which does not exist in 16-color mode.
+- **Colors pass through a 6-bit VGA DAC.**
+  The screen values are 6-bit DAC levels expanded to 8 bits: 48 → 195, 32 → 130, 40 → 162, 41 → 166.
+- **The displayed palette differs from the bitmaps' color tables.**
+  Aligning room 3 with its background bitmap shows: dark red `#800000` → (195, 0, 0), olive `#808000` → (195, 195, 0), gray `#808080` → (130, 130, 130), light gray `#C0C0C0` → (195, 195, 195).
+  The dark colors are brightened to about `0xC0`, but the grays are not.
+  _Inference:_ in 256-color mode the game realizes its own logical palette with brighter dark colors and draws its bitmaps through it, so the bitmaps' own color tables are ignored.
+  No such table was found as plain bytes in `GLIDER.EXE`.
+  With a 16-color VGA driver a program cannot change the palette, so those players would have seen the standard `0x80` colors.
+- **Code-drawn surfaces are dithered**, as noted above.
+  Shadows are checkerboard patterns, some using the static gray.
+- **The high score table** has the Mac's layout (ring-binder holes, light blue rules, violet margin line, yellow highlight for the new entry) in a different serif font.
+- **The name entry dialog is Windows-specific.**
+  It is a gray box with a red border, yellow text ("You've earned the 5th spot on the high score list with 2720 points!"), a thumbs-up icon, and the default name "Glider Pilot...".
+  The Mac uses `DITL` 129 and the default "Your name here...".
+- **The HUD** matches the Mac color HUD in layout: room name in red on black, room number, score in cyan, battery charge in yellow, and the remaining gliders.
 
 ### Border graphic origin
 
