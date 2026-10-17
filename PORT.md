@@ -99,8 +99,8 @@ These keep the TypeScript recognizably the same program as the Pascal.
 
 ## Roadmap
 
-- [ ] **0. Scaffolding:** Makefile, tool installation, TypeScript configuration, lint, test runner, smoke test.
-- [ ] **1. Resources and data formats:** DeRez listing, MacBinary, AppleDouble, and resource fork parsers; resource file writer; house, saved game, and preference records.
+- [x] **0. Scaffolding:** Makefile, tool installation, TypeScript configuration, lint, test runner, smoke test.
+- [x] **1. Resources and data formats:** DeRez listing, MacBinary, AppleDouble, and resource fork parsers; resource file writer; house, saved game, and preference records.
 - [ ] **2. Oracle:** run the original (Glider 4.06 under System 6.0.8, and a rebuilt 4.05 if feasible) in an emulator driven by Playwright; capture reference screenshots of test houses.
 - [ ] **3. QuickDraw, black and white:** rectangles, regions, patterns, pen, lines, shapes, `CopyBits`, `CopyMask`, text, PICT playback.
 - [ ] **4. Color QuickDraw:** 4-bit pixel maps, color tables, inverse tables, fore and back colors, colorizing, arithmetic modes used by Glider.
