@@ -11,7 +11,8 @@ Statements marked _inference_ are not verified.
 | This repository | Glider 4.05 source, resources (`Glider.r`), art files, project file with compiled code; Room Editor 1.03 source and resources; 22 house files; 22 kHz sound files |
 | [Infinite Mac](https://github.com/mihaip/infinite-mac) `Library/Games/Glider.zip` ("Glider 4.0 Pack") | Glider 4.06 for 68K Macs, Glider 4.09 for PowerPC Macs, Room Editor 1.04, the "More Glider™" add-on disk, 18 houses from the web; resource forks and Finder info preserved |
 | [archive.org `win3_Glider40`](https://archive.org/details/win3_Glider40) | Glider for Windows ("Glider/WIN 4.01"), CD build with files dated October 1995 |
-| [Macintosh Garden](https://macintoshgarden.org/games/glider-40) | Listed but not yet examined: 4.02, 4.04, 4.06, 4.06 demo, 4.09, 4.10 (`glider_4_10.zip`), `Glider_42.SIT`, `GliderMacsBug.Hqx`, the More Glider disk image, `ImagineArt_1.sit`, `LaVillaStrangiato.sit`, and the manual (PDF) |
+| [Macintosh Garden](https://macintoshgarden.org/games/glider-40), examined | `Glider4.02.sit`: Glider 4.02 with "Art 16", "Art 2", a "Demo House", and the MacsBug extension. `Glider_4.04.sit`: Glider 4.04 with Room Editor 1.01. `glider_4_10.zip`: HFS disk images of Glider 4.10 (with Room Editor 1.06 and the third-party Glider Edit 1.1.1) and of the two 800K distribution floppies of Glider 4.07 (with Room Editor 1.04), plus scans of the April 1993 manual, a March 1993 catalog, and the package. `glider_4_manual.pdf`. `ImagineArt_1.sit`. `LaVillaStrangiato.sit` |
+| Macintosh Garden, not examined | 4.06 (the Infinite Mac copy was used), the 4.06 demo, 4.09 (the Infinite Mac copy was used), `Glider_42.SIT`, `GliderMacsBug.Hqx`, the More Glider disk image |
 
 ## Macintosh Glider timeline
 
@@ -26,8 +27,12 @@ From `Glider Version History` (the copy in the Infinite Mac pack adds 4.06):
 | 4.04 | Fixed a spurious "Can't find default house" alert. `SIZE` raised from 880 K to 920 K |
 | 4.05 | "Glider™" everywhere. Art files renamed from "Art 16" and "Art 2" to "Color Art" and "B&W Art"; art graphics word-aligned, so older art files display incorrectly. Color animated cursor. The "!Mission Screen Init" is now called "MacsBug". No more screen-depth check at the start of each game. Smarter art file lookup. Screen updated after Quit/Save First/Cancel. **This is the version in the repo.** |
 | 4.06 | Fixed trashed screens when opening a house on another volume. Realigned the bounds of the wall switch, thermostat, and power switch, with a check for houses made by Room Editor versions before 1.04 |
+| 4.07 | Version string "4.07av", © 1991–93; the application is dated August 1993. Adds an `SMSB` 1 resource (`0004 003A 004D 0029 004C`), presumably sound timing for SMS. Has the high-score dialog, `PICT` 228, and `STR#` 131 changes listed under 4.09 below. _Inference:_ "av" refers to the AV Macs (Quadra 660AV and 840AV) released in July 1993 |
 | 4.09 | "Power Macintosh compatible." Patrick Buckland's sound system (SMS) replaced by the Sound Manager because SMS was incompatible with newer hardware: it produced static on Power Macs |
-| 4.10, "4.2" | Present on Macintosh Garden; not examined |
+| 4.10 | © 1991–94; the application is dated 9 December 1994. Uses SMS again, with `SMSD` sounds identical to 4.07's, rather than 4.09's Sound Manager. Shares 4.09's `DITL` 129, `PICT` 228, `ALRT` 136, and `GLID` 0, but its `STR#` 131 matches 4.05's. Adds a `SIZE` 1 resource |
+| "4.2" | `Glider_42.SIT` on Macintosh Garden; not examined |
+
+The version history file stops at 4.06, so the 4.07–4.10 entries come from comparing resources.
 
 ### Room Editor timeline
 
@@ -39,7 +44,11 @@ From `Editor History`:
 | 1.01 | "I have no idea what I added to this upgrade!" |
 | 1.02 | Handle the `deep` resource mix-up in art files. Updated address. Removed a stray Glider 1.0 panel from the About box |
 | 1.03 | Art file renaming, as in Glider 4.05. About… 2.1 library by Jon Wind. Color animated cursor. Smarter art file lookup. Fixed the "glide ratio" bug: the glider flew farther in the editor than in the game. House locking in House Info…. Grease became "operational". **This is the version in the repo.** |
-| 1.04 | Realigned switch, thermostat, and power switch bounds (see Glider 4.06) |
+| 1.04 | Realigned switch, thermostat, and power switch bounds (see Glider 4.06). Shipped on the Glider 4.07 floppies, dated July 1993 |
+| 1.06 | On the Glider 4.10 disk, dated 9 December 1994; not examined further |
+
+Room Editor 1.01 is bundled with Glider 4.04.
+The Glider 4.10 disk also has "Glider Edit 1.1.1" (creator `GlEd`, 1999), a third-party house editor.
 
 ### 4.05 (repo) compared with 4.06 and 4.09
 
@@ -55,17 +64,47 @@ Resource comparison of the repo's `Glider.r` with the applications in the Infini
   - `PICT` 228 and `GLID` 0 also change.
   - Despite "for PPC Macs", 4.09 is 68K code (`CODE` resources, no `cfrg`) that runs on Power Macs.
 
-Art files:
+### Other versions compared with 4.05
 
-- 4.06 and 4.09 `Color Art`: identical to the repo's.
-- 4.06 and 4.09 `B&W Art`: `PICT` 128 (objects) and 129 (masks) differ from the repo's only at x = 144–161, y = 1–106.
+Comparison of the non-code resources of each application with the repo's `Glider.r`:
+
+- **4.02**:
+  - Lacks the color cursors (`crsr`) added in 4.05 and the color menus (`mctb`) added in 4.03.
+  - The sound dialog (`DLOG` and `DITL` 131) lacks the 4/2-channel radio buttons added in 4.03.
+  - `SMSD` 27–30 differ.
+  - Strings, alert items, the Apple menu, the About picture (`PICT` 228), and `SIZE` differ.
+- **4.04**: lacks the color cursors. Strings, alert items, the Apple menu, and `SIZE` differ.
+- **4.07, 4.09, 4.10**: see the timeline above.
+
+All versions from 4.02 on contain the side panels (`PICT` 140 and 141).
+
+### Art files
+
+- **Before 4.05:** `Art 16` (color) and `Art 2` (B&W), from both 4.02 and 4.04, differ from the repo's art only in `PICT` 128 (objects) and 129 (masks).
+  This is the word-alignment re-layout the 4.05 history describes, which made old art files display incorrectly.
+  The backgrounds are identical.
+  `PICT` 130 and 205 in 4.04's `Art 2` could not be parsed by a quick PICT decoder (opcodes `$5F` and `$06`): either damage or opcodes a full PICT player must handle.
+- **`Color Art`:** identical from 4.05 through 4.10. Its modification date stays 11 June 1991.
+- **4.06 and 4.09 `B&W Art`:** `PICT` 128 and 129 differ from the repo's only at x = 144–161, y = 1–106.
   These are the light switch, thermostat, and power switch cells: the 4.06 realignment.
+- **4.07 and 4.10 `B&W Art`:** identical to each other.
+  Compared with 4.06, the objects differ in a column at x = 160, y = 227–340 (114 pixels) and the masks at x = 144–161, y = 189–340 (307 pixels).
 
 ### Improved Art Files
 
 The More Glider disk (1992) includes `Improved Art Files.sea`, alternative color and B&W art files with "slightly altered" objects (for example a "flying-V" guitar).
 They require Glider 4.05 or later.
 Glider lets the player pick any art file (`DoOpen(kArtType)`), so art files are a user-replaceable asset.
+
+### Third-party art
+
+ImagineArt 1.2 (Paul Finn, ImagineWare Software, 1993, freeware) is a color art file (type `GLbk`, `deep` resource included) with recolored objects, "green alarm clocks and red rubber bands".
+Its read-me calls it the first art file made outside Casady & Greene.
+
+## Manuals
+
+- `glider_4_manual.pdf` (12 pages) and `docs/Manual_1993_April.pdf` from `glider_4_10.zip` (16 two-page spreads; "Manual Revision: June 1991; April 1993") are scans without a text layer.
+- The April 1993 manual covers installation, the game and its menus, the Room Editor (building houses, background tiles, the object palette, linking objects and rooms, room conditions, testing), "What's in an Object?", and troubleshooting.
 
 ## Houses
 
@@ -86,10 +125,11 @@ There are two revisions:
 | Copy | Saved | Lock | Room 26 | Top score |
 |---|---|---|---|---|
 | Repo | 1991-07-15 | Unlocked | "All the Trappings…" | Todd Prince, 370152 |
-| Glider 4.06 and 4.09 | 1991-06-23 | Locked | "Fan Fun!" | "Ozma of OZ!", 214050 |
+| Glider 4.02, 4.04, 4.06, 4.07, 4.09, 4.10 | 1991-06-23 | Locked | "Fan Fun!" | Varies: the 4.02 and 4.04 archives carry a previous owner's scores; the others have "Ozma of OZ!", 214050 |
 | Windows `HOUSE.GHS` | 1994-08-12 | Locked | "Fan Fun!" | "Ozma of OZ!", 214050 |
 
-The shipped revision (4.06, 4.09, Windows) differs from the repo's in four rooms:
+Every shipped copy has the same rooms.
+The shipped revision differs from the repo's in four rooms:
 
 - Room 26: a different room.
   The repo's "All the Trappings…" has three floor vents, four cabinets, two shelves, and a clock on background 201.
@@ -98,9 +138,12 @@ The shipped revision (4.06, 4.09, Windows) differs from the repo's in four rooms
 
 All three copies have identical rooms otherwise; the 4.06, 4.09, and Windows copies have identical rooms throughout.
 The repo's copy is unlocked and dated later.
+No shipped version examined (4.02 through 4.10) contains it.
 _Inference:_ it is Calhoun's working copy rather than the shipped house.
-Which revision Glider 4.05 shipped with is unknown; the 4.04 download would narrow this down.
 "The House 2" is identical across the repo, 4.06, and 4.09.
+
+The 4.02 package also has a "Demo House": 10 rooms, unlocked, with `timeStamp = 16`, the value the demo version requires.
+Its unused room slots past room 10 still hold data, including a room 26 named "All the Trappings…".
 
 The repo's high-score table for The House also contains many "Ozma" entries, the name that doubles as the cheat code.
 
@@ -113,7 +156,8 @@ The repo's high-score table for The House also contains many "Ozma" entries, the
   - Glass House 1–2 (1993).
   - Hands-off House (1994).
   - "House of the Rising Sun 1", whose rooms are identical to "House of the Rising Sun": a duplicate first part that links to part 2.
-- Houses from the web (Infinite Mac pack, 18 files): 30-Room House, Andrew's House, Blödelhaus 1–4, House of Ed, Jon's House, Jon's New House, Kent's House, Kent's House Part 2, Phexem as an Architect 1–4, Simplicity Manor, Wacky House of Tedium 1–2.
+- La Villa Strangiato (Jacob Weber with Joshua Meyer, summer 1993): 37 rooms named after Rush songs ("Time Stand Still", "Red Barchetta", "Freewill", "Xanadu", …).
+- Houses from the web (Infinite Mac pack and the Glider 4.10 disk, 18 files): 30-Room House, Andrew's House, Blödelhaus 1–4, House of Ed, Jon's House, Jon's New House, Kent's House, Kent's House Part 2, Phexem as an Architect 1–4, Simplicity Manor, Wacky House of Tedium 1–2.
 
 ## Glider for Windows ("Glider/WIN 4.01")
 
