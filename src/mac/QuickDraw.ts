@@ -782,10 +782,13 @@ function fillPixPat(rgn: Region, pp: PixPat, mode: number, port: CGrafPort, s: S
 	const rowBytes = pm.rowBytes & 0x3fff;
 	const depth = pm.pixelSize;
 	const table = port.portPixMap.pmTable;
-	const colors = pm.pmTable.ctTable.map((c) => c.rgb);
-	const map = colors.map((c) => colorToIndex(table, c));
+	const map: number[] = [];
+	const isBk: boolean[] = [];
 	const bk = port.rgbBkColor;
-	const isBk = colors.map((c) => c.red === bk.red && c.green === bk.green && c.blue === bk.blue);
+	for (const [value, c] of pixelColors(pm.pmTable)) {
+		map[value] = colorToIndex(table, c);
+		isBk[value] = c.red === bk.red && c.green === bk.green && c.blue === bk.blue;
+	}
 	const op = mode & 0x2f;
 	if (op !== patCopy && op !== srcCopy && (mode & ~8) !== transparent) {
 		throw new Error(`pixel patterns in mode ${mode} are not implemented`);
@@ -1539,8 +1542,19 @@ function pixelConverter(srcBits: BitMap, dstBits: BitMap, src: Surface, dst: Sur
 	if (src.depth === dst.depth && sameColors(srcTable, dstTable)) {
 		return (v) => v;
 	}
-	const map = srcTable.ctTable.map((spec) => colorToIndex(dstTable, spec.rgb));
+	const map: number[] = [];
+	for (const [value, rgb] of pixelColors(srcTable)) {
+		map[value] = colorToIndex(dstTable, rgb);
+	}
 	return (v) => map[v] ?? 0;
+}
+
+/**
+ * The color of each pixel value in a color table: a device's table (ctFlags bit 15) lists them in
+ * order; other tables (a color icon's, a pixel pattern's) give each entry's value.
+ */
+function pixelColors(ct: ColorTable): [number, RGBColor][] {
+	return ct.ctTable.map((spec, i) => [ct.ctFlags & ctDeviceFlag ? i : spec.value, spec.rgb]);
 }
 
 /**

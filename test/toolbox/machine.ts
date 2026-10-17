@@ -204,3 +204,12 @@ export function writeComparison(name: string, rom: Image, ours: Image, box: Box,
 	writeFileSync(path, writePNG({ width: rowLen, height: h * scale, rgb: out }));
 	return path;
 }
+
+/** An RGB image as a binary PPM file, for looking at the port's screen. */
+export function writePNM(img: Image): Uint8Array {
+	const header = new TextEncoder().encode(`P6\n${img.width} ${img.height}\n255\n`);
+	const out = new Uint8Array(header.length + img.rgb.length);
+	out.set(header);
+	out.set(img.rgb, header.length);
+	return out;
+}

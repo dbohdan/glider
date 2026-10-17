@@ -2,9 +2,10 @@
 // standard buttons (CDEF 0): push buttons, check boxes, and radio buttons.
 //
 // The geometry is measured from the oracle (Glider's dialogs on a Mac Plus): push buttons are
-// rounded rectangles with 10-pixel corners and their title centered; check boxes and radio buttons
-// are 12-pixel squares and circles 2 pixels in from the left, centered vertically, with the title
-// 18 pixels in from the left. Titles are centered vertically on the line height.
+// rounded rectangles whose corners' curvature is half their height, with the title centered; check
+// boxes and radio buttons are 12-pixel squares and circles 2 pixels in from the left, centered
+// vertically, with the title 18 pixels in from the left. Titles start (height - line height) div 2
+// below the top, and (width - title width) div 2 right of the left.
 
 import { getHost, mouse, TickCount, tickTime } from './OS.ts';
 import {
@@ -383,29 +384,31 @@ function foreColor(c: RGBColor): void {
 
 function drawPushButton(c: ControlRecord, colors: { frame: RGBColor; body: RGBColor; text: RGBColor }): void {
 	const r = c.contrlRect;
+	// The corners' curvature is half the button's height (10 for Glider's 20-pixel buttons, 7 for its 15-pixel ones).
+	const round = Math.trunc((r.bottom - r.top) / 2);
 	const clip = NewRgn();
 	GetClip(clip);
 	const shape = NewRgn();
 	OpenRgn();
-	FrameRoundRect(r, 10, 10);
+	FrameRoundRect(r, round, round);
 	CloseRgn(shape);
 	SectRgn(shape, clip, shape);
 	SetClip(shape);
 	if (isColorPort(thePort)) {
 		RGBForeColor(colors.body);
-		PaintRoundRect(r, 10, 10);
+		PaintRoundRect(r, round, round);
 		RGBBackColor(colors.body);
 	} else {
 		EraseRect(r);
 	}
 	foreColor(colors.frame);
-	FrameRoundRect(r, 10, 10);
+	FrameRoundRect(r, round, round);
 	InsetRgn(shape, 1, 1);
 	SetClip(shape);
 	foreColor(colors.text);
 	drawLabel(c.contrlTitle, r, true);
 	if (c.contrlHilite === inButton) {
-		InvertRoundRect(r, 10, 10);
+		InvertRoundRect(r, round, round);
 	}
 	SetClip(clip);
 }
@@ -465,9 +468,9 @@ function drawLabel(title: string, r: Rect, centered: boolean): void {
 		}
 	}
 	const lineHeight = info.ascent + info.descent + info.leading;
-	let v = Math.trunc((r.top + r.bottom) / 2) - Math.trunc((lines.length * lineHeight - info.leading + 1) / 2) + info.ascent;
+	let v = r.top + Math.trunc((r.bottom - r.top - lines.length * lineHeight) / 2) + info.ascent;
 	for (const [first, count] of lines) {
-		const h = centered ? Math.trunc((r.left + r.right) / 2) - Math.trunc(TextWidth(bytes, first, count) / 2) : r.left;
+		const h = centered ? r.left + Math.trunc((r.right - r.left - TextWidth(bytes, first, count)) / 2) : r.left;
 		MoveTo(h, v);
 		DrawText(bytes, first, count);
 		v += lineHeight;
