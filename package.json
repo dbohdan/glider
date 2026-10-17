@@ -1,0 +1,17 @@
+{
+  "name": "glider4",
+  "private": true,
+  "description": "A pixel-perfect port of Glider 4 by John Calhoun to TypeScript and the browser",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
+    "oxlint": "1.88.0",
+    "oxlint-tsgolint": "7.0.2004",
+    "typescript": "7.0.2"
+  }
+}

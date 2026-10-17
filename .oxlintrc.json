@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/await-thenable": "error",
+    "typescript/require-await": "off"
+  },
+  "ignorePatterns": [
+    "dist",
+    "build",
+    "node_modules"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "test/**/*.ts"
+      ],
+      "rules": {
+        "typescript/no-floating-promises": "off"
+      }
+    }
+  ]
+}
