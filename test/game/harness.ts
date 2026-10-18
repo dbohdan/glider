@@ -64,6 +64,7 @@ export function bootGlider(kind: MachineKind, launchTick = 0): GameRun {
 		volume.put(f);
 	}
 	const host = new GameHost();
+	host.wakeOnInput = true;
 	host.time = tickTime(launchTick);
 	const machine = bootMachine({ kind, system: systemFork(), volume, application: 'Glider 4.05', host, startDateTime });
 	const rgba = new Uint8ClampedArray(machine.width * machine.height * 4);
@@ -92,17 +93,53 @@ export async function runGlider(run: GameRun, endTick: number): Promise<void> {
 	}
 }
 
-/**
- * Ticks between the oracle's script pressing or releasing a key and the program seeing it. Mini
- * vMac hands key transitions to the Mac through its event queue and the Mac's keyboard (or ADB)
- * polling, which takes time the port's instant input does not. Measured with the play cases: the
- * games match when Command-N comes 4 or 5 ticks late, and the title screens when Return to the
- * alert comes 4 or more ticks late on a Mac Plus and 5 or more on a Mac II; 5 fits all of them.
- */
-export const oracleKeyLatency = 5;
-
 /** The Mac Plus keyboard's arrow keys, by the Apple Extended Keyboard's codes the scripts use. */
 const plusArrows: Record<number, number> = { 0x7b: 0x46, 0x7c: 0x42, 0x7d: 0x48, 0x7e: 0x4d };
+
+/**
+ * The ticks at which the oracle's Mac saw each key transition of a script, from the emulator's
+ * KeyMap trace (`Script.traceKeys`): a key reaches the Mac's KeyMap and event queue in the tick after
+ * the script presses it, or later, as the Mac's keyboard (or ADB) polling allows. Transitions are
+ * matched to the script's in order, by key and direction.
+ */
+export function oracleKeyTicks(output: string, script: Script, kind: MachineKind): number[] {
+	const changes: { tick: number; code: number; down: boolean; used: boolean }[] = [];
+	let last: number[] | null = null;
+	for (const line of output.split('\n')) {
+		const m = /^keymap (\d+) ([0-9A-F]{32})$/.exec(line);
+		if (m === null) {
+			continue;
+		}
+		const map = Array.from({ length: 16 }, (_, i) => parseInt(m[2]!.slice(i * 2, i * 2 + 2), 16));
+		if (last !== null) {
+			for (let code = 0; code < 128; code++) {
+				const was = (last[code >> 3]! >> (code & 7)) & 1;
+				const is = (map[code >> 3]! >> (code & 7)) & 1;
+				if (was !== is) {
+					changes.push({ tick: Number(m[1]), code, down: is === 1, used: false });
+				}
+			}
+		}
+		last = map;
+	}
+	const ticks: number[] = [];
+	let tick = 0;
+	for (const line of script.lines) {
+		const [op, a = '', b = ''] = line.split(' ');
+		if (op === 'w') {
+			tick += Number(a);
+		} else if (op === 'k') {
+			const code = kind === 'plus' ? (plusArrows[Number(a)] ?? Number(a)) : Number(a);
+			const c = changes.find((c) => !c.used && c.code === code && c.down === (b === '1') && c.tick > tick);
+			if (c === undefined) {
+				throw new Error(`the oracle's trace does not show key ${code} going ${b === '1' ? 'down' : 'up'} after tick ${tick}`);
+			}
+			c.used = true;
+			ticks.push(c.tick);
+		}
+	}
+	return ticks;
+}
 
 const keyNames = new Map(Object.entries(keyCodes).map(([name, code]) => [code, name]));
 
@@ -125,15 +162,29 @@ function charCodeOf(name: string, shift: boolean): number {
 }
 
 /**
- * Schedules an oracle script's input on the run's host, as the oracle plays it (keys late by
- * oracleKeyLatency), and the script's screenshots at their ticks. Returns the screenshots, filled
- * in as the run reaches them, and the tick the script ends at.
+ * When in its tick a key reaches the Mac's KeyMap and event queue, in ticks. The Mac Plus keyboard
+ * delivers it at once, before a game frame's work at the start of the tick reads the keys; the Mac
+ * II's ADB keyboard takes milliseconds of bus transactions, and the frame has read the keys by then
+ * (measured: steering the glider on the Mac II, the frames see each key a frame later than on the
+ * Mac Plus). A program waiting for an event sees it in the same tick either way.
  */
-export function replay(run: GameRun, script: Script): { shots: Map<string, Image>; end: number } {
+const keyArrival: Record<MachineKind, number> = { plus: 0, ii: 0.5 };
+
+/**
+ * Schedules an oracle script's input on the run's host, and the script's screenshots. The oracle
+ * numbers ticks from 1: input the script gives after tick k reaches the Mac in tick k + 1, and a
+ * screenshot after tick k shows everything drawn in it. Here tick k is TickCount k, which begins at
+ * tickTime(k): keys go down and up in the ticks in `keyTicks` (from oracleKeyTicks), or else in the
+ * tick after the script presses them, as keyArrival says; the mouse moves and its button goes down
+ * and up as the next tick begins; a screenshot after tick k is taken as tick k + 1 begins. Returns the screenshots, filled in as the run reaches them, and the tick the
+ * script ends at.
+ */
+export function replay(run: GameRun, script: Script, keyTicks?: number[]): { shots: Map<string, Image>; end: number } {
 	const shots = new Map<string, Image>();
 	const h = run.host;
 	const plus = run.machine.kind === 'plus';
 	let tick = 0;
+	let keyIndex = 0;
 	for (const line of script.lines) {
 		const [op, a = '', b = ''] = line.split(' ');
 		switch (op) {
@@ -145,7 +196,7 @@ export function replay(run: GameRun, script: Script): { shots: Map<string, Image
 				const down = b === '1';
 				const name = keyNames.get(code)!;
 				const mac = plus ? (plusArrows[code] ?? code) : code;
-				h.at(tick + oracleKeyLatency, () => {
+				h.at((keyTicks?.[keyIndex++] ?? tick + 1) + keyArrival[run.machine.kind], () => {
 					if (code >= 0x37 && code <= 0x3b) {
 						keysDown[code] = down;
 					} else if (down) {
@@ -153,40 +204,40 @@ export function replay(run: GameRun, script: Script): { shots: Map<string, Image
 					} else {
 						hostKeyUp(mac, charCodeOf(name, keysDown[0x38]!));
 					}
-				});
+				}, true);
 				break;
 			}
 			case 'm': {
 				const where = { h: Number(a), v: Number(b) };
-				h.at(tick, () => {
+				h.at(tick + 1, () => {
 					mouse.where = { ...where };
 					mouseMoved();
-				});
+				}, true);
 				break;
 			}
 			case 'd': {
 				const [dh, dv] = [Number(a), Number(b)];
-				h.at(tick, () => {
+				h.at(tick + 1, () => {
 					mouse.where = { h: mouse.where.h + dh, v: mouse.where.v + dv };
 					mouseMoved();
-				});
+				}, true);
 				break;
 			}
 			case 'b': {
 				const down = a === '1';
-				h.at(tick, () => {
+				h.at(tick + 1, () => {
 					mouse.button = down;
 					postOSEvent(down ? 1 : 2, 0);
-				});
+				}, true);
 				break;
 			}
 			case 's': {
 				const name = a;
-				h.at(tick, () => shots.set(name, run.shot(true)));
+				h.at(tick + 1, () => shots.set(name, run.shot(true)));
 				break;
 			}
 			// speed and ram dumps have no counterpart.
 		}
 	}
-	return { shots, end: tick };
+	return { shots, end: tick + 1 };
 }

@@ -103,7 +103,7 @@ export class Script {
 		return this.mouse(h, v).wait(holdTicks).button(true).wait(holdTicks).button(false).wait(holdTicks);
 	}
 
-	/** Takes a screenshot of the screen as of the last tick. */
+	/** Takes a screenshot of the screen as the last tick left it. */
 	shot(name: string): this {
 		if (!/^[\w.-]+$/.test(name)) {
 			throw new Error(`bad screenshot name ${name}`);
@@ -116,6 +116,21 @@ export class Script {
 	/** Saves `count` bytes of RAM from `address` under `name`. */
 	ram(address: number, count: number, name: string): this {
 		this.lines.push(`r ${address} ${count} ${name}`);
+		return this;
+	}
+
+	/**
+	 * Has the emulator report, in its output, each tick at whose end the Mac's KeyMap changed:
+	 * when the program could first see each key the script pressed or released.
+	 */
+	traceKeys(): this {
+		this.lines.push('keys 1');
+		return this;
+	}
+
+	/** Starts or stops the emulator's report of the traps the program calls (see OSGLUHDL.c). */
+	traceTraps(on: boolean): this {
+		this.lines.push(`traps ${on ? 1 : 0}`);
 		return this;
 	}
 

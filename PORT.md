@@ -194,14 +194,16 @@ do {
 - [ ] **6. Toolbox user interface (System 6):** Window, Menu, Control, Dialog, TextEdit, and Alert managers.
   - [x] Every Toolbox routine Glider calls exists with its Inside Macintosh name (`src/mac/Toolbox.ts`).
   - [x] Glider's menus, its "New keyboard" alert, and its Sound Settings dialog match the oracle pixel for pixel on both machines.
-  - [ ] The other dialogs (Configure, high scores, About), menu blinking, button flashing on Return, document windows (for the Room Editor).
+  - [x] The default button's flash on Return, in black and white and in color, tick for tick.
+  - [ ] The other dialogs (Configure, high scores, About), menu blinking, document windows (for the Room Editor).
 - [ ] **7. Files:** File Manager over the virtual file system, Standard File backed by the house library, preferences.
   - [x] File Manager over the in-memory volume; `OpenResFile` writes resource changes back; Standard File's filter and hook.
 - [ ] **8. Sound:** SMS reimplementation.
 - [ ] **9. Glider:** port the 11 units.
   - [x] All units translated (`src/glider/`); Glider starts up on both machines exactly as the original does (`test/game/`).
   - [x] A game plays exactly as the original's: the oracle's `play` and `playColor` cases replayed on the port give identical screens through 10 seconds of play on both machines.
-  - [ ] Play with input: compare steering, items, and the in-game dialogs with the oracle; mouse control (Pointer Lock and the program's mouse warping).
+  - [x] Steering with the keyboard matches the oracle on both machines, and so does every tick of the alert going away and of a game starting.
+  - [ ] Play with input: items, rooms, deaths, and the in-game dialogs; mouse control (Pointer Lock and the program's mouse warping).
 - [ ] **10. Launcher page:** house library, settings, credits, manual.
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
@@ -213,7 +215,7 @@ do {
 - Effective device color table after the Palette Manager applies `pltt` 128.
 - Initial values of uninitialized Pascal globals (affects the `is4Channel` preference bug); `Globals.ts` starts them at zero.
 - Whether the Palette Manager changes the Mac II's color table for `pltt` 128, whose colors differ from `clut` 4 in their low bytes (tolerance 0). The oracle's CLUT dump (`c`) can tell.
-- How many times a chosen menu item blinks with the oracle's parameter RAM (the port assumes 3), and whether the Dialog Manager flashes the default button when Return is pressed.
+- How many times a chosen menu item blinks with the oracle's parameter RAM (the port assumes 3).
 - Where System 6 puts a submenu in general: the oracle shows it 4 pixels inside the parent's right edge and 7 pixels below the parent item's top, for Glider's one submenu.
 - Which keyboard type the port reports (`SysEnvirons`' `keyBoardType`): the shipped preferences say 4, so any other value shows the "New keyboard" alert at first launch, as the oracle does on both machines.
 - SMS semantics: priorities, channel allocation, 2- and 4-channel mixing.
@@ -336,3 +338,20 @@ The port replays the same `Script` (`replay` in `test/game/harness.ts`), and all
 - At first the oracle's glider was 6 pixels, two frames, higher in every screenshot, and its title screen showed another demo. The suspected cause, Mini vMac pulling the mouse back after Glider's `CenterMouse`, was wrong: the emulator only sets the mouse when the script moves it.
 - The real cause is input latency. Mini vMac passes key transitions to the Mac through its event queue and the Mac's keyboard or ADB polling, so the program sees a scripted key a few ticks after the script presses it; the port's input is instant. Delaying the replayed keys gives identical games with 4 or 5 ticks and identical title screens with 4 or more (Mac Plus) or 5 or more (Mac II). The harness delays keys by 5 ticks (`oracleKeyLatency`).
 - So the demo on the title screen was never a `Random` difference: it depends on when the alert is dismissed.
+
+### 2026-10-18 (timing)
+
+The 5-tick key latency of the previous entry was wrong: it made two errors cancel out. The port now matches the original tick for tick through the alert going away and a game starting, and a game steered with the keyboard, on both machines (85 tests).
+
+New oracle tools made the difference:
+
+- `Script.traceKeys`: the emulator prints the tick in which the Mac's KeyMap changed. Keys reach the Mac in the tick after the script presses them, on both machines.
+- `Script.traceTraps`: the emulator prints each trap the program calls, by tick (Mini vMac's A-line exception calls into the front end; `build-minivmac.sh` patches it in). Decoded with trap names, a trace shows what the original does in each tick: in Glider's idle loop, `WaitNextEvent` (without MultiFinder, `SystemTask` and `GetNextEvent` in a loop) sleeps through one tick, and the idle animation and a `TickCount` loop take the next.
+
+What they showed:
+
+- System 6's `ModalDialog` flashes the default button when Return is pressed: highlighted in the tick the key arrives, unhighlighted 8 ticks later (`Delay(8)`). In black and white the whole button is inverted, frame included; in color the body and text colors swap and the frame stays. The port did neither, and its alert went away 8 ticks early.
+- Mini vMac copies the screen after the first part of each tick, before the extra instructions a higher speed runs. A screenshot showed one tick plus a sliver of the next, and at speed 5 a frame half drawn on the Mac II. The front end now copies the screen again for each screenshot, so that it shows exactly what the tick drew; the port takes its screenshot of tick k as tick k + 1 begins.
+- At 32 times the instructions per tick, starting a game still took the original 4 ticks; at 256 times it takes none, as in the port. The game cases run at speed 8.
+- On the Mac II, ADB delivers a key milliseconds into the tick, after a game frame has read the keys; on the Mac Plus the keyboard delivers it first. The harness puts Mac II keys in the middle of their tick and lets input end a wait, so that an event loop still sees a key in its tick.
+- The title screen's demo depends on when the alert goes away, and Glider's keys after the "New keyboard" alert are its defaults (comma, period, Return, space), not the preferences' arrow keys.

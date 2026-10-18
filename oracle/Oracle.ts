@@ -272,6 +272,7 @@ export function run(m: Machine, script: Script, disk: string, dir: string): RunR
 	if (res.status !== 0 || res.stderr) {
 		throw new Error(`emulator failed (${res.status}): ${res.stderr}`);
 	}
+	writeFileSync(join(dir, 'output.txt'), res.stdout);
 	const shots = new Map<string, Image>();
 	for (const { name } of script.shots) {
 		shots.set(name, readPNM(readFileSync(join(dir, name))));

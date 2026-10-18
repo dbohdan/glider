@@ -33,11 +33,20 @@
 		b 0|1        release or press the mouse button
 		m H V        move the mouse to (H, V) in global coordinates
 		d DH DV      move the mouse by (DH, DV)
-		s PATH       write the screen as of the last tick to PATH
+		s PATH       write the screen as the last tick left it to PATH
 		             (PBM for 1 bit per pixel, PPM otherwise)
 		r ADDR N PATH
 		             write N bytes of RAM starting at ADDR to PATH
 		t            print the tick count and the Mac's Ticks global
+		keys 0|1     stop or start printing "keymap TICK HEX": the Mac's
+		             KeyMap ($174, 16 bytes) now, and then at the end of
+		             each tick in which it changed, where TICK counts
+		             ticks as w does
+		traps 0|1    stop or start printing "trap TICK PC OPCODE [xN]"
+		             for each A-line trap called from RAM (the program
+		             and the System's patches) in tick TICK (the one
+		             being run; ticks are counted from 1), N times in a
+		             row
 		c            print the color table (index, then red, green, blue
 		             as 16-bit values), if the screen has colors
 		speed N      run 2^N times the instructions per tick (default 0)
@@ -262,6 +271,13 @@ GLOBALOSGLUPROC DoneWithDrawingForTick(void)
 	ScreenChangedRight = 0;
 }
 
+/*
+	The emulator copies the screen after the first part of each tick,
+	before the extra instructions that a higher speed runs; this copies
+	it again, so that a screenshot shows the whole tick's drawing.
+*/
+IMPORTPROC Screen_EndTickNotify(void);
+
 LOCALFUNC blnr WriteScreenFile(char *path)
 {
 	FILE *f = fopen(path, "wb");
@@ -417,6 +433,65 @@ LOCALPROC WriteRamFile(ui5r addr, ui5r n, char *path)
 	fclose(f);
 }
 
+/* Whether to print trap calls, and the run of identical calls not yet printed. */
+LOCALVAR blnr TrapTrace = falseblnr;
+LOCALVAR unsigned long TrapTick = 0;
+LOCALVAR unsigned long TrapPC = 0;
+LOCALVAR unsigned long TrapOpcode = 0;
+LOCALVAR unsigned long TrapCount = 0;
+
+LOCALPROC FlushTraps(void)
+{
+	if (0 != TrapCount) {
+		if (1 == TrapCount) {
+			printf("trap %lu %06lX %04lX\n", TrapTick, TrapPC, TrapOpcode);
+		} else {
+			printf("trap %lu %06lX %04lX x%lu\n", TrapTick, TrapPC,
+				TrapOpcode, TrapCount);
+		}
+		TrapCount = 0;
+	}
+}
+
+/* Called by the CPU (see build-minivmac.sh) as it takes an A-line trap. */
+void ALineTrap(unsigned long pc, unsigned long opcode)
+{
+	unsigned long tick = (unsigned long)TrueEmulatedTime;
+
+	if (TrapTrace && (pc < kRAM_Size)) {
+		if ((0 != TrapCount) && ((tick != TrapTick) || (pc != TrapPC)
+			|| (opcode != TrapOpcode)))
+		{
+			FlushTraps();
+		}
+		TrapTick = tick;
+		TrapPC = pc;
+		TrapOpcode = opcode;
+		++TrapCount;
+	}
+}
+
+/* Whether to print the KeyMap when it changes, and its last value. */
+LOCALVAR blnr KeyMapTrace = falseblnr;
+LOCALVAR ui3b LastKeyMap[16];
+
+LOCALPROC TraceKeyMap(blnr always)
+{
+	int i;
+
+	if (KeyMapTrace
+		&& (always || (0 != memcmp(LastKeyMap, RAM + 0x0174, 16))))
+	{
+		memcpy(LastKeyMap, RAM + 0x0174, 16);
+		printf("keymap %lu ", (unsigned long)TrueEmulatedTime);
+		for (i = 0; i < 16; ++i) {
+			printf("%02X", LastKeyMap[i]);
+		}
+		printf("\n");
+		fflush(stdout);
+	}
+}
+
 /*
 	Runs script commands until one asks to let time pass.
 	Commands take effect before the next tick is emulated.
@@ -464,7 +539,7 @@ LOCALPROC RunScript(void)
 				ScriptError("s needs a path");
 			} else if (NULL != a2) {
 				ScriptError("paths may not contain spaces");
-			} else if (! WriteScreenFile(a1)) {
+			} else if (Screen_EndTickNotify(), ! WriteScreenFile(a1)) {
 				ScriptError("screen not written");
 			}
 		} else if (0 == strcmp(cmd, "r")) {
@@ -487,6 +562,12 @@ LOCALPROC RunScript(void)
 			}
 			fflush(stdout);
 #endif
+		} else if (0 == strcmp(cmd, "traps")) {
+			FlushTraps();
+			TrapTrace = (0 != ScriptNum(a1));
+		} else if (0 == strcmp(cmd, "keys")) {
+			KeyMapTrace = (0 != ScriptNum(a1));
+			TraceKeyMap(trueblnr);
 		} else if (0 == strcmp(cmd, "speed")) {
 			SpeedValue = ScriptNum(a1);
 		} else if (0 == strcmp(cmd, "date")) {
@@ -494,6 +575,7 @@ LOCALPROC RunScript(void)
 				- (CurMacDateInSeconds - StartMacDate);
 			UpdateMacDate();
 		} else if (0 == strcmp(cmd, "q")) {
+			FlushTraps();
 			ForceMacOff = trueblnr;
 		} else {
 			ScriptError("unknown command");
@@ -521,6 +603,7 @@ GLOBALOSGLUPROC WaitForNextTick(void)
 	if (ForceMacOff) {
 		return;
 	}
+	TraceKeyMap(falseblnr);
 	RunScript();
 	if (ForceMacOff) {
 		return;

@@ -25,10 +25,17 @@ export function oracleShot(caseName: string, shot: string): Image {
 	return readPNM(readFileSync(join(cacheDir, 'runs', caseName, shot)));
 }
 
+/** What the emulator printed during an oracle run. */
+export function oracleOutput(caseName: string): string {
+	return readFileSync(join(cacheDir, 'runs', caseName, 'output.txt'), 'utf8');
+}
+
 /** A virtual clock: waiting moves time forward at once, running input scheduled on the way. */
 export class ScriptHost implements Host {
 	time = 0;
-	private events: { at: number; seq: number; run: () => void }[] = [];
+	/** Whether input ends a wait at once, as on a Mac, whose program sees it when it next looks. */
+	wakeOnInput = false;
+	private events: { at: number; seq: number; run: () => void; input: boolean }[] = [];
 	private seq = 0;
 
 	now(): number {
@@ -44,14 +51,18 @@ export class ScriptHost implements Host {
 			this.events.shift();
 			this.time = Math.max(this.time, next.at);
 			next.run();
+			if (next.input && this.wakeOnInput && this.events[0]?.at !== next.at) {
+				await Promise.resolve();
+				return;
+			}
 		}
 		this.time = Math.max(this.time, ms);
 		await Promise.resolve();
 	}
 
-	/** Runs `f` when the clock reaches a tick. */
-	at(tick: number, f: () => void): this {
-		this.events.push({ at: tickTime(tick), seq: this.seq++, run: f });
+	/** Runs `f` when the clock reaches a tick, which may be fractional; input may end a wait. */
+	at(tick: number, f: () => void, input = false): this {
+		this.events.push({ at: tickTime(tick), seq: this.seq++, run: f, input });
 		this.events.sort((a, b) => a.at - b.at || a.seq - b.seq);
 		return this;
 	}

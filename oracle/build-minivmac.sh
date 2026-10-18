@@ -22,5 +22,9 @@ gcc -o setup_t setup/tool.c
 sh setup.sh > setup.log
 sed -i '/X11/d' cfg/CNFUIOSG.h
 cp "$here/minivmac/OSGLUHDL.c" src/OSGLUXWN.c
+# Let the front end see each A-line trap (Toolbox and OS call) the CPU takes, for trap traces.
+sed -i -e '1i extern void ALineTrap(unsigned long pc, unsigned long opcode);' \
+	-e '/^LOCALIPROC DoCodeA(void)$/,/^}$/ s|^\tException(0xA);|\tALineTrap(m68k_getpc(), do_get_mem_word(V_pc_p));\n\tException(0xA);|' src/MINEM68K.c
+grep -q 'ALineTrap(m68k_getpc' src/MINEM68K.c
 sed -i -e 's|-L/usr/X11R6/lib -lX11||' -e '/^\tstrip /d' Makefile
 make -s > make.log 2>&1 || { cat make.log; exit 1; }

@@ -384,6 +384,11 @@ function foreColor(c: RGBColor): void {
 
 function drawPushButton(c: ControlRecord, colors: { frame: RGBColor; body: RGBColor; text: RGBColor }): void {
 	const r = c.contrlRect;
+	const color = isColorPort(thePort);
+	if (color && c.contrlHilite === inButton) {
+		// In color a pressed button swaps its body and text colors, and keeps its frame.
+		colors = { frame: colors.frame, body: colors.text, text: colors.body };
+	}
 	// The corners' curvature is half the button's height (10 for Glider's 20-pixel buttons, 7 for its 15-pixel ones).
 	const round = Math.trunc((r.bottom - r.top) / 2);
 	const clip = NewRgn();
@@ -394,7 +399,7 @@ function drawPushButton(c: ControlRecord, colors: { frame: RGBColor; body: RGBCo
 	CloseRgn(shape);
 	SectRgn(shape, clip, shape);
 	SetClip(shape);
-	if (isColorPort(thePort)) {
+	if (color) {
 		RGBForeColor(colors.body);
 		PaintRoundRect(r, round, round);
 		RGBBackColor(colors.body);
@@ -407,10 +412,11 @@ function drawPushButton(c: ControlRecord, colors: { frame: RGBColor; body: RGBCo
 	SetClip(shape);
 	foreColor(colors.text);
 	drawLabel(c.contrlTitle, r, true);
-	if (c.contrlHilite === inButton) {
+	SetClip(clip);
+	if (!color && c.contrlHilite === inButton) {
+		// In black and white the whole button is inverted, frame included.
 		InvertRoundRect(r, round, round);
 	}
-	SetClip(clip);
 }
 
 function drawCheckBox(c: ControlRecord, part: Integer, colors: { frame: RGBColor; body: RGBColor; text: RGBColor }, radio: boolean): void {

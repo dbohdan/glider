@@ -75,6 +75,34 @@ export const cases: Record<string, (dir: string) => RunResult> = {
 		return run(macII, playScript(), disk, dir);
 	},
 
+	/** Every tick of the alert going away and of a game starting, on a Mac Plus. */
+	everyTick(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, everyTickScript(), disk, dir);
+	},
+
+	/** Every tick of the alert going away and of a game starting, on a Mac II. */
+	everyTickColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		return run(macII, everyTickScript(), disk, dir);
+	},
+
+	/** A game on a Mac Plus, steered with the keyboard. */
+	steer(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, steerScript(), disk, dir);
+	},
+
+	/** A game on a Mac II, steered with the keyboard. */
+	steerColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		return run(macII, steerScript(), disk, dir);
+	},
+
 	/** Pull down Glider's menus on a Mac II. */
 	menusColor(dir) {
 		const disk = dir + '.dsk';
@@ -136,16 +164,70 @@ function withPrefs405(): MacFile[] {
 }
 
 /**
- * Starts a game the way the boot case does, with a CPU fast enough (32 times the instructions per
- * tick) that loading takes no time, as in the port; then follows it for 10 seconds.
+ * Starts a game the way the boot case does, with a CPU fast enough (256 times the instructions per
+ * tick) that work takes no time, as in the port; then follows it for 10 seconds. The emulator
+ * reports when the Mac saw each key, for the port to replay them then.
  */
 export function playScript(): Script {
 	const s = new Script();
-	s.speed(5);
+	s.speed(8).traceKeys();
 	s.until(900).shot('alert').press('return').wait(60).shot('title');
 	s.press('n', 'command');
 	for (let t = 0; t < 20; t++) {
 		s.wait(30).shot(`game${t}`);
 	}
+	return s;
+}
+
+/**
+ * Dismisses the keyboard alert and starts a game as playScript does, with a screenshot after every
+ * tick for 40 ticks from just before each key: the button's flash, the title screen coming back, and
+ * the game's first frames.
+ */
+export function everyTickScript(): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(898);
+	for (let t = 0; t < 40; t++) {
+		if (t === 2) {
+			s.key('return', true);
+		} else if (t === 5) {
+			s.key('return', false);
+		}
+		s.shot(`a${s.tick}`).wait(1);
+	}
+	s.until(966).key('command', true).key('n', true);
+	for (let t = 0; t < 40; t++) {
+		if (t === 3) {
+			s.key('n', false).key('command', false);
+		}
+		s.shot(`b${s.tick}`).wait(1);
+	}
+	return s;
+}
+
+/**
+ * Starts a game as playScript does, then steers it with Glider's default keys (the "New keyboard"
+ * alert resets the controls to them): period to fly forward, comma to go back, Return and space for
+ * energy and a rubber band, then forward again into the next room.
+ */
+export function steerScript(): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(900).press('return').wait(60);
+	s.press('n', 'command').wait(20).shot('start');
+	const hold = (key: string, ticks: number, every: number, label: string): void => {
+		s.key(key, true);
+		for (let t = every; t <= ticks; t += every) {
+			s.wait(every).shot(`${label}${t}`);
+		}
+		s.key(key, false).wait(6);
+	};
+	hold('.', 60, 10, 'right');
+	hold(',', 40, 10, 'left');
+	hold('return', 20, 10, 'energy');
+	hold('space', 6, 6, 'band');
+	s.wait(30).shot('band');
+	hold('.', 240, 20, 'fly');
 	return s;
 }

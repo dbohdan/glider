@@ -2,7 +2,7 @@
 // modal dialogs and alerts, their items, and Color QuickDraw's dialog and alert colors.
 
 import { GetMainDevice, parseColorTable } from './Color.ts';
-import { ControlRecord, checkBoxProc, Draw1Control, DrawControls, NewControl, GetNewControl, pushButProc, radioButProc, TrackControl } from './Controls.ts';
+import { ControlRecord, checkBoxProc, Draw1Control, DrawControls, HiliteControl, inButton, NewControl, GetNewControl, pushButProc, radioButProc, TrackControl } from './Controls.ts';
 import { autoKey, cmdKey, type EventRecord, GetNextEvent, keyDown, mouseDown, newEventRecord, activateEvt, updateEvt, everyEvent } from './Events.ts';
 import { decodeMacRoman, encodeMacRoman, pascalString } from './MacRoman.ts';
 import { forgetAddress } from './Memory.ts';
@@ -25,7 +25,7 @@ import {
 } from './QuickDraw.ts';
 import { GetResource, Handle } from './Resources.ts';
 import { s16 } from './Binary.ts';
-import { SysBeep } from './OSUtils.ts';
+import { Delay, SysBeep } from './OSUtils.ts';
 import { GetCIcon, GetIcon, GetPicture } from './ToolUtils.ts';
 import { TEActivate, TEClick, TEDeactivate, TEIdle, TEKey, TENew, TERec, TESetSelect, TETextBox, teFlushDefault, TECalText, TEUpdate } from './TextEdit.ts';
 import { BeginUpdate, CloseWindow, dBoxProc, dialogKind, EndUpdate, eventWindow, FindWindow, FrontWindow, GetWindowList, inContent, inFront, newWindow, SetWinColor, ShowWindow, WindowRecord } from './Windows.ts';
@@ -570,6 +570,7 @@ export async function ModalDialog(filterProc: ModalFilterProc | null): Promise<I
 				return itemHit.v;
 			}
 		} else if ((ev.what === keyDown || ev.what === autoKey) && ((ev.message & 0xff) === 13 || (ev.message & 0xff) === 3)) {
+			await flashButton(d, d.aDefItem);
 			return d.aDefItem;
 		}
 		const hit = await handleEvent(d, ev, true);
@@ -577,6 +578,23 @@ export async function ModalDialog(filterProc: ModalFilterProc | null): Promise<I
 			return hit;
 		}
 	}
+}
+
+/**
+ * The standard filter's answer to Return and Enter: the default button looks pressed for 8 ticks
+ * (measured in the oracle: highlighted in the tick the key arrives, unhighlighted 8 ticks later).
+ */
+async function flashButton(d: DialogRecord, itemNo: Integer): Promise<void> {
+	const it = d.items[itemNo - 1];
+	if (it === undefined || !(it.handle instanceof ControlRecord)) {
+		return;
+	}
+	const save = thePort;
+	SetPort(d);
+	HiliteControl(it.handle, inButton);
+	await Delay(8);
+	HiliteControl(it.handle, 0);
+	SetPort(save);
 }
 
 /** Pascal `IsDialogEvent`: whether an event is for a dialog in front. */

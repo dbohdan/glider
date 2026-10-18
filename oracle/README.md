@@ -28,6 +28,16 @@ A case builds a disk, writes a script with the `Script` class, and runs it.
 Scripts count time in ticks (1/60.15 s) from power-on.
 A Mac Plus reaches Glider's title screen in about 600 ticks; a run of a few thousand ticks takes well under a second.
 
+How the emulator's time lines up with the port's, which the game tests (`test/game/`) rely on:
+
+- Input the script gives after tick k reaches the Mac in tick k + 1.
+  A key then takes part of that tick to reach the Mac's KeyMap and event queue (on a Mac II, ADB takes milliseconds), and sometimes longer: `Script.traceKeys` has the emulator report the tick each key arrived in (`output.txt` in the run's directory).
+- A screenshot after tick k shows everything the Mac drew in it.
+  (Mini vMac copies the screen after the first 1/2^n of each tick's instructions at speed n; the front end copies it again for a screenshot.)
+- At the normal speed, drawing takes time: the game takes ticks to start, and a screenshot can catch a frame half drawn.
+  Cases that follow the game run 256 times the instructions per tick (`Script.speed(8)`), so that the program's work takes no time, as in the port, and cost about 20 seconds each.
+- `Script.traceTraps` has the emulator report every trap the program calls, by tick: the way to see what the original does when, and why it takes the time it does.
+
 ## License
 
 `minivmac/OSGLUHDL.c` is derived from Mini vMac and, like it, is under the GNU General Public License, version 2.
