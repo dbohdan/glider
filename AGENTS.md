@@ -37,5 +37,10 @@ How to work on this project: methods that have proven themselves, and traps that
 ## Debugging
 
 - Trace the port's state at the ticks in question (`host.at(tick, ...)` in a scratch script) rather than reasoning about what it should be.
-- A wait loop with `pgrep -f PATTERN` matches its own command line; use a background task instead.
+- A `pgrep -f` or `pkill -f` pattern typed on the command line matches your own shell: the agent's shell is `bash -c "<the whole command>"`, and the pattern is in that string.
+  A wait loop on `pgrep -f` never ends, and `pkill -f` kills the shell itself (exit 144).
+  Keep such patterns in script files run by path, or wait on a background task, or kill by PID.
+- For several long-lived processes (a server, oracle batches) that must be stopped and restarted together, use a supervisor rather than a watcher script: [nitro](https://github.com/leahneukirchen/nitro) builds from source and runs unprivileged.
+  Give each service a `run` script that `exec`s the program, so nitro's signal reaches it and not a shell waiting on it.
+  Keep `NITRO_SOCK` short (through a symlink if need be): `nitroctl` binds a socket next to it, and Unix socket paths are limited to 108 bytes.
 - Scratch scripts and data go in the session's scratch directory, not in the repository.
