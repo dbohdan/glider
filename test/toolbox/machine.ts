@@ -14,6 +14,10 @@ import { initResources, openResourceFork } from '../../src/mac/Resources.ts';
 import { parseResourceFork, type ResourceFork } from '../../src/mac/ResourceFork.ts';
 import { InitWindows } from '../../src/mac/Windows.ts';
 import { InitMenus } from '../../src/mac/Menus.ts';
+import { useAppleLogo } from './appleLogo.ts';
+
+// The oracle's screens show the Apple logo where the port draws a diamond.
+useAppleLogo();
 
 /** Whether the oracle has been set up and has run a case. */
 export function oracleRunAvailable(caseName: string): boolean {

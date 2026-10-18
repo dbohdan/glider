@@ -26,6 +26,7 @@ Do not relitigate these without discussing them first.
    The Finder without MultiFinder, so the menu bar has no application menu.
    System 7 may be revisited after the Room Editor.
 4. **Machines:** a Mac Plus (512×342, black and white, page flipping) and a Mac II (640×480, 16 colors or black and white).
+   In the browser the Mac II has an Apple Extended Keyboard, the keyboard Glider 4.05's preferences were saved with, so its arrow-key controls work without the "New keyboard" alert; the oracle's Mac II (and the tests') has the standard ADB keyboard.
    A "Windows" look uses the Glider for Windows palette (the 256-color variant by default, the 16-color VGA variant as an option) and, later, Windows art.
    Integer scaling for modern displays.
 5. **Execution model:** async/await on the main thread.
@@ -38,6 +39,7 @@ Do not relitigate these without discussing them first.
 7. **Hosting:** GitHub Pages; no custom headers.
 8. **Fonts:** the system font in the emulated screen is "Ozma", Apple's Chicago 12 bitmap glyphs re-encoded in our own format.
    Rasterized ChicagoFLF is the fallback if Ozma is ever challenged.
+   Ozma's character 0x14, Chicago's Apple logo, is a black diamond, and the color Apple logo of the Apple menu is a diamond in the logo's six stripes; tests put the original logo back to compare screens with the oracle's (`test/toolbox/appleLogo.ts`).
    Glider's own bitmap fonts come from its resources.
    HTML pages use vector ChicagoFLF.
 9. **HTML user interface:** minimal black and white, starting from mi.css (public domain); never generic framework styling.
@@ -369,3 +371,9 @@ A new oracle case, `tour`, flies forward through the house for 20 seconds, lets 
 - The 4.06 disk's "The House" has two more high scores than the shipped one; the game cases use the port's copy.
 - On the Mac II, a shelf's shadow showed that the rule for gray patterns painted in patCopy + transparent was wrong: the ROM does not simply invert the pattern in shapes that are not rectangles, it shifts it by the shape's bounding box (a polygon's polyBBox, a region's before clipping). The gray comes out inverted exactly when the box's top and left add up to an odd number, which held for every case seen before.
 - In color, TextEdit highlights a selection with highlight mode: the background color and the highlight color (black on the oracle's Mac II) swap, where plain inversion turned the dialog's gray into red. `setHiliteMode` stands for clearing the pHiliteBit of low memory HiliteMode.
+
+### 2026-10-18 (browser)
+
+- The game could not be steered with the arrow keys in the browser: on the Mac II, as on the oracle's, the standard ADB keyboard differs from the Apple Extended Keyboard in Glider 4.05's preferences, so Glider says "New keyboard. Switching to default keyboard controls." and uses comma, period, Return, and space. The browser's Mac II now has an Extended Keyboard (`extendedKeyboard` in `bootMachine`); a Mac Plus still gets the alert and the default keys, as a real one would.
+- The Apple logo is replaced by a diamond (see the settled decisions).
+- Seen once in Chromium and not reproduced in four more runs: after the alert, the first room in tan and blue where the oracle has gray and black.

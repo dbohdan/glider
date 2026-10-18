@@ -1,8 +1,8 @@
 // The Mac OS Roman character set.
 //
 // Strings are JavaScript strings inside the port and MacRoman bytes in files and resources.
-// Characters 0x00–0x7F are ASCII. Code 0x14 is the Apple logo in Chicago; it has no
-// Unicode equivalent and is kept as U+0014, as are the other control codes.
+// Characters 0x00–0x7F are ASCII. Code 0x14 is the Apple logo in Chicago (a diamond in the port's
+// Ozma); it has no Unicode equivalent and is kept as U+0014, as are the other control codes.
 
 const HIGH =
 	'ÄÅÇÉÑÖÜáàâäãåçéèêëíìîïñóòôöõúùûü' +

@@ -10,6 +10,7 @@
 import {
 	type BitMap,
 	bytesAt,
+	envAExtendKbd,
 	getMachine,
 	type Host,
 	InitGraf,
@@ -64,6 +65,13 @@ export interface MachineOptions {
 	fileChanged?: (file: MacFile, deleted: boolean) => void;
 	/** Seconds since 1904 at start; the host's clock by default. */
 	startDateTime?: number | null;
+	/**
+	 * Whether a Mac II has an Apple Extended Keyboard rather than the standard ADB keyboard (the
+	 * oracle's). The browser's keys map to the Extended Keyboard's codes, and Glider 4.05's
+	 * preferences were saved with one, so its arrow-key controls apply without the "New keyboard"
+	 * alert.
+	 */
+	extendedKeyboard?: boolean;
 }
 
 export interface Machine {
@@ -117,7 +125,7 @@ export function bootMachine(options: MachineOptions): Machine {
 			pmTable: makeColorTable(standardClut4, 0x8000, 8),
 		};
 		screen = pm;
-		setMachine(macIIConfig);
+		setMachine(options.extendedKeyboard === true ? { ...macIIConfig, keyBoardType: envAExtendKbd } : macIIConfig);
 		setMainDevice({ gdType: 2, gdPMap: pm, gdRect: { ...pm.bounds }, gdFlags: 0 });
 		InitGraf(pm, true);
 	}

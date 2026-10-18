@@ -43,7 +43,7 @@ async function start(): Promise<void> {
 	await store.restore(volume);
 	const system = parseResourceFork(await fetchBytes('data/System.rsrc'));
 	const host = new BrowserHost();
-	const machine = bootMachine({ kind, system, volume, application: 'Glider 4.05', host, fileChanged: (f, deleted) => store.save(f, deleted) });
+	const machine = bootMachine({ kind, system, volume, application: 'Glider 4.05', host, fileChanged: (f, deleted) => store.save(f, deleted), extendedKeyboard: true });
 	setBeeper(beep);
 	setStandardFileHost(browserFilePicker);
 

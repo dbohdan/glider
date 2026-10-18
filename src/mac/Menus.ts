@@ -444,7 +444,10 @@ function drawTitle(e: { menu: MenuInfo; left: Integer }, hilited: boolean): void
 		}
 		const baseline = 14;
 		if (e.menu.title === '\x14' && inColor()) {
-			drawColorApple(e.left + titleTextInset, 2);
+			drawRows(appleMenuTitle.color, appleMenuTitle.colors, e.left + titleTextInset, 2);
+		} else if (e.menu.title === '\x14' && appleMenuTitle.mono !== null) {
+			// Where the system font's glyph goes: its box starts a pixel right of the pen, at the ascent.
+			drawRows(appleMenuTitle.mono, null, e.left + titleTextInset + 1, baseline - 12);
 		} else {
 			MoveTo(e.left + titleTextInset, baseline);
 			DrawString(e.menu.title);
@@ -460,39 +463,57 @@ function drawTitle(e: { menu: MenuInfo; left: Integer }, hilited: boolean): void
 }
 
 /**
- * Port: on a color screen, the Apple menu's title is a color apple instead of the system font's,
- * 2 pixels below the top of the menu bar (as the oracle shows it), in the stripes of Apple's logo:
- * g green, y yellow, o orange, r red, m magenta, b blue.
+ * The Apple menu's title, character 0x14 of the system font: the Apple logo in Chicago. Port: a
+ * diamond stands in for the logo. In black and white it is the system font's character 0x14 (a
+ * black diamond in Ozma). On a color screen, where the System draws a color logo 2 pixels below
+ * the top of the menu bar (as the oracle shows it), it is a diamond in the colors of the old
+ * logo's stripes: g green, y yellow, o orange, r red, m magenta, b blue. Tests put the logo back
+ * (setAppleMenuTitle) to compare screens with the original's.
  */
-const colorApple = [
-	'.......gg...',
-	'......gg....',
-	'......g.....',
-	'..ggg..ggg..',
-	'.gggggggggg.',
-	'yyyyyyyyy...',
-	'yyyyyyyyy...',
-	'ooooooooo...',
-	'oooooooooo..',
-	'rrrrrrrrrrr.',
-	'.mmmmmmmmmm.',
-	'.mmmmmmmmmm.',
-	'..bbbbbbbb..',
-	'...bb..bb...',
-];
+export interface AppleMenuTitle {
+	/** Rows of color letters ('.' for none), drawn 2 pixels below the top of the menu bar. */
+	color: string[];
+	colors: Record<string, RGBColor>;
+	/** Rows of '#' drawn in the foreground color where the font's glyph would go; null for the glyph. */
+	mono: string[] | null;
+}
 
-const appleColors: Record<string, RGBColor> = {
-	g: { red: 0x1f21, green: 0xb793, blue: 0x1431 },
-	y: { red: 0xfc00, green: 0xf37d, blue: 0x052f },
-	o: { red: 0xffff, green: 0x648a, blue: 0x028c },
-	r: { red: 0xdd6b, green: 0x08c2, blue: 0x06a2 },
-	m: { red: 0xf2d7, green: 0x0856, blue: 0x84ec },
-	b: { red: 0x0000, green: 0x0000, blue: 0xd400 },
+let appleMenuTitle: AppleMenuTitle = {
+	color: [
+		'............',
+		'.....g......',
+		'....ggg.....',
+		'...yyyyy....',
+		'..yyyyyyy...',
+		'.ooooooooo..',
+		'ooooooooooo.',
+		'.rrrrrrrrr..',
+		'..mmmmmmm...',
+		'...mmmmm....',
+		'....bbb.....',
+		'.....b......',
+		'............',
+		'............',
+	],
+	colors: {
+		g: { red: 0x1f21, green: 0xb793, blue: 0x1431 },
+		y: { red: 0xfc00, green: 0xf37d, blue: 0x052f },
+		o: { red: 0xffff, green: 0x648a, blue: 0x028c },
+		r: { red: 0xdd6b, green: 0x08c2, blue: 0x06a2 },
+		m: { red: 0xf2d7, green: 0x0856, blue: 0x84ec },
+		b: { red: 0x0000, green: 0x0000, blue: 0xd400 },
+	},
+	mono: null,
 };
 
-function drawColorApple(left: Integer, top: Integer): void {
+export function setAppleMenuTitle(title: AppleMenuTitle): void {
+	appleMenuTitle = title;
+}
+
+/** Draws rows of letters as pixels, each letter in its color (or the foreground color without colors). */
+function drawRows(rows: string[], colors: Record<string, RGBColor> | null, left: Integer, top: Integer): void {
 	PenNormal();
-	colorApple.forEach((row, y) => {
+	rows.forEach((row, y) => {
 		for (let x = 0; x < row.length; ) {
 			const c = row[x]!;
 			let end = x + 1;
@@ -500,7 +521,9 @@ function drawColorApple(left: Integer, top: Integer): void {
 				end++;
 			}
 			if (c !== '.') {
-				RGBForeColor(appleColors[c]!);
+				if (colors !== null) {
+					RGBForeColor(colors[c]!);
+				}
 				PaintRect({ top: top + y, left: left + x, bottom: top + y + 1, right: left + end });
 			}
 			x = end;

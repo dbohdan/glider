@@ -2,6 +2,7 @@ STARTFONT 2.1
 COMMENT Ozma 12: the system font of the Glider 4 port.
 COMMENT The glyphs of the Chicago 12 bitmap font, from the System file of Executor
 COMMENT (https://github.com/autc04/executor, MIT license), re-encoded.
+COMMENT Character 0x14, Chicago's Apple logo, is a diamond here.
 COMMENT The MAC_ properties keep QuickDraw font metrics; the missing-character glyph is ENCODING -1.
 FONT Ozma-12
 SIZE 12 72 72
@@ -159,17 +160,17 @@ DWIDTH 11 0
 BBX 9 15 1 -3
 BITMAP
 0000
-0600
-0C00
+0000
 0800
-7700
-FF80
-FE00
-FE00
-FF80
+1C00
+3E00
+7F00
 FF80
 7F00
-3600
+3E00
+1C00
+0800
+0000
 0000
 0000
 0000

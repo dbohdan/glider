@@ -40,6 +40,13 @@ test('Ozma draws every character as System 6.0.8 Chicago 12 does', { skip: exist
 		assert.equal(ozma[key], chicago[key], key);
 	}
 	for (let ch = 0; ch < 256; ch++) {
+		if (ch === 0x14) {
+			// Chicago's Apple logo is a diamond in Ozma, in the same box.
+			const [o, c] = [glyphOf(ozma, ch), glyphOf(chicago, ch)];
+			assert.deepEqual([o.imageOffset, o.width, o.imageWidth], [c.imageOffset, c.width, c.imageWidth], 'character 20');
+			assert.notEqual(glyphKey(ozma, ch), glyphKey(chicago, ch), 'character 20');
+			continue;
+		}
 		assert.equal(glyphKey(ozma, ch), glyphKey(chicago, ch), `character ${ch}`);
 	}
 });
