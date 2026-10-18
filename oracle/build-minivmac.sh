@@ -26,5 +26,10 @@ cp "$here/minivmac/OSGLUHDL.c" src/OSGLUXWN.c
 sed -i -e '1i extern void ALineTrap(unsigned long pc, unsigned long opcode);' \
 	-e '/^LOCALIPROC DoCodeA(void)$/,/^}$/ s|^\tException(0xA);|\tALineTrap(m68k_getpc(), do_get_mem_word(V_pc_p));\n\tException(0xA);|' src/MINEM68K.c
 grep -q 'ALineTrap(m68k_getpc' src/MINEM68K.c
+# And each report the ADB mouse gives the Mac (a Mac II's), for mouse traces.
+sed -i -e '1i extern void ADBMouseTalked(int dh, int dv, int down);' \
+	-e '/(0 != partH) || (0 != partV) || MouseButtonChange) {/a\
+					ADBMouseTalked((si4b)partH, (si4b)partV, SavedCurMouseButton);' src/ADBSHARE.h
+grep -q 'ADBMouseTalked((si4b)partH' src/ADBSHARE.h
 sed -i -e 's|-L/usr/X11R6/lib -lX11||' -e '/^\tstrip /d' Makefile
 make -s > make.log 2>&1 || { cat make.log; exit 1; }

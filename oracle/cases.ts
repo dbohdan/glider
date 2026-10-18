@@ -103,6 +103,34 @@ export const cases: Record<string, (dir: string) => RunResult> = {
 		return run(macII, steerScript(), disk, dir);
 	},
 
+	/** A game on a Mac Plus steered with the mouse (the Controls menu's Mouse). */
+	mouse(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, mouseScript(false), disk, dir);
+	},
+
+	/** A game on a Mac II steered with the mouse. */
+	mouseColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		return run(macII, mouseScript(false), disk, dir);
+	},
+
+	/** A game on a Mac Plus steered with mouse movements (the Controls menu's Joystick). */
+	joystick(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, mouseScript(true), disk, dir);
+	},
+
+	/** A game on a Mac II steered with mouse movements. */
+	joystickColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		return run(macII, mouseScript(true), disk, dir);
+	},
+
 	/** A long flight forward through the house on a Mac Plus. */
 	tour(dir) {
 		const disk = dir + '.dsk';
@@ -276,5 +304,56 @@ export function tourScript(): Script {
 	for (let t = 60; t < 100; t++) {
 		s.wait(30).shot(`t${t}`);
 	}
+	return s;
+}
+
+/**
+ * Chooses a mouse control from the Options menu's Controls submenu (Mouse, or Joystick for
+ * relative movements), starts a game, and steers it: with Mouse by placing the mouse right and left
+ * of the screen's middle, with Joystick by moving it right and left; then the button for energy.
+ * A screenshot every 10 ticks.
+ */
+export function mouseScript(joystick: boolean): Script {
+	const s = new Script();
+	s.speed(8).traceKeys().traceMouse();
+	s.until(900).press('return').wait(60);
+	s.mouse(120, 10).wait(5).button(true).wait(15).mouse(120, 28).wait(40).mouse(280, 28).wait(10);
+	s.mouse(280, joystick ? 82 : 66).wait(15).button(false).wait(30);
+	s.press('n', 'command').wait(20);
+	let shot = 0;
+	const shots = (ticks: number): void => {
+		for (let t = 0; t < ticks; t += 10) {
+			s.wait(10).shot(`m${shot++}`);
+		}
+	};
+	shots(30);
+	if (joystick) {
+		// Movements in the ticks between frames: a Mac II's ADB mouse reports as a tick begins, and
+		// whether the program sees the report in that tick (before the vertical blanking task copies
+		// the mouse for it) or in the next one varies, but the next frame sees it either way.
+		s.wait(1);
+	}
+	const steer = (dh: number, ticks: number): void => {
+		if (joystick) {
+			for (let t = 0; t < ticks; t += 2) {
+				s.mouseBy(dh, 0).wait(2);
+				if ((t + 2) % 10 === 0) {
+					s.shot(`m${shot++}`);
+				}
+			}
+		} else {
+			s.mouse(256 + dh * 8, 160);
+			shots(ticks);
+		}
+	};
+	steer(10, 60);
+	steer(-10, 60);
+	steer(3, 40);
+	s.button(true);
+	shots(30);
+	// Mini vMac holds back other input for 4 ticks after a button event (MasterMyEvtQLock).
+	s.button(false);
+	shots(10);
+	steer(10, 120);
 	return s;
 }

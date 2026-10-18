@@ -55,6 +55,11 @@ export interface InputOptions {
 	/** Screen pixels per Mac pixel. */
 	scale: () => number;
 	plusKeyboard: boolean;
+	/** The Mac's screen size, in which the mouse stays. */
+	width: number;
+	height: number;
+	/** Whether the program wants the pointer captured (it moves the mouse itself, as in a game played with the mouse). */
+	capture: () => boolean;
 	/** Called on any input, to let waiting code run. */
 	wake: () => void;
 }
@@ -112,13 +117,50 @@ export function attachInput(o: InputOptions): void {
 		mouse.where = { h: Math.floor((e.clientX - r.left) / s), v: Math.floor((e.clientY - r.top) / s) };
 		mouseMoved();
 	};
+	// While the program wants it, the pointer is captured (Pointer Lock) on the next click or key
+	// press, and the mouse moves by the pointer's movements from wherever the program put it;
+	// otherwise the mouse is where the pointer is. Escape, or the program's no longer wanting it,
+	// releases the pointer.
+	const captured = (): boolean => document.pointerLockElement === o.screen;
+	const capture = (): void => {
+		if (o.capture() && !captured()) {
+			Promise.resolve(o.screen.requestPointerLock()).catch(() => {});
+		}
+	};
+	setInterval(() => {
+		if (captured() && !o.capture()) {
+			document.exitPointerLock();
+		}
+	}, 100);
+	/** Movement not yet a whole Mac pixel. */
+	const rest = { h: 0, v: 0 };
+	const move = (e: MouseEvent): void => {
+		const s = o.scale();
+		rest.h += e.movementX / s;
+		rest.v += e.movementY / s;
+		const dh = Math.trunc(rest.h);
+		const dv = Math.trunc(rest.v);
+		rest.h -= dh;
+		rest.v -= dv;
+		// The Mac keeps the mouse on the screen.
+		mouse.where = { h: Math.max(0, Math.min(o.width - 1, mouse.where.h + dh)), v: Math.max(0, Math.min(o.height - 1, mouse.where.v + dv)) };
+		mouseMoved();
+	};
+	window.addEventListener('keydown', capture);
 	window.addEventListener('mousemove', (e) => {
-		place(e);
+		if (captured()) {
+			move(e);
+		} else {
+			place(e);
+		}
 		o.wake();
 	});
 	o.screen.addEventListener('mousedown', (e) => {
 		e.preventDefault();
-		place(e);
+		if (!captured()) {
+			place(e);
+			capture();
+		}
 		mouse.button = true;
 		postOSEvent(1, 0);
 		o.wake();
@@ -127,7 +169,9 @@ export function attachInput(o: InputOptions): void {
 		if (!mouse.button) {
 			return;
 		}
-		place(e);
+		if (!captured()) {
+			place(e);
+		}
 		mouse.button = false;
 		postOSEvent(2, 0);
 		o.wake();

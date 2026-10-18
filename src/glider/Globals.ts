@@ -620,3 +620,12 @@ export const G = {
 };
 
 export type GlobalsT = typeof G;
+
+/**
+ * Port: whether the platform should capture the pointer. A game played with a mouse control (Mouse
+ * or Joystick) moves the mouse itself every frame (HorizonMouse, CenterMouse); a browser cannot
+ * move its pointer, but a captured one reports its movements, which then move the Mac's mouse.
+ */
+export function wantsMouseCapture(): boolean {
+	return G.playing && !G.pausing && (G.controlMethod === iAbsMouse || G.controlMethod === iRelMouse);
+}

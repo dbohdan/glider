@@ -128,6 +128,15 @@ export class Script {
 		return this;
 	}
 
+	/**
+	 * Has the emulator report, in its output, each report a Mac II's ADB mouse gives the Mac: when
+	 * the Mac got each movement and button change, which the bus's polling decides.
+	 */
+	traceMouse(): this {
+		this.lines.push('mouse 1');
+		return this;
+	}
+
 	/** Starts or stops the emulator's report of the traps the program calls (see OSGLUHDL.c). */
 	traceTraps(on: boolean): this {
 		this.lines.push(`traps ${on ? 1 : 0}`);

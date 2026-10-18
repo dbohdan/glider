@@ -8,17 +8,21 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { everyTickScript, playScript, steerScript, tourScript } from '../../oracle/cases.ts';
+import { everyTickScript, mouseScript, playScript, steerScript, tourScript } from '../../oracle/cases.ts';
 import { writePNG } from '../../oracle/Image.ts';
 import { cacheDir } from '../../oracle/Oracle.ts';
 import { differences, oracleOutput, oracleRunAvailable, oracleShot, writeComparison } from '../toolbox/machine.ts';
-import { bootGlider, oracleKeyTicks, replay, runGlider } from './harness.ts';
+import { bootGlider, oracleTrace, replay, runGlider } from './harness.ts';
 
 for (const [kind, caseName, makeScript, what] of [
 	['plus', 'play', playScript, 'a game plays'],
 	['ii', 'playColor', playScript, 'a game plays'],
 	['plus', 'steer', steerScript, 'a game steered with the keys plays'],
 	['ii', 'steerColor', steerScript, 'a game steered with the keys plays'],
+	['plus', 'mouse', () => mouseScript(false), 'a game steered with the mouse plays'],
+	['ii', 'mouseColor', () => mouseScript(false), 'a game steered with the mouse plays'],
+	['plus', 'joystick', () => mouseScript(true), 'a game steered with mouse movements plays'],
+	['ii', 'joystickColor', () => mouseScript(true), 'a game steered with mouse movements plays'],
 	['plus', 'tour', tourScript, 'a long flight through the house plays'],
 	['ii', 'tourColor', tourScript, 'a long flight through the house plays'],
 	['plus', 'everyTick', everyTickScript, 'every tick of the alert going away and a game starting looks'],
@@ -27,7 +31,7 @@ for (const [kind, caseName, makeScript, what] of [
 	test(`${what} as the original's does on a ${kind === 'plus' ? 'Mac Plus' : 'Mac II'}`, { skip: oracleRunAvailable(caseName) ? false : `the oracle has not run "${caseName}"` }, async () => {
 		const run = bootGlider(kind);
 		const script = makeScript();
-		const { shots, end } = replay(run, script, oracleKeyTicks(oracleOutput(caseName), script, kind));
+		const { shots, end } = replay(run, script, oracleTrace(oracleOutput(caseName), script, kind));
 		await runGlider(run, end + 1);
 		assert.equal(shots.size, script.shots.length);
 		const failures: string[] = [];

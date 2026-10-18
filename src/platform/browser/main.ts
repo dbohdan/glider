@@ -2,6 +2,7 @@
 // its screen at an integer scale, and runs Glider.
 
 import { main as glider } from '../../glider/GameBody.ts';
+import { wantsMouseCapture } from '../../glider/Globals.ts';
 import { ExitToShellSignal, setBeeper, setStandardFileHost } from '../../mac/Toolbox.ts';
 import { parseResourceFork } from '../../mac/ResourceFork.ts';
 import { loadVolume, type VolumeManifest } from '../../mac/Volume.ts';
@@ -62,7 +63,7 @@ async function start(): Promise<void> {
 	};
 	layout();
 	window.addEventListener('resize', layout);
-	attachInput({ screen: canvas, scale: () => scale, plusKeyboard: kind === 'plus', wake: () => host.wake() });
+	attachInput({ screen: canvas, scale: () => scale, plusKeyboard: kind === 'plus', width: machine.width, height: machine.height, capture: wantsMouseCapture, wake: () => host.wake() });
 	const frame = (): void => {
 		renderScreen(machine, image.data);
 		ctx.putImageData(image, 0, 0);

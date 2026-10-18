@@ -218,7 +218,6 @@ do {
 - Effective device color table after the Palette Manager applies `pltt` 128.
 - Initial values of uninitialized Pascal globals (affects the `is4Channel` preference bug); `Globals.ts` starts them at zero.
 - Whether the Palette Manager changes the Mac II's color table for `pltt` 128, whose colors differ from `clut` 4 in their low bytes (tolerance 0). The oracle's CLUT dump (`c`) can tell.
-- How many times a chosen menu item blinks with the oracle's parameter RAM (the port assumes 3).
 - What a dialog's edit field does with text longer than it: in the oracle, a period key held into Glider's high-score name scrolls the field sideways (the periods' 4-pixel pattern hides it) and, at about 80 characters, the field starts over with one character. The port wraps and scrolls a line up instead.
 - Where System 6 puts a submenu in general: the oracle shows it 4 pixels inside the parent's right edge and 7 pixels below the parent item's top, for Glider's one submenu.
 - Which keyboard type the port reports (`SysEnvirons`' `keyBoardType`): the shipped preferences say 4, so any other value shows the "New keyboard" alert at first launch, as the oracle does on both machines.
@@ -378,3 +377,14 @@ A new oracle case, `tour`, flies forward through the house for 20 seconds, lets 
 - The game could not be steered with the arrow keys in the browser: on the Mac II, as on the oracle's, the standard ADB keyboard differs from the Apple Extended Keyboard in Glider 4.05's preferences, so Glider says "New keyboard. Switching to default keyboard controls." and uses comma, period, Return, and space. The browser's Mac II now has an Extended Keyboard (`extendedKeyboard` in `bootMachine`); a Mac Plus still gets the alert and the default keys, as a real one would.
 - The Apple logo is replaced by a diamond (see the settled decisions).
 - In an xrdp session the arrow keys still did nothing: remote desktops send them as the numeric keypad's with NumLock off (`code` "Numpad4", `key` "ArrowLeft"), and the port maps keys by `code`. An event whose `key` is an arrow is now the arrow key.
+
+### 2026-10-18 (mouse)
+
+Games steered with the mouse match the original on both machines: the Controls menu's Mouse (the glider pulls toward the mouse's side of the screen, and Glider puts the mouse back on a horizon each frame) and Joystick (mouse movements, with the mouse put back in the middle each frame).
+
+- A chosen menu item blinks as soon as the button comes up: off and on, 3 ticks each, `MenuFlash` (3 on both oracle Macs) times. The port waited 3 ticks first, which put the game's frames a tick off on the Mac II after choosing from a menu.
+- The button reaches the program a tick later on a Mac Plus (the ROM debounces it at vertical blanking), and in the middle of the tick on a Mac II (ADB), where `MenuSelect`, polling, sees it at once.
+- `GetMouse` reads low memory `Mouse`, which the cursor task copies from `MTemp` at each vertical blanking; Glider's CenterMouse and HorizonMouse write `MTemp` and `RawMouse` (RAM dumps, tick by tick).
+- A Mac II's ADB mouse reports when the bus is polled. A new trace (`Script.traceMouse`, Mini vMac's ADB mouse patched to call the front end) gives each report's tick and how many cycles into it; the harness replays them. Reports that come as a tick begins reach the program in that tick or the next, depending on whether the ROM finishes the ADB transaction before the vertical blanking task; the trace cannot say which, so the scripts give movements in the ticks between frames.
+- On a Mac Plus, Mini vMac holds back other input for 4 ticks after a button event; scripts leave room.
+- In the browser, a game played with the mouse captures the pointer (Pointer Lock) at the next click or key press and lets it go when the game stops or pauses; captured, the pointer's movements move the Mac's mouse, which Glider puts back where it wants.

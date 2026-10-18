@@ -141,6 +141,38 @@ export function oracleKeyTicks(output: string, script: Script, kind: MachineKind
 	return ticks;
 }
 
+/**
+ * A report of a Mac II's ADB mouse to the Mac: in which tick, its movement, its button, and how many
+ * CPU cycles into the tick (0 when the emulator gives it as the tick begins, before the program
+ * runs).
+ */
+export interface MouseReport {
+	tick: number;
+	dh: number;
+	dv: number;
+	down: boolean;
+	cycles: number;
+}
+
+/** What the oracle reported of a run's input: when each key arrived, and the ADB mouse's reports. */
+export interface OracleTrace {
+	keyTicks: number[];
+	/** Null when the run did not trace the mouse (`Script.traceMouse`), or on a Mac Plus. */
+	mouseReports: MouseReport[] | null;
+}
+
+export function oracleTrace(output: string, script: Script, kind: MachineKind): OracleTrace {
+	const reports: MouseReport[] = [];
+	for (const line of output.split('\n')) {
+		const m = /^adbmouse (\d+) (-?\d+) (-?\d+) ([01]) (\d+)$/.exec(line);
+		if (m !== null) {
+			reports.push({ tick: Number(m[1]), dh: Number(m[2]), dv: Number(m[3]), down: m[4] === '1', cycles: Number(m[5]) });
+		}
+	}
+	const traced = kind === 'ii' && script.lines.includes('mouse 1');
+	return { keyTicks: oracleKeyTicks(output, script, kind), mouseReports: traced ? reports : null };
+}
+
 const keyNames = new Map(Object.entries(keyCodes).map(([name, code]) => [code, name]));
 
 const specialChars: Record<string, number> = { return: 13, enter: 3, tab: 9, space: 32, delete: 8, escape: 27, left: 28, right: 29, up: 30, down: 31 };
@@ -162,27 +194,53 @@ function charCodeOf(name: string, shift: boolean): number {
 }
 
 /**
- * When in its tick a key reaches the Mac's KeyMap and event queue, in ticks. The Mac Plus keyboard
- * delivers it at once, before a game frame's work at the start of the tick reads the keys; the Mac
- * II's ADB keyboard takes milliseconds of bus transactions, and the frame has read the keys by then
- * (measured: steering the glider on the Mac II, the frames see each key a frame later than on the
- * Mac Plus). A program waiting for an event sees it in the same tick either way.
+ * When in its tick input reaches the Mac, in ticks after the tick begins.
+ * - Keys: the Mac Plus keyboard delivers a key at once, before a game frame's work at the start of
+ *   the tick reads the keys; the Mac II's ADB keyboard takes milliseconds of bus transactions, and
+ *   the frame has read the keys by then (measured: steering the glider on the Mac II, the frames
+ *   see each key a frame later than on the Mac Plus).
+ * - The button: on a Mac Plus, the ROM takes the button's state at the next vertical blanking, a
+ *   tick later; on a Mac II it comes over ADB, as keys do (measured: a menu item starts blinking
+ *   when the button comes up).
+ * - Mouse movements: on a Mac Plus the emulator adds them to low memory as the tick begins; on a
+ *   Mac II they come over ADB.
+ * A program waiting for an event sees it in the tick it arrives. The emulator places the mouse
+ * (`Script.mouse`) by writing low memory as the tick begins, on both machines.
  */
-const keyArrival: Record<MachineKind, number> = { plus: 0, ii: 0.5 };
+const arrival: Record<'key' | 'button' | 'motion', Record<MachineKind, number>> = {
+	key: { plus: 0, ii: 0.5 },
+	button: { plus: 1, ii: 0.5 },
+	motion: { plus: 0, ii: 0.5 },
+};
 
 /**
  * Schedules an oracle script's input on the run's host, and the script's screenshots. The oracle
  * numbers ticks from 1: input the script gives after tick k reaches the Mac in tick k + 1, and a
  * screenshot after tick k shows everything drawn in it. Here tick k is TickCount k, which begins at
- * tickTime(k): keys go down and up in the ticks in `keyTicks` (from oracleKeyTicks), or else in the
- * tick after the script presses them, as keyArrival says; the mouse moves and its button goes down
- * and up as the next tick begins; a screenshot after tick k is taken as tick k + 1 begins. Returns the screenshots, filled in as the run reaches them, and the tick the
- * script ends at.
+ * tickTime(k): keys go down and up in the ticks the oracle's trace says (oracleTrace), or else in
+ * the tick after the script presses them, and mouse movements and the button in the ticks of the
+ * trace's ADB mouse reports, or else in the tick after the script gives them, as `arrival` says; the mouse is placed as the next tick begins; a
+ * screenshot after tick k is taken as tick k + 1 begins. Returns the screenshots, filled in as the
+ * run reaches them, and the tick the script ends at.
  */
-export function replay(run: GameRun, script: Script, keyTicks?: number[]): { shots: Map<string, Image>; end: number } {
+export function replay(run: GameRun, script: Script, trace?: OracleTrace): { shots: Map<string, Image>; end: number } {
 	const shots = new Map<string, Image>();
 	const h = run.host;
 	const plus = run.machine.kind === 'plus';
+	const keyTicks = trace?.keyTicks;
+	const mouseReports = trace?.mouseReports ?? null;
+	// The ADB mouse's reports, when the oracle traced them, come in the ticks the bus's polling gave
+	// them: as the tick begins, before the program runs, or later in it.
+	for (const r of mouseReports ?? []) {
+		h.at(r.tick + (r.cycles === 0 ? 0 : arrival.motion.ii), () => {
+			mouse.where = { h: mouse.where.h + r.dh, v: mouse.where.v + r.dv };
+			mouseMoved();
+			if (r.down !== mouse.button) {
+				mouse.button = r.down;
+				postOSEvent(r.down ? 1 : 2, 0);
+			}
+		}, true);
+	}
 	let tick = 0;
 	let keyIndex = 0;
 	for (const line of script.lines) {
@@ -196,7 +254,7 @@ export function replay(run: GameRun, script: Script, keyTicks?: number[]): { sho
 				const down = b === '1';
 				const name = keyNames.get(code)!;
 				const mac = plus ? (plusArrows[code] ?? code) : code;
-				h.at((keyTicks?.[keyIndex++] ?? tick + 1) + keyArrival[run.machine.kind], () => {
+				h.at((keyTicks?.[keyIndex++] ?? tick + 1) + arrival.key[run.machine.kind], () => {
 					if (code >= 0x37 && code <= 0x3b) {
 						keysDown[code] = down;
 					} else if (down) {
@@ -216,16 +274,22 @@ export function replay(run: GameRun, script: Script, keyTicks?: number[]): { sho
 				break;
 			}
 			case 'd': {
+				if (mouseReports !== null) {
+					break;
+				}
 				const [dh, dv] = [Number(a), Number(b)];
-				h.at(tick + 1, () => {
+				h.at(tick + 1 + arrival.motion[run.machine.kind], () => {
 					mouse.where = { h: mouse.where.h + dh, v: mouse.where.v + dv };
 					mouseMoved();
 				}, true);
 				break;
 			}
 			case 'b': {
+				if (mouseReports !== null) {
+					break;
+				}
 				const down = a === '1';
-				h.at(tick + 1, () => {
+				h.at(tick + 1 + arrival.button[run.machine.kind], () => {
 					mouse.button = down;
 					postOSEvent(down ? 1 : 2, 0);
 				}, true);

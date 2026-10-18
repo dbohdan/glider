@@ -1002,13 +1002,11 @@ async function trackMenus(): Promise<LongInt> {
 	let result: LongInt = 0;
 	if (last !== undefined && last.item !== 0 && submenuOf(last.menu, last.item) === null) {
 		const item = last.item;
+		// The item blinks off and on as soon as the button comes up, 3 ticks each way (seen in the oracle, tick by tick).
 		for (let i = 0; i < menuFlash; i++) {
-			await delayTicks(3);
 			setItemHilite(last, 0);
 			await delayTicks(3);
 			setItemHilite(last, item);
-		}
-		if (menuFlash > 0) {
 			await delayTicks(3);
 		}
 		result = (last.menu.menuID << 16) | item;

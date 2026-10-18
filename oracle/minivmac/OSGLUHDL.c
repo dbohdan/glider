@@ -42,6 +42,10 @@
 		             KeyMap ($174, 16 bytes) now, and then at the end of
 		             each tick in which it changed, where TICK counts
 		             ticks as w does
+		mouse 0|1    stop or start printing "adbmouse TICK DH DV DOWN AT"
+		             for each report the ADB mouse (a Mac II's) gives the
+		             Mac in tick TICK: its movement, its button, and how
+		             many CPU cycles into the tick it came
 		traps 0|1    stop or start printing "trap TICK PC OPCODE [xN]"
 		             for each A-line trap called from RAM (the program
 		             and the System's patches) in tick TICK (the one
@@ -471,6 +475,21 @@ void ALineTrap(unsigned long pc, unsigned long opcode)
 	}
 }
 
+/* Whether to print the ADB mouse's reports, and the CPU cycle count when the tick began. */
+LOCALVAR blnr MouseTrace = falseblnr;
+LOCALVAR iCountt TickStartCount = 0;
+
+/* Called by the ADB mouse (see build-minivmac.sh) as it reports to the Mac. */
+void ADBMouseTalked(int dh, int dv, int down)
+{
+	if (MouseTrace) {
+		printf("adbmouse %lu %d %d %d %lu\n",
+			(unsigned long)TrueEmulatedTime, dh, dv, down ? 1 : 0,
+			(unsigned long)(GetCuriCount() - TickStartCount));
+		fflush(stdout);
+	}
+}
+
 /* Whether to print the KeyMap when it changes, and its last value. */
 LOCALVAR blnr KeyMapTrace = falseblnr;
 LOCALVAR ui3b LastKeyMap[16];
@@ -562,6 +581,8 @@ LOCALPROC RunScript(void)
 			}
 			fflush(stdout);
 #endif
+		} else if (0 == strcmp(cmd, "mouse")) {
+			MouseTrace = (0 != ScriptNum(a1));
 		} else if (0 == strcmp(cmd, "traps")) {
 			FlushTraps();
 			TrapTrace = (0 != ScriptNum(a1));
@@ -604,6 +625,7 @@ GLOBALOSGLUPROC WaitForNextTick(void)
 		return;
 	}
 	TraceKeyMap(falseblnr);
+	TickStartCount = GetCuriCount();
 	RunScript();
 	if (ForceMacOff) {
 		return;
