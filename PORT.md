@@ -376,4 +376,3 @@ A new oracle case, `tour`, flies forward through the house for 20 seconds, lets 
 
 - The game could not be steered with the arrow keys in the browser: on the Mac II, as on the oracle's, the standard ADB keyboard differs from the Apple Extended Keyboard in Glider 4.05's preferences, so Glider says "New keyboard. Switching to default keyboard controls." and uses comma, period, Return, and space. The browser's Mac II now has an Extended Keyboard (`extendedKeyboard` in `bootMachine`); a Mac Plus still gets the alert and the default keys, as a real one would.
 - The Apple logo is replaced by a diamond (see the settled decisions).
-- Seen once in Chromium and not reproduced in four more runs: after the alert, the first room in tan and blue where the oracle has gray and black.
