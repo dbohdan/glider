@@ -2,6 +2,7 @@
 
 Screenshots from verifying games in other rooms, test rooms, and Glider's dialogs against the oracle (see the journal in `PORT.md`, entries "rooms" onward).
 They are the original's screens in the emulator, the port's, and comparisons of the two.
+`2026-10-17-pictures-oracle-and-first-games/` has the earlier ones.
 
 The comparison images have three panels: on the left the original (the oracle's Mini vMac), in the middle the port, and on the right a gray copy with the pixels that differ in red.
 In the oracle and in the tests the menu bar shows Apple's logo, as the original does; the port itself shows a diamond.

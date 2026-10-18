@@ -48,3 +48,4 @@ How to work on this project: methods that have proven themselves, and traps that
   Give each service a `run` script that `exec`s the program, so nitro's signal reaches it and not a shell waiting on it.
   Keep `NITRO_SOCK` short (through a symlink if need be): `nitroctl` binds a socket next to it, and Unix socket paths are limited to 108 bytes.
 - Scratch scripts and data go in the session's scratch directory, not in the repository.
+- The session's transcript (`~/.claude/projects/<project>/<session>.jsonl`, one JSON event per line) keeps what earlier context lost: the exact commands, their output, and every image that was looked at, as base64 in the tool results. Pair images with their `Read` calls by `tool_use_id`, not by order, since reads run in parallel. The screenshots in `docs/images/2026-10-17-pictures-oracle-and-first-games/` were recovered this way.
