@@ -246,54 +246,11 @@ function FloatTheScore(whatPoints: Integer): void {
 
 //=================================
 
-/** Port: the reserve copy that hides a collected object, repeated in four cases of Collision. */
-function restoreFromReserve(who: Integer): void {
-	const destReserve = cloneRect(G.eventRect[who]);
-	OffsetRect(destReserve, -destReserve.left, -destReserve.top);
-	OffsetRect(destReserve, G.reserveRects[who].left, G.reserveRects[who].top);
-	if (!G.lightsOut) {
-		if (G.inColor) {
-			CopyBits(G.reserveCPtr!.portPixMap, G.virginCPtr!.portPixMap, destReserve, G.eventRect[who], srcCopy, null);
-			CopyBits(G.reserveCPtr!.portPixMap, G.loadCPtr!.portPixMap, destReserve, G.eventRect[who], srcCopy, null);
-			CopyBits(G.reserveCPtr!.portPixMap, G.mainWndo!.portBits, destReserve, G.eventRect[who], srcCopy, G.wholeRgn);
-		} else {
-			CopyBits(G.offReserveMap, G.offVirginMap, destReserve, G.eventRect[who], srcCopy, null);
-			CopyBits(G.offReserveMap, G.offLoadMap, destReserve, G.eventRect[who], srcCopy, null);
-			CopyBits(G.offReserveMap, G.mainWndo!.portBits, destReserve, G.eventRect[who], srcCopy, G.wholeRgn);
-		}
-	}
-}
-
-/** Port: the number of gliders left, drawn in red (color) or inverted (black and white); repeated in Collision. */
-function drawMortalsCount(tempRect: Rect): string {
-	PenNormal();
-	SetRect(tempRect, 384, 5, 396, 20);
-	PaintRect(tempRect);
-	MoveTo(tempRect.left, tempRect.bottom - 2);
-	TextFont(16);
-	TextSize(12);
-	const tempStr = NumToString(G.mortals - 1);
-	if (G.inColor) {
-		RGBForeColor(G.rgbRed);
-		PenMode(srcOr);
-		DrawString(tempStr);
-		PenNormal();
-		RGBForeColor(G.rgbBlack);
-		CopyBits(G.virginCPtr!.portPixMap, G.loadCPtr!.portPixMap, tempRect, tempRect, srcCopy, null);
-		CopyBits(G.virginCPtr!.portPixMap, G.mainWndo!.portBits, tempRect, tempRect, srcCopy, G.wholeRgn);
-	} else {
-		TextMode(patXor);
-		DrawString(tempStr);
-		PenNormal();
-		CopyBits(G.offVirginMap, G.offLoadMap, tempRect, tempRect, srcCopy, null);
-		CopyBits(G.offVirginMap, G.mainWndo!.portBits, tempRect, tempRect, srcCopy, G.wholeRgn);
-	}
-	return tempStr;
-}
-
 async function Collision(whatKind: Integer, who: Integer): Promise<void> {
+	let tempStr: string;
 	const tempRect = newRect();
 	const srcR = newRect();
+	let destReserve: Rect;
 	let tempInt: Integer;
 	const theGlider = G.theGlider;
 
@@ -374,7 +331,20 @@ async function Collision(whatKind: Integer, who: Integer): Promise<void> {
 				G.eventKind[who][1] = 0;
 				G.thisHouse.theRooms[G.roomAt].theObjects[who].amount = 0;
 
-				restoreFromReserve(who);
+				destReserve = cloneRect(G.eventRect[who]);
+				OffsetRect(destReserve, -destReserve.left, -destReserve.top);
+				OffsetRect(destReserve, G.reserveRects[who].left, G.reserveRects[who].top);
+				if (!G.lightsOut) {
+					if (G.inColor) {
+						CopyBits(G.reserveCPtr!.portPixMap, G.virginCPtr!.portPixMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.reserveCPtr!.portPixMap, G.loadCPtr!.portPixMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.reserveCPtr!.portPixMap, G.mainWndo!.portBits, destReserve, G.eventRect[who], srcCopy, G.wholeRgn);
+					} else {
+						CopyBits(G.offReserveMap, G.offVirginMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.offReserveMap, G.offLoadMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.offReserveMap, G.mainWndo!.portBits, destReserve, G.eventRect[who], srcCopy, G.wholeRgn);
+					}
+				}
 			}
 			break;
 
@@ -402,19 +372,74 @@ async function Collision(whatKind: Integer, who: Integer): Promise<void> {
 						CopyBits(G.offVirginMap, G.mainWndo!.portBits, tempRect, tempRect, srcCopy, G.wholeRgn);
 					}
 					if (G.mortals === 4) {
-						drawMortalsCount(tempRect);
+						PenNormal();
+						SetRect(tempRect, 384, 5, 396, 20);
+						PaintRect(tempRect);
+						MoveTo(tempRect.left, tempRect.bottom - 2);
+						TextFont(16);
+						TextSize(12);
+						tempStr = NumToString(G.mortals - 1);
+						if (G.inColor) {
+							RGBForeColor(G.rgbRed);
+							PenMode(srcOr);
+							DrawString(tempStr);
+							PenNormal();
+							RGBForeColor(G.rgbBlack);
+							CopyBits(G.virginCPtr!.portPixMap, G.loadCPtr!.portPixMap, tempRect, tempRect, srcCopy, null);
+							CopyBits(G.virginCPtr!.portPixMap, G.mainWndo!.portBits, tempRect, tempRect, srcCopy, G.wholeRgn);
+						} else {
+							TextMode(patXor);
+							DrawString(tempStr);
+							PenNormal();
+							CopyBits(G.offVirginMap, G.offLoadMap, tempRect, tempRect, srcCopy, null);
+							CopyBits(G.offVirginMap, G.mainWndo!.portBits, tempRect, tempRect, srcCopy, G.wholeRgn);
+						}
 					}
 				} else {
-					drawMortalsCount(tempRect);
+					PenNormal();
+					SetRect(tempRect, 384, 5, 396, 20);
+					PaintRect(tempRect);
+					MoveTo(tempRect.left, tempRect.bottom - 2);
+					TextFont(16);
+					TextSize(12);
+					tempStr = NumToString(G.mortals - 1);
+					if (G.inColor) {
+						RGBForeColor(G.rgbRed);
+						PenMode(srcOr);
+						DrawString(tempStr);
+						PenNormal();
+						RGBForeColor(G.rgbBlack);
+						CopyBits(G.virginCPtr!.portPixMap, G.loadCPtr!.portPixMap, tempRect, tempRect, srcCopy, null);
+						CopyBits(G.virginCPtr!.portPixMap, G.mainWndo!.portBits, tempRect, tempRect, srcCopy, G.wholeRgn);
+					} else {
+						TextMode(patXor);
+						DrawString(tempStr);
+						PenNormal();
+						CopyBits(G.offVirginMap, G.offLoadMap, tempRect, tempRect, srcCopy, null);
+						CopyBits(G.offVirginMap, G.mainWndo!.portBits, tempRect, tempRect, srcCopy, G.wholeRgn);
+					}
 				}
 
-				restoreFromReserve(who);
+				destReserve = cloneRect(G.eventRect[who]);
+				OffsetRect(destReserve, -destReserve.left, -destReserve.top);
+				OffsetRect(destReserve, G.reserveRects[who].left, G.reserveRects[who].top);
+				if (!G.lightsOut) {
+					if (G.inColor) {
+						CopyBits(G.reserveCPtr!.portPixMap, G.virginCPtr!.portPixMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.reserveCPtr!.portPixMap, G.loadCPtr!.portPixMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.reserveCPtr!.portPixMap, G.mainWndo!.portBits, destReserve, G.eventRect[who], srcCopy, G.wholeRgn);
+					} else {
+						CopyBits(G.offReserveMap, G.offVirginMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.offReserveMap, G.offLoadMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.offReserveMap, G.mainWndo!.portBits, destReserve, G.eventRect[who], srcCopy, G.wholeRgn);
+					}
+				}
 			}
 			break;
 
 		case spillIt: // grease upright
 			G.eventRect[who].left = G.eventRect[who].right;
-			G.eventRect[who].right = G.eventRect[who].right;
+			// Pascal: eventRect[who].right := eventRect[who].right; (assigns the field to itself)
 			G.eventRect[who].top = G.eventRect[who].bottom - 5;
 			G.eventKind[who][0] = ignoreIt; // signal to the cycleOb loop that a spill has occurred
 			G.thisHouse.theRooms[G.roomAt].theObjects[who].isOn = false;
@@ -439,7 +464,20 @@ async function Collision(whatKind: Integer, who: Integer): Promise<void> {
 				PopTokenBand();
 				UpdateBandNumbers();
 
-				restoreFromReserve(who);
+				destReserve = cloneRect(G.eventRect[who]);
+				OffsetRect(destReserve, -destReserve.left, -destReserve.top);
+				OffsetRect(destReserve, G.reserveRects[who].left, G.reserveRects[who].top);
+				if (!G.lightsOut) {
+					if (G.inColor) {
+						CopyBits(G.reserveCPtr!.portPixMap, G.virginCPtr!.portPixMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.reserveCPtr!.portPixMap, G.loadCPtr!.portPixMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.reserveCPtr!.portPixMap, G.mainWndo!.portBits, destReserve, G.eventRect[who], srcCopy, G.wholeRgn);
+					} else {
+						CopyBits(G.offReserveMap, G.offVirginMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.offReserveMap, G.offLoadMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.offReserveMap, G.mainWndo!.portBits, destReserve, G.eventRect[who], srcCopy, G.wholeRgn);
+					}
+				}
 			}
 			break;
 
@@ -454,7 +492,20 @@ async function Collision(whatKind: Integer, who: Integer): Promise<void> {
 				PopTokenBattery();
 				UpdateBatteryEnergy();
 
-				restoreFromReserve(who);
+				destReserve = cloneRect(G.eventRect[who]);
+				OffsetRect(destReserve, -destReserve.left, -destReserve.top);
+				OffsetRect(destReserve, G.reserveRects[who].left, G.reserveRects[who].top);
+				if (!G.lightsOut) {
+					if (G.inColor) {
+						CopyBits(G.reserveCPtr!.portPixMap, G.virginCPtr!.portPixMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.reserveCPtr!.portPixMap, G.loadCPtr!.portPixMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.reserveCPtr!.portPixMap, G.mainWndo!.portBits, destReserve, G.eventRect[who], srcCopy, G.wholeRgn);
+					} else {
+						CopyBits(G.offReserveMap, G.offVirginMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.offReserveMap, G.offLoadMap, destReserve, G.eventRect[who], srcCopy, null);
+						CopyBits(G.offReserveMap, G.mainWndo!.portBits, destReserve, G.eventRect[who], srcCopy, G.wholeRgn);
+					}
+				}
 			}
 			break;
 

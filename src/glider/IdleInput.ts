@@ -408,7 +408,8 @@ function ResumeGame(): void {
 
 export async function HandleMenu(theMenu: Integer, theItem: Integer): Promise<void> {
 	// Handle menu selections realtime
-	let DNA: Integer;
+	// oxlint-disable-next-line no-unused-vars
+	let DNA: Integer; // the desk accessory's reference number, unused as in the original
 	let i: Integer;
 	let DAName: string;
 
@@ -560,7 +561,6 @@ export async function HandleMenu(theMenu: Integer, theItem: Integer): Promise<vo
 	}
 
 	HiliteMenu(0);
-	void DNA!;
 }
 
 // =================================
