@@ -68,7 +68,10 @@ export function attachInput(o: InputOptions): void {
 		if (isMac && (e.code === 'ControlLeft' || e.code === 'ControlRight')) {
 			return controlCode;
 		}
-		return (o.plusKeyboard ? plusArrows[e.code] : undefined) ?? keyCodes[e.code];
+		// An arrow key is the arrow key whatever key sent it: remote desktops (xrdp) send the arrows
+		// as the numeric keypad's with NumLock off ("Numpad4" for "ArrowLeft"), as do PC keypads.
+		const key = e.key.startsWith('Arrow') ? e.key : e.code;
+		return (o.plusKeyboard ? plusArrows[key] : undefined) ?? keyCodes[key];
 	};
 	window.addEventListener('keydown', (e) => {
 		const code = codeOf(e);

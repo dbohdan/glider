@@ -4,6 +4,7 @@ This file is the memory of the port.
 It records the goal, the settled decisions, the conventions for translating the Pascal source, the roadmap, and a dated journal.
 Read it before resuming work.
 Version differences between historical releases are documented separately in [`docs/versions.md`](docs/versions.md).
+How to work on the port (methods, and traps that have cost time) is in [`AGENTS.md`](AGENTS.md).
 
 ## Goal
 
@@ -376,3 +377,4 @@ A new oracle case, `tour`, flies forward through the house for 20 seconds, lets 
 
 - The game could not be steered with the arrow keys in the browser: on the Mac II, as on the oracle's, the standard ADB keyboard differs from the Apple Extended Keyboard in Glider 4.05's preferences, so Glider says "New keyboard. Switching to default keyboard controls." and uses comma, period, Return, and space. The browser's Mac II now has an Extended Keyboard (`extendedKeyboard` in `bootMachine`); a Mac Plus still gets the alert and the default keys, as a real one would.
 - The Apple logo is replaced by a diamond (see the settled decisions).
+- In an xrdp session the arrow keys still did nothing: remote desktops send them as the numeric keypad's with NumLock off (`code` "Numpad4", `key` "ArrowLeft"), and the port maps keys by `code`. An event whose `key` is an arrow is now the arrow key.
