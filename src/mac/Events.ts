@@ -162,12 +162,25 @@ function copyInto(dst: EventRecord, src: EventRecord): void {
 	dst.modifiers = src.modifiers;
 }
 
+/**
+ * Port: the time getting an event takes. On a Mac each call takes some of the processor's time;
+ * here a returned event costs a millisecond of the machine's time, so that a loop that keeps
+ * getting the same event (an update ModalDialog does not handle) lets time pass and the page run.
+ */
+const eventCost = 1;
+
+function eventTime(): Promise<void> {
+	return getHost().sleep(getHost().now() + eventCost);
+}
+
 /** Returns an event if one is waiting; otherwise lets time pass until the next tick and returns a null event. */
 export async function GetNextEvent(mask: Integer, theEvent: EventRecord): Promise<boolean> {
 	let e = nextEvent(mask, true);
 	if (e === null) {
 		await getHost().sleep(tickTime(TickCount() + 1));
 		e = nextEvent(mask, true);
+	} else {
+		await eventTime();
 	}
 	copyInto(theEvent, e ?? nullEventRecord());
 	return e !== null;
@@ -177,6 +190,9 @@ export async function GetNextEvent(mask: Integer, theEvent: EventRecord): Promis
 export async function WaitNextEvent(mask: Integer, theEvent: EventRecord, sleep: LongInt, _mouseRgn: unknown): Promise<boolean> {
 	const until = TickCount() + Math.max(1, sleep);
 	let e = nextEvent(mask, true);
+	if (e !== null) {
+		await eventTime();
+	}
 	while (e === null && TickCount() < until) {
 		await getHost().sleep(tickTime(Math.min(until, TickCount() + 1)));
 		e = nextEvent(mask, true);

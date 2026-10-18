@@ -2216,7 +2216,7 @@ async function WriteScores(): Promise<void> {
 	const houseBytes = new Uint8Array(sizeOf(houseRecLayout));
 	writeLayout(houseRecLayout, G.thisHouse, houseBytes, 0);
 	G.theErr = FSRead(G.houseNumber, textLength, houseBytes);
-	G.thisHouse = readLayout(houseRecLayout, houseBytes, 0);
+	Object.assign(G.thisHouse, readLayout(houseRecLayout, houseBytes, 0)); // Port: in place, as Pascal reads into the record
 	if (G.theErr !== noErr) {
 		await GenericAlert(G.theErr);
 		return;

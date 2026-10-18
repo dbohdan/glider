@@ -20,8 +20,18 @@ export class EndOfRun extends Error {
 /** A ScriptHost that ends the run at a given tick. */
 export class GameHost extends ScriptHost {
 	endTime = Infinity;
+	/** Reads of the clock since time last passed: a program that spins without waiting reads it endlessly. */
+	private reads = 0;
+
+	override now(): number {
+		if (++this.reads > 1_000_000) {
+			throw new Error('the program reads the clock without ever letting time pass');
+		}
+		return super.now();
+	}
 
 	override async sleep(ms: number): Promise<void> {
+		this.reads = 0;
 		if (ms >= this.endTime) {
 			await super.sleep(this.endTime);
 			throw new EndOfRun();

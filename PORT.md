@@ -199,6 +199,8 @@ do {
   - [x] File Manager over the in-memory volume; `OpenResFile` writes resource changes back; Standard File's filter and hook.
 - [ ] **8. Sound:** SMS reimplementation.
 - [ ] **9. Glider:** port the 11 units.
+  - [x] All units translated (`src/glider/`); Glider starts up on both machines exactly as the original does (`test/game/`).
+  - [ ] Play: compare the title screen's idle animations, a game, and the dialogs with the oracle; mouse control (Pointer Lock and the program's mouse warping).
 - [ ] **10. Launcher page:** house library, settings, credits, manual.
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
@@ -212,7 +214,6 @@ do {
 - Whether the Palette Manager changes the Mac II's color table for `pltt` 128, whose colors differ from `clut` 4 in their low bytes (tolerance 0). The oracle's CLUT dump (`c`) can tell.
 - How many times a chosen menu item blinks with the oracle's parameter RAM (the port assumes 3), and whether the Dialog Manager flashes the default button when Return is pressed.
 - Where System 6 puts a submenu in general: the oracle shows it 4 pixels inside the parent's right edge and 7 pixels below the parent item's top, for Glider's one submenu.
-- Whether the cursor is drawn into screen memory, as the ROM does: the oracle's color title screen keeps a ghost of the arrow where Glider copied the screen while the cursor was on it.
 - Which keyboard type the port reports (`SysEnvirons`' `keyBoardType`): the shipped preferences say 4, so any other value shows the "New keyboard" alert at first launch, as the oracle does on both machines.
 - SMS semantics: priorities, channel allocation, 2- and 4-channel mixing.
 - Which of the Windows palette variants needs what exact values (6-bit DAC levels such as 195 versus requested 192).
@@ -313,3 +314,14 @@ Findings:
 - **Static text** is drawn 1 pixel right of the item's left edge, with its first baseline the font's ascent below the top.
 - **Color icons:** pixel values index their own color table by each entry's value, not its position; the port had them by position, which turned the alert icon's black to white. Fixed for pixel patterns too.
 - Glider centers its alerts horizontally and a third of the way down, by rewriting the 'ALRT' rectangle, and centers the Sound Settings dialog in the screen.
+
+### 2026-10-18
+
+Glider is ported: all ten units, translated in parallel by five forked workers against typed stubs, compile together, and the main program runs.
+Run headless on the platform's machine (`test/game/`), it starts up exactly as the original: the "New keyboard" alert over the title screen is identical to the oracle's screenshot, pixel for pixel and cursor included, on the Mac Plus and the Mac II.
+
+- The faint arrow on the Mac II's title screen is part of Glider's title art, not a cursor left in screen memory.
+- The mouse starts at (15, 15) on the oracle's Macs; the platform starts it there.
+- Glider seeds `Random` from the clock (`GetDateTime(RandSeed)`), so runs repeat only with a fixed start date; the harness uses 1992-02-01.
+- ModalDialog leaves other windows' update events pending, as System 6 does, so during the startup alert `GetNextEvent` returns the main window's update again and again. On a Mac that loop takes time; in the port it took none and hung. Each event `GetNextEvent` returns now costs a millisecond of the machine's time.
+- Left for later, from the workers' reports: `ResetAnimate` is async only because the analysis took the field `delay` for the `Delay` call; `HorizonMouse` and `CenterMouse` warp the mouse through low memory, which the platform must turn into pointer movement; small helpers the workers added locally (`varOf` for passing `G` fields as `var` parameters, `HiWrd`, `SystemClick`, `kHMHelpMenuID`) belong in the Toolbox.

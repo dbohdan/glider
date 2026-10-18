@@ -193,7 +193,7 @@ function readHouse(refNum: Integer, count: Ref<LongInt>): OSErr {
 	const buffer = new Uint8Array(sizeOf(houseRecLayout));
 	writeLayout(houseRecLayout, G.thisHouse, buffer, 0);
 	const err = FSRead(refNum, count, buffer);
-	G.thisHouse = readLayout(houseRecLayout, buffer, 0);
+	Object.assign(G.thisHouse, readLayout(houseRecLayout, buffer, 0)); // Port: in place, as Pascal reads into the record
 	return err;
 }
 
