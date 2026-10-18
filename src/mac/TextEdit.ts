@@ -420,15 +420,23 @@ export function TEIdle(te: TERec): void {
 /** Replaces the selection with bytes and redraws. */
 function replaceSelection(te: TERec, bytes: Uint8Array): void {
 	const old = te.hText.data;
+	const replacedRange = te.selStart !== te.selEnd;
 	const text = new Uint8Array(old.length - (te.selEnd - te.selStart) + bytes.length);
 	text.set(old.subarray(0, te.selStart), 0);
 	text.set(bytes, te.selStart);
 	text.set(old.subarray(te.selEnd), te.selStart + bytes.length);
 	te.hText.data = text;
 	te.selStart = te.selEnd = te.selStart + bytes.length;
-	// Typing hides the caret, and it comes back when it next blinks: the blinking keeps its own
-	// time (seen in the oracle, tick by tick).
-	te.caretState = false;
+	// Typing at the caret hides it, and it comes back when it next blinks: the blinking keeps its own
+	// time. Typing over a selection shows the caret at once and starts its blinking over, as setting
+	// the selection does. (Both seen in the oracle, tick by tick: the high-score name typed over and
+	// typed after.)
+	if (replacedRange) {
+		te.caretState = true;
+		te.caretTime = TickCount();
+	} else {
+		te.caretState = false;
+	}
 	TECalText(te);
 	TEUpdate(te.viewRect, te);
 }

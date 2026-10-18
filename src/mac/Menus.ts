@@ -53,7 +53,10 @@ import {
 	SetPort,
 	PtInRect,
 	PlotIcon,
+	DiffRgn,
+	PaintRgn,
 } from './QuickDraw.ts';
+import { rectRegion } from './Region.ts';
 import { GetResource, type Handle } from './Resources.ts';
 import { pascalString } from './MacRoman.ts';
 import { s16, u16 } from './Binary.ts';
@@ -413,6 +416,11 @@ export function DrawMenuBar(): void {
 		PenPat(black);
 		resetColors();
 		const screen = screenBits.bounds;
+		// The screen's rounded corners beside the bar are painted black too, over whatever a program
+		// drew there (seen in the oracle: Glider's pause shows the menu bar over a game).
+		const corners = rectRegion({ top: screen.top, left: screen.left, bottom: screen.top + height, right: screen.right });
+		DiffRgn(corners, bar, corners);
+		PaintRgn(corners);
 		MoveTo(screen.left, screen.top + height - 1);
 		LineTo(screen.right - 1, screen.top + height - 1);
 		layOutTitles();

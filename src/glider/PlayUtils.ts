@@ -1901,7 +1901,9 @@ export function ExtractEventRects(): void {
 	G.nCycleObs = 0;
 	G.nObjects = G.thisHouse.theRooms[G.roomAt]!.numberOObjects;
 	tempNum = G.nObjects;
-	for (index = 1; index <= tempNum; index++) {
+	// A Pascal for loop takes its bound once: the SetUp procedures change tempNum.
+	for (let last = tempNum, i = 1; i <= last; i++) {
+		index = i;
 		const obj = theObject();
 		const boundRect = obj.boundRect;
 		const amount = obj.amount;

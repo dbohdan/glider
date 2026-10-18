@@ -56,12 +56,13 @@ export interface GameRun {
 
 /**
  * Boots a machine with Glider on its volume; schedule input and screenshots on the host before
- * running. `launchTick` is when Glider starts, as on a Mac that took that long to start up.
+ * running. `launchTick` is when Glider starts, as on a Mac that took that long to start up; `house`
+ * replaces The House.
  */
-export function bootGlider(kind: MachineKind, launchTick = 0): GameRun {
+export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array): GameRun {
 	const volume = new Volume('Glider');
 	for (const f of bundledFiles()) {
-		volume.put(f);
+		volume.put(f.name === 'The House' && house !== undefined ? { ...f, data: house } : f);
 	}
 	const host = new GameHost();
 	host.wakeOnInput = true;
@@ -97,26 +98,40 @@ export async function runGlider(run: GameRun, endTick: number): Promise<void> {
 const plusArrows: Record<number, number> = { 0x7b: 0x46, 0x7c: 0x42, 0x7d: 0x48, 0x7e: 0x4d };
 
 /**
- * The ticks at which the oracle's Mac saw each key transition of a script, from the emulator's
- * KeyMap trace (`Script.traceKeys`): a key reaches the Mac's KeyMap and event queue in the tick after
- * the script presses it, or later, as the Mac's keyboard (or ADB) polling allows. Transitions are
- * matched to the script's in order, by key and direction.
+ * When the oracle's Mac saw each key transition of a script, from the emulator's KeyMap trace
+ * (`Script.traceKeys`): a key reaches the Mac's KeyMap and event queue in the tick after the script
+ * presses it, or later, as the Mac's keyboard (or ADB) polling allows. Transitions are matched to the
+ * script's in order, by key and direction. On a Mac Plus a key comes as its tick begins. On a Mac II
+ * it comes over ADB early in its tick, before or after the program reads the keys: the trace's
+ * GetKeys readings tell which, and a key the program did not read in its tick comes in the middle
+ * of it (`arrival`).
  */
-export function oracleKeyTicks(output: string, script: Script, kind: MachineKind): number[] {
-	const changes: { tick: number; code: number; down: boolean; used: boolean }[] = [];
+export function oracleKeyTimes(output: string, script: Script, kind: MachineKind): number[] {
+	const changes: { tick: number; code: number; down: boolean; used: boolean; read: boolean }[] = [];
+	const reads = new Map<number, number[][]>();
+	const parse = (hex: string) => Array.from({ length: 16 }, (_, i) => parseInt(hex.slice(i * 2, i * 2 + 2), 16));
+	const bit = (map: number[], code: number) => (map[code >> 3]! >> (code & 7)) & 1;
+	for (const line of output.split('\n')) {
+		const g = /^getkeys (\d+) ([0-9a-f]{32})$/.exec(line);
+		if (g !== null) {
+			reads.set(Number(g[1]), [...(reads.get(Number(g[1])) ?? []), parse(g[2]!)]);
+		}
+	}
+	const traced = reads.size > 0;
 	let last: number[] | null = null;
 	for (const line of output.split('\n')) {
 		const m = /^keymap (\d+) ([0-9A-F]{32})$/.exec(line);
 		if (m === null) {
 			continue;
 		}
-		const map = Array.from({ length: 16 }, (_, i) => parseInt(m[2]!.slice(i * 2, i * 2 + 2), 16));
+		const map = parse(m[2]!);
 		if (last !== null) {
 			for (let code = 0; code < 128; code++) {
-				const was = (last[code >> 3]! >> (code & 7)) & 1;
-				const is = (map[code >> 3]! >> (code & 7)) & 1;
+				const was = bit(last, code);
+				const is = bit(map, code);
 				if (was !== is) {
-					changes.push({ tick: Number(m[1]), code, down: is === 1, used: false });
+					const read = (reads.get(Number(m[1])) ?? []).some((r) => bit(r, code) === is);
+					changes.push({ tick: Number(m[1]), code, down: is === 1, used: false, read });
 				}
 			}
 		}
@@ -135,7 +150,7 @@ export function oracleKeyTicks(output: string, script: Script, kind: MachineKind
 				throw new Error(`the oracle's trace does not show key ${code} going ${b === '1' ? 'down' : 'up'} after tick ${tick}`);
 			}
 			c.used = true;
-			ticks.push(c.tick);
+			ticks.push(c.tick + (kind === 'plus' || (traced && c.read) ? 0 : arrival.key.ii));
 		}
 	}
 	return ticks;
@@ -154,11 +169,53 @@ export interface MouseReport {
 	cycles: number;
 }
 
+/**
+ * The ticks at which a Mac Plus's ROM took each button transition of a script, from the trace's
+ * low memory MBState (`Script.traceKeys`): it debounces the button at vertical blanking, which takes
+ * one tick or two after the script gives it. Null when the run did not trace MBState.
+ */
+export function oracleButtonTicks(output: string, script: Script): number[] | null {
+	const changes: { tick: number; down: boolean; used: boolean }[] = [];
+	let last: number | null = null;
+	for (const line of output.split('\n')) {
+		const m = /^mbstate (\d+) ([0-9A-F]{2})$/.exec(line);
+		if (m !== null) {
+			const state = parseInt(m[2]!, 16) & 0x80;
+			if (last !== null && state !== last) {
+				changes.push({ tick: Number(m[1]), down: state === 0, used: false });
+			}
+			last = state;
+		}
+	}
+	if (last === null) {
+		return null;
+	}
+	const ticks: number[] = [];
+	let tick = 0;
+	for (const line of script.lines) {
+		const [op, a = ''] = line.split(' ');
+		if (op === 'w') {
+			tick += Number(a);
+		} else if (op === 'b') {
+			const c = changes.find((c) => !c.used && c.down === (a === '1') && c.tick > tick);
+			if (c === undefined) {
+				throw new Error(`the oracle's trace does not show the button going ${a === '1' ? 'down' : 'up'} after tick ${tick}`);
+			}
+			c.used = true;
+			ticks.push(c.tick);
+		}
+	}
+	return ticks;
+}
+
 /** What the oracle reported of a run's input: when each key arrived, and the ADB mouse's reports. */
 export interface OracleTrace {
-	keyTicks: number[];
+	/** When each of the script's key transitions reached the Mac (see oracleKeyTimes). */
+	keyTimes: number[];
 	/** Null when the run did not trace the mouse (`Script.traceMouse`), or on a Mac Plus. */
 	mouseReports: MouseReport[] | null;
+	/** On a Mac Plus, when the ROM took each button transition; null when not traced. */
+	buttonTicks: number[] | null;
 }
 
 export function oracleTrace(output: string, script: Script, kind: MachineKind): OracleTrace {
@@ -170,7 +227,7 @@ export function oracleTrace(output: string, script: Script, kind: MachineKind): 
 		}
 	}
 	const traced = kind === 'ii' && script.lines.includes('mouse 1');
-	return { keyTicks: oracleKeyTicks(output, script, kind), mouseReports: traced ? reports : null };
+	return { keyTimes: oracleKeyTimes(output, script, kind), mouseReports: traced ? reports : null, buttonTicks: kind === 'plus' ? oracleButtonTicks(output, script) : null };
 }
 
 const keyNames = new Map(Object.entries(keyCodes).map(([name, code]) => [code, name]));
@@ -196,12 +253,14 @@ function charCodeOf(name: string, shift: boolean): number {
 /**
  * When in its tick input reaches the Mac, in ticks after the tick begins.
  * - Keys: the Mac Plus keyboard delivers a key at once, before a game frame's work at the start of
- *   the tick reads the keys; the Mac II's ADB keyboard takes milliseconds of bus transactions, and
- *   the frame has read the keys by then (measured: steering the glider on the Mac II, the frames
- *   see each key a frame later than on the Mac Plus).
- * - The button: on a Mac Plus, the ROM takes the button's state at the next vertical blanking, a
- *   tick later; on a Mac II it comes over ADB, as keys do (measured: a menu item starts blinking
- *   when the button comes up).
+ *   the tick reads the keys. The Mac II's ADB keyboard gives each key as the tick begins, but the
+ *   bus's transactions take milliseconds, and the frame has usually read the keys by then; when
+ *   the oracle traced the program's GetKeys, the trace says which keys it read in their tick
+ *   (oracleKeyTimes), and those come as the tick begins.
+ * - The button: on a Mac Plus, the ROM debounces the button at vertical blanking, which takes it
+ *   one tick or two after it reaches the Mac (when the oracle traced low memory MBState, the
+ *   harness goes by the trace: oracleButtonTicks); on a Mac II it comes over ADB, as keys do
+ *   (measured: a menu item starts blinking when the button comes up).
  * - Mouse movements: on a Mac Plus the emulator adds them to low memory as the tick begins; on a
  *   Mac II they come over ADB.
  * A program waiting for an event sees it in the tick it arrives. The emulator places the mouse
@@ -227,7 +286,9 @@ export function replay(run: GameRun, script: Script, trace?: OracleTrace): { sho
 	const shots = new Map<string, Image>();
 	const h = run.host;
 	const plus = run.machine.kind === 'plus';
-	const keyTicks = trace?.keyTicks;
+	const keyTimes = trace?.keyTimes;
+	const buttonTicks = trace?.buttonTicks ?? null;
+	let buttonIndex = 0;
 	const mouseReports = trace?.mouseReports ?? null;
 	// The ADB mouse's reports, when the oracle traced them, come in the ticks the bus's polling gave
 	// them: as the tick begins, before the program runs, or later in it.
@@ -254,7 +315,7 @@ export function replay(run: GameRun, script: Script, trace?: OracleTrace): { sho
 				const down = b === '1';
 				const name = keyNames.get(code)!;
 				const mac = plus ? (plusArrows[code] ?? code) : code;
-				h.at((keyTicks?.[keyIndex++] ?? tick + 1) + arrival.key[run.machine.kind], () => {
+				h.at(keyTimes?.[keyIndex++] ?? tick + 1 + arrival.key[run.machine.kind], () => {
 					if (code >= 0x37 && code <= 0x3b) {
 						keysDown[code] = down;
 					} else if (down) {
@@ -289,7 +350,7 @@ export function replay(run: GameRun, script: Script, trace?: OracleTrace): { sho
 					break;
 				}
 				const down = a === '1';
-				h.at(tick + 1 + arrival.button[run.machine.kind], () => {
+				h.at(buttonTicks?.[buttonIndex++] ?? tick + 1 + arrival.button[run.machine.kind], () => {
 					mouse.button = down;
 					postOSEvent(down ? 1 : 2, 0);
 				}, true);

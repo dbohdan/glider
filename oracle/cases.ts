@@ -3,6 +3,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { MacFile } from '../src/mac/MacBinary.ts';
+import type { ResourceFork } from '../src/mac/ResourceFork.ts';
+import { houseRecLayout } from '../src/glider/Globals.ts';
+import { readLayout, writeLayout } from '../src/mac/PascalLayout.ts';
 import { bundledFiles } from '../tools/build-resources.ts';
 import { parseDeRez } from '../tools/DeRez.ts';
 import { alternateScreenFile, editResources, glider406, macII, macPlus, makeDisk, oracleDir, type RunResult, run } from './Oracle.ts';
@@ -146,6 +149,20 @@ export const cases: Record<string, (dir: string) => RunResult> = {
 		return run(macII, wanderScript(1), disk, dir);
 	},
 
+	/** Glider's menus and dialogs, and a paused game, on a Mac Plus. */
+	ui(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, interfaceScript(), disk, dir);
+	},
+
+	/** Glider's menus and dialogs, and a paused game, on a Mac II. */
+	uiColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, gameFiles(), 'Glider 4.06');
+		return run(macII, interfaceScript(), disk, dir);
+	},
+
 	/** A long flight forward through the house on a Mac Plus. */
 	tour(dir) {
 		const disk = dir + '.dsk';
@@ -211,20 +228,175 @@ function dialogScript(): Script {
 	return s;
 }
 
+/** SetRect's arguments as THINK Pascal pushes them: MOVE.W #n,-(SP), or CLR.W -(SP) for 0. */
+function setRectArgs(r: number[]): number[] {
+	return r.flatMap((n) => (n === 0 ? [0x42, 0x67] : [0x3f, 0x3c, n >> 8, n & 0xff]));
+}
+
 /**
- * Glider 4.06's application with Glider 4.05's preferences (from Glider_405/Glider.r), and the
- * port's art and The House (4.06's black-and-white art has other sprites, and its The House two more
- * high scores), so that the game starts as the port's does.
+ * Where 4.06's code draws switches unlike 4.05's, which the port follows, as [CODE id, what, 4.06's
+ * bytes, 4.05's]. 4.06 re-laid-out the switch sprites in its black-and-white art (docs/versions.md):
+ * its source rectangles are 16 pixels wide where 4.05's light switch starts two pixels further left
+ * and its thermostat and power switch are two wider, and DrawAllObjects narrows any switch in a house
+ * to 16 pixels (`if right - left <> 16 then boundRect.right := boundRect.left + 16`, found by
+ * disassembling it when the oracle's switches lost two columns). The oracle gets 4.05's art, so it
+ * gets 4.05's code for it: the rectangles, and a branch that always skips the narrowing.
  */
-function gameFiles(): MacFile[] {
+const switches405: [number, string, number[], number[]][] = [
+	[5, 'the light switch source', setRectArgs([144, 0, 160, 26]), setRectArgs([142, 0, 160, 26])],
+	[5, 'the thermostat source', setRectArgs([144, 27, 160, 54]), setRectArgs([144, 27, 162, 54])],
+	[5, 'the power switch source', setRectArgs([144, 82, 160, 108]), setRectArgs([144, 82, 162, 108])],
+	// CMPI.W #16,D0; BEQ.B *+26 becomes BRA.B.
+	[2, 'the switch narrowing', [0x0c, 0x40, 0x00, 0x10, 0x67, 0x18], [0x0c, 0x40, 0x00, 0x10, 0x60, 0x18]],
+];
+
+/** Glider 4.06's code with 4.05's switches (switches405). */
+function withSwitches405(rf: ResourceFork): void {
+	for (const [id, what, from, to] of switches405) {
+		const code = rf.get('CODE', id)!;
+		const bytes = Buffer.from(code.data);
+		const at = bytes.indexOf(Buffer.from(from));
+		if (at < 0 || bytes.indexOf(Buffer.from(from), at + 1) >= 0) {
+			throw new Error(`4.06's code for ${what} is not in CODE ${id} exactly once`);
+		}
+		const data = new Uint8Array(code.data);
+		data.set(to, at);
+		rf.put({ ...code, data });
+	}
+}
+
+/**
+ * Glider 4.06's application with Glider 4.05's preferences (from Glider_405/Glider.r) and switches,
+ * and the port's art and The House (4.06's black-and-white art has other sprites, and
+ * its The House two more high scores), so that the game plays as the port's does.
+ */
+function gameFiles(house?: Uint8Array): MacFile[] {
 	const prefs = parseDeRez(readFileSync(join(oracleDir, '..', 'Glider_405', 'Glider.r'))).get('Gprf', 128)!;
 	const port = new Map(bundledFiles().map((f) => [f.name, f]));
 	return [...glider406().values()].map((f) => {
 		if (f.name === 'Glider 4.06') {
-			return editResources(f, (rf) => rf.put({ ...prefs }));
+			return editResources(f, (rf) => {
+				rf.put({ ...prefs });
+				withSwitches405(rf);
+			});
+		}
+		if (f.name === 'The House' && house !== undefined) {
+			return { ...port.get(f.name)!, data: house };
 		}
 		return port.get(f.name) ?? f;
 	});
+}
+
+/** The rooms where test houses start games (see houseFrom), for the oracle's room cases. */
+export const roomStarts = [9, 15, 22, 27, 35];
+
+/**
+ * The House with its rooms rotated so that a game starts in room `first`: rooms first to 40, then
+ * 1 to first − 1. Objects that name rooms (stairs, transports) lead elsewhere than in the real
+ * house, but the oracle and the port play the same file.
+ */
+export function houseFrom(first: number): Uint8Array {
+	const bytes = new Uint8Array(readFileSync(join(oracleDir, '..', 'assets', 'houses', 'The House')));
+	const house = readLayout(houseRecLayout, bytes, 0);
+	const n = house.numberORooms;
+	const rooms = Array.from({ length: n }, (_, i) => house.theRooms[((first - 1 + i) % n) + 1]!);
+	rooms.forEach((r, i) => {
+		house.theRooms[i + 1] = r;
+	});
+	writeLayout(houseRecLayout, house, bytes, 0);
+	return bytes;
+}
+
+/** An object in a test room: its kind (Globals.ts) and where it goes, its size by default its sprite's. */
+type TestObject = [kind: number, left: number, top: number, width: number, height: number];
+
+/**
+ * The House with its first room holding the given objects instead of its own, for the oracle to
+ * show how the original draws them.
+ */
+export function houseWith(objects: TestObject[]): Uint8Array {
+	const bytes = new Uint8Array(readFileSync(join(oracleDir, '..', 'assets', 'houses', 'The House')));
+	const house = readLayout(houseRecLayout, bytes, 0);
+	const room = house.theRooms[1]!;
+	room.numberOObjects = objects.length;
+	objects.forEach(([objectIs, left, top, width, height], i) => {
+		room.theObjects[i + 1] = { objectIs, boundRect: { top, left, bottom: top + height, right: left + width }, amount: 0, extra: 0, isOn: false };
+	});
+	writeLayout(houseRecLayout, house, bytes, 0);
+	return bytes;
+}
+
+/**
+ * Test rooms: of sprites that Glider draws with CopyMask (the switches, whose 18-pixel cells do not
+ * start on a word, at every alignment; sprites of other widths; and sprites stretched), and of
+ * shelves, whose shadows are gray painted in a region.
+ */
+export const maskRooms: Record<string, TestObject[]> = {
+	powerSwitches: Array.from({ length: 16 }, (_, i) => [28, (i < 8 ? 100 : 108) + 33 * (i % 8), i < 8 ? 60 : 140, 18, 26] as TestObject),
+	lightSwitches: Array.from({ length: 16 }, (_, i) => [24, (i < 8 ? 100 : 108) + 33 * (i % 8), i < 8 ? 60 : 140, 18, 26] as TestObject),
+	widths: [
+		...[0, 1, 2, 3].map((j) => [36, 90 + 61 * j, 30, 41, 30] as TestObject),
+		...[0, 1, 2, 3].map((j) => [33, 90 + 57 * j, 80, 38, 27] as TestObject),
+		...[0, 1, 2, 3].map((j) => [43, 90 + 67 * j, 130, 45, 58] as TestObject),
+		...[0, 1, 2, 3].map((j) => [42, 90 + 79 * j, 210, 63, 71] as TestObject),
+	],
+	// Every combination of odd and even left, top, width, and height.
+	shelves: Array.from({ length: 16 }, (_, i) => [2, 40 + (i % 4) * 114 + (i & 1), 60 + Math.floor(i / 4) * 60 + ((i >> 1) & 1), 60 + ((i >> 2) & 1), 7 + ((i >> 3) & 1)] as TestObject),
+	stretched: [
+		[28, 100, 40, 18, 26],
+		[28, 140, 40, 16, 26],
+		[28, 180, 40, 21, 26],
+		[28, 220, 40, 18, 20],
+		[28, 260, 40, 18, 33],
+		[28, 300, 40, 36, 52],
+		[28, 360, 40, 9, 13],
+		[36, 100, 120, 41, 30],
+		[36, 160, 120, 30, 30],
+		[36, 220, 120, 60, 30],
+		[36, 300, 120, 41, 20],
+		[36, 360, 120, 41, 45],
+		[33, 100, 200, 38, 27],
+		[33, 160, 200, 50, 40],
+		[33, 230, 200, 20, 14],
+		[33, 280, 200, 76, 54],
+	],
+};
+
+/** A game started in a test room, seen as soon as the room is drawn and a second later. */
+export function firstRoomScript(): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(900).press('return').wait(60);
+	s.press('n', 'command').wait(30).shot('room').wait(60).shot('later');
+	return s;
+}
+
+for (const [name, objects] of Object.entries(maskRooms)) {
+	/** A test room on a Mac Plus and on a Mac II. */
+	cases[name] = (dir) => {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...gameFiles(houseWith(objects)), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, firstRoomScript(), disk, dir);
+	};
+	cases[`${name}Color`] = (dir) => {
+		const disk = dir + '.dsk';
+		makeDisk(disk, gameFiles(houseWith(objects)), 'Glider 4.06');
+		return run(macII, firstRoomScript(), disk, dir);
+	};
+}
+
+for (const first of roomStarts) {
+	/** A minute of random keys from room `first`, on a Mac Plus and on a Mac II. */
+	cases[`room${first}`] = (dir) => {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...gameFiles(houseFrom(first)), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, wanderScript(first), disk, dir);
+	};
+	cases[`room${first}Color`] = (dir) => {
+		const disk = dir + '.dsk';
+		makeDisk(disk, gameFiles(houseFrom(first)), 'Glider 4.06');
+		return run(macII, wanderScript(first), disk, dir);
+	};
 }
 
 /**
@@ -427,5 +599,41 @@ export function wanderScript(seed: number): Script {
 		}
 		wait(2);
 	}
+	return s;
+}
+
+/**
+ * Goes through Glider's interface the way a player would: the title screen's messages (space), the
+ * Sound and Configure dialogs, About, the high scores, the help screens, "Air is Invisible", and a
+ * game paused with Tab and resumed.
+ */
+export function interfaceScript(): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(900).press('return').wait(60);
+	/** Chooses the item at `v` from the menu whose title is at `h`. */
+	const choose = (h: number, v: number): void => {
+		s.mouse(h, 10).wait(5).button(true).wait(15).mouse(h, v).wait(15).button(false).wait(10);
+	};
+	for (let i = 0; i < 4; i++) {
+		s.press('space').wait(30).shot(`message${i}`);
+	}
+	choose(120, 44); // Options > Sound…
+	s.wait(60).shot('sound').press('return').wait(30).shot('soundClosed');
+	s.press('k', 'command').wait(60).shot('configure').press('return').wait(30).shot('configureClosed');
+	choose(20, 28); // Apple > About Glider…
+	s.wait(60).shot('about').wait(120).shot('about2').press('return').wait(30).shot('aboutClosed');
+	s.press('h', 'command').wait(60).shot('scores').press('return').wait(30).shot('scoresClosed');
+	choose(120, 139); // Options > Help
+	s.wait(60).shot('help0');
+	for (let i = 1; i < 4; i++) {
+		s.press('space').wait(60).shot(`help${i}`);
+	}
+	s.press('return').wait(30).shot('helpClosed');
+	choose(120, 59); // Options > Air is Invisible
+	s.wait(30).shot('air');
+	s.press('n', 'command').wait(60).shot('game');
+	s.press('tab').wait(60).shot('paused').wait(60).shot('paused2');
+	s.press('tab').wait(60).shot('resumed').wait(60).shot('resumed2');
 	return s;
 }

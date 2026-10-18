@@ -41,7 +41,15 @@
 		keys 0|1     stop or start printing "keymap TICK HEX": the Mac's
 		             KeyMap ($174, 16 bytes) now, and then at the end of
 		             each tick in which it changed, where TICK counts
-		             ticks as w does
+		             ticks as w does; and "adbkey TICK EVT AT" for each
+		             key event the ADB keyboard (a Mac II's) gives the
+		             Mac: its key code, plus $80 for a release, and how
+		             many CPU cycles into the tick it came; and
+		             "getkeys TICK HEX" when the program's GetKeys first
+		             returns a new KeyMap; and "mbstate TICK HEX", low
+		             memory MBState ($172, the button as the ROM has
+		             taken it: 0 down, $80 up), now and then at the end of
+		             each tick in which it changed
 		mouse 0|1    stop or start printing "adbmouse TICK DH DV DOWN AT"
 		             for each report the ADB mouse (a Mac II's) gives the
 		             Mac in tick TICK: its movement, its button, and how
@@ -458,9 +466,15 @@ LOCALPROC FlushTraps(void)
 }
 
 /* Called by the CPU (see build-minivmac.sh) as it takes an A-line trap. */
+LOCALPROC TraceGetKeys(void);
+
 void ALineTrap(unsigned long pc, unsigned long opcode)
 {
 	unsigned long tick = (unsigned long)TrueEmulatedTime;
+
+	if (0xA976 == opcode) { /* GetKeys */
+		TraceGetKeys();
+	}
 
 	if (TrapTrace && (pc < kRAM_Size)) {
 		if ((0 != TrapCount) && ((tick != TrapTick) || (pc != TrapPC)
@@ -492,11 +506,50 @@ void ADBMouseTalked(int dh, int dv, int down)
 
 /* Whether to print the KeyMap when it changes, and its last value. */
 LOCALVAR blnr KeyMapTrace = falseblnr;
+
+/*
+	When the program first reads a new KeyMap with GetKeys: which tick's
+	reading saw a key, whenever the key reached the KeyMap in that tick.
+*/
+LOCALVAR ui3b LastGetKeysMap[16];
+
+LOCALPROC TraceGetKeys(void)
+{
+	int i;
+
+	if (KeyMapTrace && (0 != memcmp(LastGetKeysMap, RAM + 0x0174, 16))) {
+		memcpy(LastGetKeysMap, RAM + 0x0174, 16);
+		printf("getkeys %lu ", (unsigned long)TrueEmulatedTime);
+		for (i = 0; i < 16; ++i) {
+			printf("%02x", LastGetKeysMap[i]);
+		}
+		printf("\n");
+		fflush(stdout);
+	}
+}
+
+/* Called by the ADB keyboard (patched in) for each key event it gives the Mac. */
+void ADBKeyTalked(int evt)
+{
+	if (KeyMapTrace) {
+		printf("adbkey %lu %d %lu\n",
+			(unsigned long)TrueEmulatedTime, evt,
+			(unsigned long)(GetCuriCount() - TickStartCount));
+		fflush(stdout);
+	}
+}
 LOCALVAR ui3b LastKeyMap[16];
+LOCALVAR ui3b LastMBState = 0x80;
 
 LOCALPROC TraceKeyMap(blnr always)
 {
 	int i;
+
+	if (KeyMapTrace && (always || (LastMBState != RAM[0x0172]))) {
+		LastMBState = RAM[0x0172];
+		printf("mbstate %lu %02X\n", (unsigned long)TrueEmulatedTime, LastMBState);
+		fflush(stdout);
+	}
 
 	if (KeyMapTrace
 		&& (always || (0 != memcmp(LastKeyMap, RAM + 0x0174, 16))))

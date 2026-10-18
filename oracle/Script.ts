@@ -121,7 +121,9 @@ export class Script {
 
 	/**
 	 * Has the emulator report, in its output, each tick at whose end the Mac's KeyMap changed:
-	 * when the program could first see each key the script pressed or released.
+	 * when the program could first see each key the script pressed or released. Also each key event
+	 * a Mac II's ADB keyboard gives (its tick and how many cycles into it), and each new KeyMap the
+	 * program's GetKeys returns, by tick: whether the program read a key in the tick it came.
 	 */
 	traceKeys(): this {
 		this.lines.push('keys 1');

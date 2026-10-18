@@ -31,7 +31,7 @@ A Mac Plus reaches Glider's title screen in about 600 ticks; a run of a few thou
 How the emulator's time lines up with the port's, which the game tests (`test/game/`) rely on:
 
 - Input the script gives after tick k reaches the Mac in tick k + 1.
-  A key then takes part of that tick to reach the Mac's KeyMap and event queue (on a Mac II, ADB takes milliseconds), and sometimes longer: `Script.traceKeys` has the emulator report the tick each key arrived in (`output.txt` in the run's directory).
+  A key then takes part of that tick to reach the Mac's KeyMap and event queue (on a Mac II, ADB takes milliseconds), and sometimes longer: `Script.traceKeys` has the emulator report the tick each key arrived in (`output.txt` in the run's directory), and the ticks the program's GetKeys first returned each new KeyMap. A Mac II's ADB keyboard gives keys as the tick begins, but whether the program reads one in that tick depends on how far into the tick it calls GetKeys, so the game tests go by the trace.
 - On a Mac Plus, Mini vMac holds back all other input for 4 ticks after the mouse button goes down or up (`MasterMyEvtQLock`, for the Mac's debouncing): leave a few ticks between a button event and the next move or key.
 - A screenshot after tick k shows everything the Mac drew in it.
   (Mini vMac copies the screen after the first 1/2^n of each tick's instructions at speed n; the front end copies it again for a screenshot.)

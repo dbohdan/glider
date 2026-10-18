@@ -3,6 +3,8 @@
 import { glider406 } from '../../oracle/Oracle.ts';
 import { PictWriter, type Pattern } from '../../oracle/PictWriter.ts';
 import { parseResourceFork } from '../../src/mac/ResourceFork.ts';
+import { combine, rectRegion, toBytes } from '../../src/mac/Region.ts';
+import { bundledFiles } from '../../tools/build-resources.ts';
 import { pictureFrame } from '../../oracle/Pictures.ts';
 import type { Rect } from '../../src/mac/Types.ts';
 
@@ -31,6 +33,13 @@ function random(seed: number): (n: number) => number {
 		s = (s * 1103515245 + 12345) & 0x7fffffff;
 		return s % n;
 	};
+}
+
+/** Mixes the bits of a number (MurmurHash3's finalizer). */
+function hash(n: number): number {
+	let h = Math.imul(n ^ (n >>> 16), 0x85ebca6b);
+	h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+	return (h ^ (h >>> 16)) >>> 0;
 }
 
 /** Short lines of every direction in a grid, avoiding Glider's hint box. */
@@ -67,13 +76,56 @@ export const knownDifferences: Record<string, number> = {
 	'ii-colorArithmeticModes': 2304,
 };
 
+/**
+ * A 1-bit image in which every row and column differs, stretched and shrunk at uneven ratios
+ * in srcCopy, srcOr and srcBic, so that the ROM's choice of rows and columns shows.
+ */
+function stretchPicture(p = picture()): Uint8Array {
+	p.rect('paint', rect(256, 104, 512, 342));
+	// A third of the pixels black, sparse enough that rows or columns combined still show which.
+	const rows = new Uint8Array(6 * 24);
+	for (let y = 0; y < 24; y++) {
+		for (let x = 0; x < 48; x++) {
+			if (hash(x * 31 + y * 1009) % 3 === 0) {
+				rows[y * 6 + (x >> 3)]! |= 0x80 >> (x & 7);
+			}
+		}
+	}
+	const bounds = rect(0, 0, 48, 24);
+	const sizes: [number, number][] = [[48, 23], [47, 24], [48, 13], [31, 24], [17, 9], [8, 5], [24, 12], [33, 17], [49, 25], [96, 48], [61, 37], [100, 30], [20, 40], [50, 47], [32, 24], [48, 3]];
+	// Below Glider's hint box: srcCopy, then srcOr.
+	[0, 1].forEach((mode, j) => {
+		let x = 4;
+		let y = 106 + j * 118;
+		for (const [w, h] of sizes) {
+			if (x + w > 508) {
+				x = 4;
+				y += 52;
+			}
+			p.bits(bounds, 6, rows, bounds, rect(x, y, x + w, y + h), mode);
+			x += w + 4;
+		}
+	});
+	// Part of the image, as Glider copies a frame out of its sprite sheet.
+	p.bits(bounds, 6, rows, rect(16, 2, 32, 16), rect(10, 30, 26, 43), 0);
+	p.bits(bounds, 6, rows, rect(16, 2, 32, 16), rect(40, 30, 56, 43), 1);
+	return p.toBytes();
+}
+
 /** Glider's own pictures, from the oracle's copy of Glider 4.06. */
 function gliderPicture(file: string, id: number): () => Uint8Array {
 	return () => parseResourceFork(glider406().get(file)!.rsrc).get('PICT', id)!.data;
 }
 
+/** The port's art (the repository's, which is 4.05's), as the game draws it. */
+function artPicture(file: string, id: number): () => Uint8Array {
+	return () => parseResourceFork(bundledFiles().find((f) => f.name === file)!.rsrc).get('PICT', id)!.data;
+}
+
 export const testPictures: Record<string, () => Uint8Array> = {
 	gliderTitle: gliderPicture('Glider 4.06', 200),
+	bwObjects: artPicture('B&W Art', 128),
+	bwMasks: artPicture('B&W Art', 129),
 	...Object.fromEntries([128, 129, 130, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209].map((id) => [`bwArt${id}`, gliderPicture('B&W Art', id)])),
 
 	/** Rectangles in every verb, pen sizes, and patterns at odd offsets. */
@@ -242,6 +294,9 @@ export const testPictures: Record<string, () => Uint8Array> = {
 		return p.toBytes();
 	},
 
+	/** CopyBits stretching and shrinking at uneven ratios, over half black; Glider shrinks its last drip frame. */
+	stretch: stretchPicture,
+
 	/** Pattern transfer modes over a striped background. */
 	patternModes() {
 		const p = picture();
@@ -347,6 +402,64 @@ export const colorPictures: Record<string, () => Uint8Array> = {
 			p.penMode(36).rect('paint', rect(4 + i * 3, 30 + i * 80, 508, 100 + i * 80));
 			p.penMode(8).rect('paint', rect(10, 200 + i * 60, 500, 250 + i * 60 + i));
 		});
+		return p.toBytes();
+	},
+
+	colorStretch: () => stretchPicture(colorPicture()),
+	/**
+	 * Gray painted in patCopy + transparent into regions that are not rectangles, whose bounding
+	 * boxes have every combination of odd and even edges, below the hint box: where the ROM puts the
+	 * pattern's origin.
+	 */
+	colorRegionPatterns() {
+		const p = colorPicture();
+		for (let i = 0; i < 16; i++) {
+			const left = 20 + (i % 4) * 120 + (i & 1);
+			const top = 106 + Math.floor(i / 4) * 58 + ((i >> 1) & 1);
+			const right = left + 60 + ((i >> 2) & 1);
+			const bottom = top + 50 + ((i >> 3) & 1);
+			// An L: the box less a notch at the top right, and a staircase down its left like a shadow's.
+			let rgn = combine(rectRegion({ top, left, bottom, right }), rectRegion({ top, left: right - 20, bottom: top + 20, right }), (a, b) => a && !b);
+			for (let k = 0; k < 10; k++) {
+				rgn = combine(rgn, rectRegion({ top: top + k, left, bottom: top + k + 1, right: left + 10 - k }), (a, b) => a && !b);
+			}
+			p.rgbFgColor(rgbColors.black).rgbBkColor(rgbColors.white).penPat(patterns.gray!).penMode(patCopyTransparent).rgn('paint', toBytes(rgn));
+		}
+		return p.toBytes();
+	},
+
+	/** Gray painted in patCopy + transparent into ovals with every combination of odd and even edges. */
+	colorOvalPatterns() {
+		const p = colorPicture();
+		for (let i = 0; i < 16; i++) {
+			const left = 20 + (i % 4) * 120 + (i & 1);
+			const top = 106 + Math.floor(i / 4) * 58 + ((i >> 1) & 1);
+			const rect = { top, left, bottom: top + 40 + ((i >> 3) & 1), right: left + 90 + ((i >> 2) & 1) };
+			p.rgbFgColor(rgbColors.black).rgbBkColor(rgbColors.white).penPat(patterns.gray!).penMode(patCopyTransparent).oval('paint', rect);
+		}
+		return p.toBytes();
+	},
+
+	/**
+	 * The same regions, all with even edges, each after a dot drawn in srcCopy that leaves the pen at
+	 * an odd or even point (h + v): whether the pen's place moves the pattern.
+	 */
+	colorRegionPen() {
+		const p = colorPicture();
+		for (let i = 0; i < 16; i++) {
+			const left = 20 + (i % 4) * 120;
+			const top = 106 + Math.floor(i / 4) * 58;
+			const right = left + 60;
+			const bottom = top + 50;
+			let rgn = combine(rectRegion({ top, left, bottom, right }), rectRegion({ top, left: right - 20, bottom: top + 20, right }), (a, b) => a && !b);
+			for (let k = 0; k < 10; k++) {
+				rgn = combine(rgn, rectRegion({ top: top + k, left, bottom: top + k + 1, right: left + 10 - k }), (a, b) => a && !b);
+			}
+			// The pen ends inside the notch, at an odd point for odd i, moved by (i >> 1) & 3 down and right.
+			const pen = { h: right - 10 + (i & 1) + ((i >> 1) & 3), v: top + 5 + ((i >> 1) & 3) };
+			p.penMode(8).penPat(patterns.black!).line(pen, pen);
+			p.rgbFgColor(rgbColors.black).rgbBkColor(rgbColors.white).penPat(patterns.gray!).penMode(patCopyTransparent).rgn('paint', toBytes(rgn));
+		}
 		return p.toBytes();
 	},
 

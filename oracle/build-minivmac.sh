@@ -31,5 +31,9 @@ sed -i -e '1i extern void ADBMouseTalked(int dh, int dv, int down);' \
 	-e '/(0 != partH) || (0 != partV) || MouseButtonChange) {/a\
 					ADBMouseTalked((si4b)partH, (si4b)partV, SavedCurMouseButton);' src/ADBSHARE.h
 grep -q 'ADBMouseTalked((si4b)partH' src/ADBSHARE.h
+# And each key event the ADB keyboard gives, for key traces.
+sed -i -e '1i extern void ADBKeyTalked(int evt);' \
+	-e 's|^\(\t*\)ADB_DatBuf\[\([01]\)\] = NextADBkeyevt;|&\n\1ADBKeyTalked(NextADBkeyevt);|' src/ADBSHARE.h
+test "$(grep -c 'ADBKeyTalked(NextADBkeyevt)' src/ADBSHARE.h)" = 2
 sed -i -e 's|-L/usr/X11R6/lib -lX11||' -e '/^\tstrip /d' Makefile
 make -s > make.log 2>&1 || { cat make.log; exit 1; }

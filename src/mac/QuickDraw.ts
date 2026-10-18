@@ -763,7 +763,7 @@ export function setHiliteMode(): void {
 	hiliting = true;
 }
 
-function fillRegion(rgn: Region, pat: Pattern, mode: number, pixPat: PixPat | null = null, box: Rect = rgn.rgnBBox): void {
+function fillRegion(rgn: Region, pat: Pattern, mode: number, pixPat: PixPat | null = null, curved = false): void {
 	const port = thePort;
 	const s = surfaceOf(port.portBits);
 	const hilite = hiliting;
@@ -793,7 +793,7 @@ function fillRegion(rgn: Region, pat: Pattern, mode: number, pixPat: PixPat | nu
 		return;
 	}
 	if (mode >= 32 && isColorPort(port)) {
-		fillArithmetic(rgn, pat, mode, port, s, box);
+		fillArithmetic(rgn, pat, mode, port, s, curved);
 		return;
 	}
 	const { fg, bk } = portColors(port, s);
@@ -858,18 +858,19 @@ function fillPixPat(rgn: Region, pp: PixPat, mode: number, port: CGrafPort, s: S
  * pattern bits become the foreground or background color, the mode combines that color with the
  * destination's, and the result becomes the closest color of the destination's table.
  */
-function fillArithmetic(rgn: Region, pat: Pattern, mode: number, port: CGrafPort, s: Surface, box: Rect): void {
+function fillArithmetic(rgn: Region, pat: Pattern, mode: number, port: CGrafPort, s: Surface, curved: boolean): void {
 	const table = port.portPixMap.pmTable;
 	const op = (mode & 7) | 32;
-	// Port: for shapes that are not rectangles, the Mac II ROM shifts the pattern in transparent
-	// mode by the shape's bounding box (`box`: a polygon's polyBBox, a region's rgnBBox before
-	// clipping), in the port's coordinates. Seen in the oracle: Glider's color shadows, ovals,
-	// polygons and recorded regions painted in patCopy + transparent, in windows and off screen,
-	// have their gray inverted exactly when the box's top and left add up to an odd number. Some
-	// other arithmetic modes (subOver, adMin) seem to shift it too, and others (addOver, subPin)
-	// not; not used by Glider, not pinned down.
-	const shifted = op === transparent && !rgn.isRect();
-	const origin = { v: s.bounds.top + (shifted ? box.top : 0), h: s.bounds.left + (shifted ? box.left : 0) };
+	// Port: the Mac II ROM paints ovals, rounded rectangles and polygons (`curved`) in transparent
+	// mode with the pattern's bits inverted, in the port's alignment: a diagonal comes out black
+	// with a white diagonal where the pattern's is (a test picture), and gray takes the other phase.
+	// Rectangles and regions get the pattern as it is. Seen in the oracle: test pictures of ovals and
+	// regions at every parity of edge, and Glider's table, shelf and cabinet shadows (a test room of
+	// shelves). Regions painted with other patterns than gray come out sparser on the ROM (only some
+	// rows of a diagonal), and some other arithmetic modes (subOver, adMin) seem to move the
+	// pattern; not used by Glider, not pinned down.
+	const inverted = op === transparent && curved ? 1 : 0;
+	const origin = { v: s.bounds.top, h: s.bounds.left };
 	const combine = (src: number, dst: number, pin: number): number => {
 		switch (op) {
 			case blend:
@@ -895,7 +896,7 @@ function fillArithmetic(rgn: Region, pat: Pattern, mode: number, port: CGrafPort
 			const row = pat[(v - origin.v) & 7]!;
 			for (let k = 0; k < band.xs.length; k += 2) {
 				for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
-					const bit = (row >> (7 - ((h - origin.h) & 7))) & 1;
+					const bit = ((row >> (7 - ((h - origin.h) & 7))) & 1) ^ inverted;
 					if (op === transparent) {
 						// Background-colored pattern pixels leave the destination alone.
 						if (bit) {
@@ -958,7 +959,7 @@ function transferBit(s: Surface, h: number, v: number, bit: number, op: number, 
 }
 
 /** Draws a shape's region with a verb, as StdRgn does after the shape has become a region. */
-function drawShape(verb: GrafVerb, shape: Region, frameRgn?: () => Region, box: Rect = shape.rgnBBox): void {
+function drawShape(verb: GrafVerb, shape: Region, frameRgn?: () => Region, curved = false): void {
 	const port = thePort;
 	if (port.pnVis < 0) {
 		return;
@@ -968,7 +969,7 @@ function drawShape(verb: GrafVerb, shape: Region, frameRgn?: () => Region, box: 
 		case paint: {
 			const pen = penTransfer(port);
 			if (pen !== null) {
-				fillRegion(clipToPort(verb === frame ? frameRgn!() : shape), pen.pat, pen.mode, isColorPort(port) ? port.pnPixPat : null, box);
+				fillRegion(clipToPort(verb === frame ? frameRgn!() : shape), pen.pat, pen.mode, isColorPort(port) ? port.pnPixPat : null, curved);
 			}
 			break;
 		}
@@ -1223,7 +1224,7 @@ export function StdOval(verb: GrafVerb, r: Rect): void {
 	drawShape(verb, shape, () => {
 		const inner = { top: r.top + thePort.pnSize.v, left: r.left + thePort.pnSize.h, bottom: r.bottom - thePort.pnSize.v, right: r.right - thePort.pnSize.h };
 		return inner.top < inner.bottom && inner.left < inner.right ? xor(shape, ovalRegion(inner)) : shape;
-	});
+	}, true);
 }
 
 export function FrameOval(r: Rect): void {
@@ -1293,7 +1294,7 @@ export function StdRRect(verb: GrafVerb, r: Rect, ovalWidth: Integer, ovalHeight
 		const w = Math.min(ovalWidth, r.right - r.left) - 2 * thePort.pnSize.h;
 		const h = Math.min(ovalHeight, r.bottom - r.top) - 2 * thePort.pnSize.v;
 		return diff(shape, roundRectRegion(inner, w, h));
-	});
+	}, true);
 }
 
 export function FrameRoundRect(r: Rect, ovalWidth: Integer, ovalHeight: Integer): void {
@@ -1354,7 +1355,7 @@ export function StdPoly(verb: GrafVerb, poly: Polygon): void {
 		port.pnLoc = save;
 		return;
 	}
-	drawShape(verb, polyRegion(poly), undefined, poly.polyBBox);
+	drawShape(verb, polyRegion(poly), undefined, true);
 }
 
 export function FramePoly(poly: Polygon): void {
@@ -1441,9 +1442,7 @@ function isPortBits(bm: BitMap): boolean {
  */
 function copyClip(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRect: Rect, maskRgn: Region | null): Region {
 	let clip = sect(rectRegion(dstRect), rectRegion(dstBits.bounds));
-	const srcClip = sect(rectRegion(srcRect), rectRegion(srcBits.bounds));
-	offsetRegion(srcClip, dstRect.left - srcRect.left, dstRect.top - srcRect.top);
-	clip = sect(clip, srcClip);
+	clip = sect(clip, sourceClip(srcBits, srcRect, dstRect));
 	if (isPortBits(dstBits)) {
 		clip = sect(sect(clip, thePort.visRgn), thePort.clipRgn);
 	}
@@ -1451,24 +1450,110 @@ function copyClip(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRect: Rect
 }
 
 /**
+ * The destination pixels that a source bitmap has pixels for: srcRect within its bounds, mapped to
+ * dstRect. Port: a stretched part is mapped as MapRect does; Glider copies only from within bounds.
+ */
+function sourceClip(srcBits: BitMap, srcRect: Rect, dstRect: Rect): Region {
+	const inside = sect(rectRegion(srcRect), rectRegion(srcBits.bounds));
+	const sw = srcRect.right - srcRect.left;
+	const sh = srcRect.bottom - srcRect.top;
+	const dw = dstRect.right - dstRect.left;
+	const dh = dstRect.bottom - dstRect.top;
+	if (sw === dw && sh === dh) {
+		offsetRegion(inside, dstRect.left - srcRect.left, dstRect.top - srcRect.top);
+		return inside;
+	}
+	const r = inside.rgnBBox;
+	if (sw <= 0 || sh <= 0 || EmptyRect(r)) {
+		return rectRegion({ top: 0, left: 0, bottom: 0, right: 0 });
+	}
+	const h = (x: number) => dstRect.left + Math.trunc(((x - srcRect.left) * dw) / sw);
+	const v = (y: number) => dstRect.top + Math.trunc(((y - srcRect.top) * dh) / sh);
+	return rectRegion({ top: v(r.top), left: h(r.left), bottom: v(r.bottom), right: h(r.right) });
+}
+
+/**
+ * Which source pixels make each destination pixel along one axis when a copy stretches from `s`
+ * pixels to `d`: source indices from[i] up to to[i], ORed together (Stretch on both ROMs, measured
+ * with the "stretch" test picture). Where one side is larger, its pixels are grouped at round(i * larger
+ * / smaller), halves rounding up; only rows shrink otherwise, each source row going to the destination
+ * row nearest its top edge, halves rounding down, and rows past the last one dropped.
+ */
+function stretchAxis(s: number, d: number, vertical: boolean): { from: Int32Array; to: Int32Array } {
+	const from = new Int32Array(d);
+	const to = new Int32Array(d);
+	if (d >= s) {
+		for (let k = 0; k < s; k++) {
+			const end = Math.floor((2 * (k + 1) * d + s) / (2 * s));
+			for (let i = Math.floor((2 * k * d + s) / (2 * s)); i < end; i++) {
+				from[i] = k;
+				to[i] = k + 1;
+			}
+		}
+	} else if (!vertical) {
+		for (let i = 0; i < d; i++) {
+			from[i] = Math.floor((2 * i * s + d) / (2 * d));
+			to[i] = Math.floor((2 * (i + 1) * s + d) / (2 * d));
+		}
+	} else {
+		for (let k = s - 1; k >= 0; k--) {
+			const i = Math.floor((2 * k * d + s - 1) / (2 * s));
+			if (i < d) {
+				if (to[i] === 0) {
+					to[i] = k + 1;
+				}
+				from[i] = k;
+			}
+		}
+	}
+	return { from, to };
+}
+
+/** The source pixel for each destination pixel of a copy from srcRect to dstRect, stretched as the ROMs do. */
+function copySource(src: Surface, srcRect: Rect, dstRect: Rect): (h: number, v: number) => number {
+	const dh = srcRect.left - dstRect.left;
+	const dv = srcRect.top - dstRect.top;
+	const sw = srcRect.right - srcRect.left;
+	const sh = srcRect.bottom - srcRect.top;
+	const dw = dstRect.right - dstRect.left;
+	const dhgt = dstRect.bottom - dstRect.top;
+	if (sw === dw && sh === dhgt) {
+		return (h, v) => getPixel(src, h + dh, v + dv);
+	}
+	const cols = stretchAxis(sw, dw, false);
+	const rows = stretchAxis(sh, dhgt, true);
+	return (h, v) => {
+		const c = h - dstRect.left;
+		const r = v - dstRect.top;
+		let p = 0;
+		for (let y = rows.from[r]!; y < rows.to[r]!; y++) {
+			for (let x = cols.from[c]!; x < cols.to[c]!; x++) {
+				p |= getPixel(src, srcRect.left + x, srcRect.top + y);
+			}
+		}
+		return p;
+	};
+}
+
+/**
  * Transfers pixels from a source to a destination of the same depth in a source transfer mode,
  * where `use` says so, over a clipped region. Rows and runs go in an order that copies correctly
- * when source and destination overlap.
+ * when source and destination overlap (`upward` when the source is above).
  */
-function blit(src: Surface, dst: Surface, clip: Region, dh: number, dv: number, mode: number, use: (h: number, v: number) => boolean): void {
+function blit(at: (h: number, v: number) => number, upward: boolean, dst: Surface, clip: Region, mode: number, use: (h: number, v: number) => boolean): void {
 	const op = mode & 3;
 	const notSrc = (mode & 4) !== 0;
 	const ones = (1 << dst.depth) - 1;
-	const bands = dv < 0 ? [...clip.bands].reverse() : clip.bands;
+	const bands = upward ? [...clip.bands].reverse() : clip.bands;
 	for (const band of bands) {
 		for (let n = 0; n < band.bottom - band.top; n++) {
-			const v = dv < 0 ? band.bottom - 1 - n : band.top + n;
+			const v = upward ? band.bottom - 1 - n : band.top + n;
 			for (let k = 0; k < band.xs.length; k += 2) {
 				const from = band.xs[k]!;
 				const to = band.xs[k + 1]!;
 				const row: number[] = [];
 				for (let h = from; h < to; h++) {
-					row.push(getPixel(src, h + dh, v + dv));
+					row.push(at(h, v));
 				}
 				for (let h = from; h < to; h++) {
 					if (!use(h, v)) {
@@ -1527,14 +1612,10 @@ function sameColors(a: ColorTable, b: ColorTable): boolean {
  * unless the tables are the same or the source's is a device's.
  */
 export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRect: Rect, mode: Integer, maskRgn: Region | null): void {
-	if (srcRect.right - srcRect.left !== dstRect.right - dstRect.left || srcRect.bottom - srcRect.top !== dstRect.bottom - dstRect.top) {
-		throw new Error('CopyBits: stretching is not implemented');
-	}
 	const src = surfaceOf(srcBits);
 	const dst = surfaceOf(dstBits);
 	const clip = copyClip(srcBits, dstBits, srcRect, dstRect, maskRgn);
-	const dh = srcRect.left - dstRect.left;
-	const dv = srcRect.top - dstRect.top;
+	const at = copySource(src, srcRect, dstRect);
 	if (src.depth === 1 && dst.depth > 1) {
 		const { fg, bk } = portColors(thePort, dst);
 		const op = mode & 3;
@@ -1543,7 +1624,7 @@ export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRec
 			for (let v = band.top; v < band.bottom; v++) {
 				for (let k = 0; k < band.xs.length; k += 2) {
 					for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
-						const p = getPixel(src, h + dh, v + dv);
+						const p = at(h, v);
 						transferBit(dst, h, v, not ? p ^ 1 : p, op, fg, bk);
 					}
 				}
@@ -1554,7 +1635,7 @@ export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRec
 	const srcTable = colorTableOf(srcBits);
 	const dstTable = colorTableOf(dstBits);
 	if (src.depth === dst.depth && sameColors(srcTable, dstTable)) {
-		blit(src, dst, clip, dh, dv, mode & 7, () => true);
+		blit(at, srcRect.top < dstRect.top, dst, clip, mode & 7, () => true);
 		return;
 	}
 	if ((mode & 7) !== srcCopy) {
@@ -1566,7 +1647,7 @@ export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRec
 		for (let v = band.top; v < band.bottom; v++) {
 			for (let k = 0; k < band.xs.length; k += 2) {
 				for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
-					setPixel(dst, h, v, map[getPixel(src, h + dh, v + dv)] ?? 0);
+					setPixel(dst, h, v, map[at(h, v)] ?? 0);
 				}
 			}
 		}
@@ -1603,32 +1684,74 @@ function pixelColors(ct: ColorTable): [number, RGBColor][] {
 }
 
 /**
- * Copies the pixels of a source where a one-bit mask is black (Inside Macintosh IV-24 and V-72).
- * Port: clipped like CopyBits; the rectangles must be the same size.
+ * Copies the pixels of a source where a one-bit mask is black (Inside Macintosh IV-24 and V-72),
+ * clipped like CopyBits. The source and the mask stretch to dstRect as CopyBits stretches.
  */
 export function CopyMask(srcBits: BitMap, maskBits: BitMap, dstBits: BitMap, srcRect: Rect, maskRect: Rect, dstRect: Rect): void {
-	const w = dstRect.right - dstRect.left;
-	const h = dstRect.bottom - dstRect.top;
-	if (srcRect.right - srcRect.left !== w || srcRect.bottom - srcRect.top !== h || maskRect.right - maskRect.left !== w || maskRect.bottom - maskRect.top !== h) {
-		throw new Error('CopyMask: stretching is not implemented');
+	if (!hasColorQD) {
+		copyMaskPlus(srcBits, maskBits, dstBits, srcRect, maskRect, dstRect);
+		return;
 	}
 	const src = surfaceOf(srcBits);
 	const dst = surfaceOf(dstBits);
 	const mask = surfaceOf(maskBits);
-	const maskClip = sect(rectRegion(maskRect), rectRegion(maskBits.bounds));
-	offsetRegion(maskClip, dstRect.left - maskRect.left, dstRect.top - maskRect.top);
-	const clip = sect(copyClip(srcBits, dstBits, srcRect, dstRect, null), maskClip);
-	const dh = srcRect.left - dstRect.left;
-	const dv = srcRect.top - dstRect.top;
-	const mh = maskRect.left - dstRect.left;
-	const mv = maskRect.top - dstRect.top;
+	const clip = sect(copyClip(srcBits, dstBits, srcRect, dstRect, null), sourceClip(maskBits, maskRect, dstRect));
+	const at = copySource(src, srcRect, dstRect);
+	const maskAt = copySource(mask, maskRect, dstRect);
 	const convert = pixelConverter(srcBits, dstBits, src, dst);
 	for (const band of clip.bands) {
 		for (let v = band.top; v < band.bottom; v++) {
 			for (let k = 0; k < band.xs.length; k += 2) {
 				for (let x = band.xs[k]!; x < band.xs[k + 1]!; x++) {
-					if (getPixel(mask, x + mh, v + mv) !== 0) {
-						setPixel(dst, x, v, convert(getPixel(src, x + dh, v + dv)));
+					if (maskAt(x, v) !== 0) {
+						setPixel(dst, x, v, convert(at(x, v)));
+					}
+				}
+			}
+		}
+	}
+}
+
+/**
+ * CopyMask as the Mac Plus ROM does it (disassembled at $40CAF0): it fills dstRect, clipped to the
+ * destination's bounds and, in the port's own bitmap, to the bounding boxes of its visRgn and
+ * clipRgn, with the source and mask pixels at the same offsets from their rectangles' top left
+ * corners. It neither stretches nor keeps to srcRect and maskRect: a larger dstRect takes the
+ * pixels beyond them. It works in 32-pixel runs from the word left of the clipped rectangle, masked
+ * in each row by the clipping regions: a rectangular region stands for the clipped rectangle,
+ * another for itself, so that two of those leave the runs' ends unclipped.
+ */
+function copyMaskPlus(srcBits: BitMap, maskBits: BitMap, dstBits: BitMap, srcRect: Rect, maskRect: Rect, dstRect: Rect): void {
+	const src = surfaceOf(srcBits);
+	const dst = surfaceOf(dstBits);
+	const mask = surfaceOf(maskBits);
+	const regions = isPortBits(dstBits) ? [thePort.visRgn, thePort.clipRgn] : [];
+	let box = sect(rectRegion(dstRect), rectRegion(dstBits.bounds));
+	for (const rgn of regions) {
+		box = sect(box, rectRegion(rgn.rgnBBox));
+	}
+	const r = box.rgnBBox;
+	if (EmptyRect(r)) {
+		return;
+	}
+	const alignedLeft = r.left - ((r.left - dstBits.bounds.left) & 15);
+	const runs = ((r.right - alignedLeft) >> 5) + 1;
+	let clip = rectRegion({ top: r.top, left: alignedLeft, bottom: r.bottom, right: alignedLeft + 32 * runs });
+	clip = sect(clip, rectRegion(dstBits.bounds));
+	for (const rgn of regions.length > 0 ? regions : [null, null]) {
+		clip = sect(clip, rgn === null || rgn.rgnSize === 10 ? box : rgn);
+	}
+	const inside = (s: Surface, h: number, v: number) => h >= s.bounds.left && h < s.bounds.right && v >= s.bounds.top && v < s.bounds.bottom;
+	const dh = srcRect.left - dstRect.left;
+	const dv = srcRect.top - dstRect.top;
+	const mh = maskRect.left - dstRect.left;
+	const mv = maskRect.top - dstRect.top;
+	for (const band of clip.bands) {
+		for (let v = band.top; v < band.bottom; v++) {
+			for (let k = 0; k < band.xs.length; k += 2) {
+				for (let x = band.xs[k]!; x < band.xs[k + 1]!; x++) {
+					if (inside(mask, x + mh, v + mv) && getPixel(mask, x + mh, v + mv) !== 0) {
+						setPixel(dst, x, v, inside(src, x + dh, v + dv) ? getPixel(src, x + dh, v + dv) : 0);
 					}
 				}
 			}
