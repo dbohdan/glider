@@ -465,7 +465,6 @@ LOCALPROC FlushTraps(void)
 	}
 }
 
-/* Called by the CPU (see build-minivmac.sh) as it takes an A-line trap. */
 LOCALPROC TraceGetKeys(void);
 
 LOCALPROC TraceWatches(void);
@@ -482,6 +481,7 @@ LOCALVAR blnr KeyMapTrace = falseblnr;
 */
 LOCALVAR unsigned long KeyCheckTick = (unsigned long)-1;
 
+/* Called by the CPU (see build-minivmac.sh) as it takes an A-line trap. */
 void ALineTrap(unsigned long pc, unsigned long opcode, unsigned long d0)
 {
 	unsigned long tick = (unsigned long)TrueEmulatedTime;
@@ -532,27 +532,34 @@ void ADBMouseTalked(int dh, int dv, int down)
 	}
 }
 
-/* The KeyMap's last value, for the KeyMap trace. */
-
 /*
 	When the program first reads a new KeyMap with GetKeys: which tick's
-	reading saw a key, whenever the key reached the KeyMap in that tick.
+	reading saw a key, whenever the key reached the KeyMap in that tick, and
+	how many times the program had called GetKeys before in that tick (a key
+	the tick's first call missed came in the middle of the tick).
 */
 LOCALVAR ui3b LastGetKeysMap[16];
+LOCALVAR unsigned long GetKeysTick = (unsigned long)-1;
+LOCALVAR unsigned long GetKeysCalls = 0;
 
 LOCALPROC TraceGetKeys(void)
 {
 	int i;
 
+	if (TrueEmulatedTime != GetKeysTick) {
+		GetKeysTick = TrueEmulatedTime;
+		GetKeysCalls = 0;
+	}
 	if (KeyMapTrace && (0 != memcmp(LastGetKeysMap, RAM + 0x0174, 16))) {
 		memcpy(LastGetKeysMap, RAM + 0x0174, 16);
 		printf("getkeys %lu ", (unsigned long)TrueEmulatedTime);
 		for (i = 0; i < 16; ++i) {
 			printf("%02x", LastGetKeysMap[i]);
 		}
-		printf("\n");
+		printf(" %lu\n", GetKeysCalls);
 		fflush(stdout);
 	}
+	++GetKeysCalls;
 }
 
 /*

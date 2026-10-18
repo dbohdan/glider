@@ -44,7 +44,6 @@ const knownDifferences: Record<string, number> = { stretchedColor: 55 };
 
 /** Cases that still differ, being worked on: they run, but do not fail the tests. */
 const unfinished: Record<string, string> = {
-	room9Color: 'from shot w35, after re-running with the GetKeys trace',
 };
 
 const cases: [MachineKind, Case][] = [

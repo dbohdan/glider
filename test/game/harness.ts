@@ -107,8 +107,8 @@ const keyRepThresh = 6;
  * presses it, or later, as the Mac's keyboard (or ADB) polling allows. Transitions are matched to the
  * script's in order, by key and direction. On a Mac Plus a key comes as its tick begins. On a Mac II
  * it comes over ADB early in its tick, before or after the program reads the keys: the trace's
- * GetKeys readings tell which, and a key the program did not read in its tick comes in the middle
- * of it (`arrival`). Likewise, when a held key's repeat falls due in the tick another transition
+ * GetKeys readings tell which, and a key the tick's first GetKeys did not see comes in the middle
+ * of it (`arrival`), where a program polling in a loop sees it, as in ClosingAnimation. Likewise, when a held key's repeat falls due in the tick another transition
  * comes, the trace's auto-key events tell which came first; with no repeat in that tick, the
  * transition came as the tick began (the `repeats` case: either, from one tick to the next).
  */
@@ -118,12 +118,13 @@ export function oracleKeyTimes(output: string, script: Script, kind: MachineKind
 	const parse = (hex: string) => Array.from({ length: 16 }, (_, i) => parseInt(hex.slice(i * 2, i * 2 + 2), 16));
 	const bit = (map: number[], code: number) => (map[code >> 3]! >> (code & 7)) & 1;
 	for (const line of output.split('\n')) {
-		const g = /^getkeys (\d+) ([0-9a-f]{32})$/.exec(line);
+		// Only the tick's first GetKeys tells that a key was there as the tick began.
+		const g = /^getkeys (\d+) ([0-9a-f]{32}) 0$/.exec(line);
 		if (g !== null) {
 			reads.set(Number(g[1]), [...(reads.get(Number(g[1])) ?? []), parse(g[2]!)]);
 		}
 	}
-	const traced = reads.size > 0;
+	const traced = /^(getkeys|keycheck) /m.test(output);
 	// The ticks with auto-key events, and those in which the program asked for them.
 	const repeats = new Set<number>();
 	const checks = new Set<number>();
