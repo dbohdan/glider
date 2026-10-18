@@ -1,10 +1,13 @@
 # Build, check, and test the Glider 4 port.
 # Requires GNU Make, Node.js 24 or later, and npm (for the pinned tools in package-lock.json).
 
-NODE ?= node
-NPM ?= npm
 BIN := node_modules/.bin
 DIST := dist
+
+NODE ?= node
+NPM ?= npm
+ADDRESS ?= localhost
+PORT ?= 8000
 
 .PHONY: all check lint test build resources serve oracle oracle-shots clean distclean node-version
 
@@ -34,7 +37,7 @@ build: node_modules/.installed resources
 	cp -R web/. $(DIST)/
 
 serve: build
-	$(NODE) tools/serve.ts $(DIST)
+	$(NODE) tools/serve.ts $(DIST) $(PORT) $(ADDRESS)
 
 # The oracle (see oracle/README.md) also needs gcc, git, and hfsutils.
 oracle: node_modules/.installed

@@ -13,9 +13,9 @@ const types: Record<string, string> = {
 	'.rsrc': 'application/octet-stream',
 };
 
-function main(root: string, port: number): void {
+function main(root: string, port: number, address: string): void {
 	createServer((req, res) => {
-		const path = normalize(decodeURIComponent(new URL(req.url ?? '/', 'http://localhost').pathname)).replace(/^(\.\.[/\\])+/, '');
+		const path = normalize(decodeURIComponent(new URL(req.url ?? '/', `http://${address}`).pathname)).replace(/^(\.\.[/\\])+/, '');
 		const file = join(root, path.endsWith('/') ? join(path, 'index.html') : path);
 		readFile(file)
 			.then((body) => {
@@ -26,9 +26,9 @@ function main(root: string, port: number): void {
 				res.writeHead(404);
 				res.end('not found');
 			});
-	}).listen(port, () => console.log(`Serving ${root} at http://localhost:${port}/`));
+	}).listen(port, () => console.log(`Serving ${root} at http://${address}:${port}/`));
 }
 
 if (import.meta.main) {
-	main(process.argv[2] ?? 'dist', Number(process.argv[3] ?? 8000));
+	main(process.argv[2] ?? 'dist', Number(process.argv[3] ?? 8000), process.argv[4] ?? 'localhost');
 }
