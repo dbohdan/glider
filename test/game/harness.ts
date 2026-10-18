@@ -97,6 +97,10 @@ export async function runGlider(run: GameRun, endTick: number): Promise<void> {
 /** The Mac Plus keyboard's arrow keys, by the Apple Extended Keyboard's codes the scripts use. */
 const plusArrows: Record<number, number> = { 0x7b: 0x46, 0x7c: 0x42, 0x7d: 0x48, 0x7e: 0x4d };
 
+/** Ticks before a held key repeats, and between repeats: low memory KeyThresh and KeyRepThresh on both oracle Macs. */
+const keyThresh = 24;
+const keyRepThresh = 6;
+
 /**
  * When the oracle's Mac saw each key transition of a script, from the emulator's KeyMap trace
  * (`Script.traceKeys`): a key reaches the Mac's KeyMap and event queue in the tick after the script
@@ -104,7 +108,9 @@ const plusArrows: Record<number, number> = { 0x7b: 0x46, 0x7c: 0x42, 0x7d: 0x48,
  * script's in order, by key and direction. On a Mac Plus a key comes as its tick begins. On a Mac II
  * it comes over ADB early in its tick, before or after the program reads the keys: the trace's
  * GetKeys readings tell which, and a key the program did not read in its tick comes in the middle
- * of it (`arrival`).
+ * of it (`arrival`). Likewise, when a held key's repeat falls due in the tick another transition
+ * comes, the trace's auto-key events tell which came first; with no repeat in that tick, the
+ * transition came as the tick began (the `repeats` case: either, from one tick to the next).
  */
 export function oracleKeyTimes(output: string, script: Script, kind: MachineKind): number[] {
 	const changes: { tick: number; code: number; down: boolean; used: boolean; read: boolean }[] = [];
@@ -118,6 +124,15 @@ export function oracleKeyTimes(output: string, script: Script, kind: MachineKind
 		}
 	}
 	const traced = reads.size > 0;
+	// The ticks with auto-key events, and those in which the program asked for them.
+	const repeats = new Set<number>();
+	const checks = new Set<number>();
+	for (const line of output.split('\n')) {
+		const r = /^(autokey|keycheck) (\d+)/.exec(line);
+		if (r !== null) {
+			(r[1] === 'autokey' ? repeats : checks).add(Number(r[2]));
+		}
+	}
 	let last: number[] | null = null;
 	for (const line of output.split('\n')) {
 		const m = /^keymap (\d+) ([0-9A-F]{32})$/.exec(line);
@@ -137,6 +152,28 @@ export function oracleKeyTimes(output: string, script: Script, kind: MachineKind
 		}
 		last = map;
 	}
+	// Whether a repeat of the key last pressed fell due in a tick in which the program asked for
+	// one, before that tick's transitions: KeyThresh ticks after the key went down, then every
+	// KeyRepThresh.
+	const due = new Set<number>();
+	let held: { code: number; since: number; repeated: boolean } | null = null;
+	let at = 0;
+	for (const c of changes) {
+		for (; held !== null && at <= c.tick; at++) {
+			if (repeats.has(at)) {
+				held.since = at;
+				held.repeated = true;
+			} else if (checks.has(at) && at - held.since >= (held.repeated ? keyRepThresh : keyThresh)) {
+				due.add(at);
+			}
+		}
+		at = c.tick + 1;
+		if (c.down) {
+			held = { code: c.code, since: c.tick, repeated: false };
+		} else if (held?.code === c.code) {
+			held = null;
+		}
+	}
 	const ticks: number[] = [];
 	let tick = 0;
 	for (const line of script.lines) {
@@ -150,7 +187,8 @@ export function oracleKeyTimes(output: string, script: Script, kind: MachineKind
 				throw new Error(`the oracle's trace does not show key ${code} going ${b === '1' ? 'down' : 'up'} after tick ${tick}`);
 			}
 			c.used = true;
-			ticks.push(c.tick + (kind === 'plus' || (traced && c.read) ? 0 : arrival.key.ii));
+			const first = c.read || (due.has(c.tick) && !repeats.has(c.tick));
+			ticks.push(c.tick + (kind === 'plus' || (traced && first) ? 0 : arrival.key.ii));
 		}
 	}
 	return ticks;

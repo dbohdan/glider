@@ -21,6 +21,8 @@ How to work on this project: methods that have proven themselves, and traps that
   If a number only works in a narrow range, or two cases want different values, the model is wrong.
 - When a screenshot every 30 ticks cannot tell what happened, take one every tick around the event.
   The tools: `Script.traceKeys` (when the Mac saw each key), `Script.traceTraps` (the Toolbox traps the program called, by tick; decode them with a trap-name table), RAM dumps of low-memory globals (`Script.ram`).
+  Within a tick, `Script.watch` and `Script.traceApp` give cycles: when a low-memory value changed, and when the program first ran.
+- When the original's order within a tick varies from one tick to the next (a race between ADB and the program), no rule will fit: make a case that repeats the situation, confirm it varies, and have the emulator trace the outcome for the harness to follow (GetKeys readings, auto-key events).
 - Suspect the measurement too.
   Mini vMac copied the screen partway through each tick, which looked like tearing and like timing errors in the port; the fix was in the oracle's front end, not in the port.
   Run game cases fast enough (`speed(8)`) that the original's computation takes no time, as the port's does.

@@ -139,6 +139,24 @@ export class Script {
 		return this;
 	}
 
+	/**
+	 * Has the emulator print `size` bytes of RAM at `address` whenever they change, as seen at each
+	 * A-line trap and each tick's start, with the cycles into the tick: `watch TICK CYCLES ADDR VALUE`.
+	 */
+	watch(address: number, size: 1 | 2 | 4): this {
+		this.lines.push(`watch 0x${address.toString(16)} ${size}`);
+		return this;
+	}
+
+	/**
+	 * Starts or stops the emulator's report of how far into each tick the program (code in RAM) first
+	 * calls a trap, after the interrupt work that begins the tick: `app TICK CYCLES`.
+	 */
+	traceApp(on: boolean): this {
+		this.lines.push(`app ${on ? 1 : 0}`);
+		return this;
+	}
+
 	/** Starts or stops the emulator's report of the traps the program calls (see OSGLUHDL.c). */
 	traceTraps(on: boolean): this {
 		this.lines.push(`traps ${on ? 1 : 0}`);

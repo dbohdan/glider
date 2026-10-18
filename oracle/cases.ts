@@ -177,6 +177,20 @@ export const cases: Record<string, (dir: string) => RunResult> = {
 		return run(macII, tourScript(), disk, dir);
 	},
 
+	/** Keys held in the high-score dialog until a repeat falls due, on a Mac Plus. */
+	repeats(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, repeatScript(), disk, dir);
+	},
+
+	/** Keys held in the high-score dialog until a repeat falls due, on a Mac II. */
+	repeatsColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, gameFiles(), 'Glider 4.06');
+		return run(macII, repeatScript(), disk, dir);
+	},
+
 	/** Pull down Glider's menus on a Mac II. */
 	menusColor(dir) {
 		const disk = dir + '.dsk';
@@ -490,6 +504,23 @@ export function tourScript(): Script {
 	s.type('Port').wait(30).shot('typed').press('return');
 	for (let t = 60; t < 100; t++) {
 		s.wait(30).shot(`t${t}`);
+	}
+	return s;
+}
+
+/**
+ * The tour's game to its high-score dialog, then a period held in the name field for 24, 30 and
+ * 36 ticks, so that it comes up as a repeat falls due (KeyThresh 24, KeyRepThresh 6), and for a
+ * tick less, each followed by a screenshot: does the key's release or the repeat come first?
+ */
+export function repeatScript(): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(900).press('return').wait(60);
+	s.press('n', 'command').wait(20);
+	s.key('.', true).wait(1200).key('.', false).wait(600).shot('dialog');
+	for (const ticks of [24, 30, 36, 23, 29, 35]) {
+		s.key('.', true).wait(ticks).key('.', false).wait(20).shot(`held${ticks}`);
 	}
 	return s;
 }

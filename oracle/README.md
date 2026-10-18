@@ -33,12 +33,15 @@ How the emulator's time lines up with the port's, which the game tests (`test/ga
 
 - Input the script gives after tick k reaches the Mac in tick k + 1.
   A key then takes part of that tick to reach the Mac's KeyMap and event queue (on a Mac II, ADB takes milliseconds), and sometimes longer: `Script.traceKeys` has the emulator report the tick each key arrived in (`output.txt` in the run's directory), and the ticks the program's GetKeys first returned each new KeyMap. A Mac II's ADB keyboard gives keys as the tick begins, but whether the program reads one in that tick depends on how far into the tick it calls GetKeys, so the game tests go by the trace.
+  The trace also reports auto-key events (`autokey`) and the ticks in which the program asked the Event Manager for them (`keycheck`): when a repeat falls due in the tick a key comes, the Mac II takes either first, from one tick to the next, and the tests go by which did.
 - On a Mac Plus, Mini vMac holds back all other input for 4 ticks after the mouse button goes down or up (`MasterMyEvtQLock`, for the Mac's debouncing): leave a few ticks between a button event and the next move or key.
 - A screenshot after tick k shows everything the Mac drew in it.
   (Mini vMac copies the screen after the first 1/2^n of each tick's instructions at speed n; the front end copies it again for a screenshot.)
 - At the normal speed, drawing takes time: the game takes ticks to start, and a screenshot can catch a frame half drawn.
   Cases that follow the game run 256 times the instructions per tick (`Script.speed(8)`), so that the program's work takes no time, as in the port, and cost about 20 seconds each.
 - `Script.traceTraps` has the emulator report every trap the program calls, by tick: the way to see what the original does when, and why it takes the time it does.
+- To order things within a tick: `Script.watch` reports a value in low memory when it changes, with the cycles into the tick, as seen at each trap (Ticks, `$16A`; the KeyMap, `$174`; KeyRepTime, `$18A`), and `Script.traceApp` how far into each tick the program first calls a trap.
+  On a Mac II at speed 8 a tick begins with interrupt work: Ticks changes about 1.1 million cycles in, a key from ADB reaches the KeyMap about 2.7 million cycles in, and the program runs between and after them.
 
 ## License
 

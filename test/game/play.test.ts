@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { everyTickScript, firstRoomScript, houseFrom, houseWith, maskRooms, interfaceScript, mouseScript, playScript, roomStarts, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { everyTickScript, firstRoomScript, houseFrom, houseWith, maskRooms, interfaceScript, mouseScript, playScript, repeatScript, roomStarts, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 import { writePNG } from '../../oracle/Image.ts';
@@ -45,7 +45,6 @@ const knownDifferences: Record<string, number> = { stretchedColor: 55 };
 /** Cases that still differ, being worked on: they run, but do not fail the tests. */
 const unfinished: Record<string, string> = {
 	room9Color: 'from shot w35, after re-running with the GetKeys trace',
-	room35Color: 'two pixels from shot w82',
 };
 
 const cases: [MachineKind, Case][] = [
@@ -57,6 +56,7 @@ const cases: [MachineKind, Case][] = [
 	...roomStarts.flatMap((first) => both(`room${first}`, () => wanderScript(first), `a minute of random keys from room ${first} plays`, () => houseFrom(first))),
 	...Object.entries(maskRooms).flatMap(([name, objects]) => both(name, firstRoomScript, `a test room (${name}) looks`, () => houseWith(objects))),
 	...both('tour', tourScript, 'a long flight through the house plays'),
+	...both('repeats', repeatScript, 'keys held in the high-score dialog repeat'),
 	...both('ui', interfaceScript, "Glider's menus, dialogs, help and a paused game look"),
 	...both('everyTick', everyTickScript, 'every tick of the alert going away and a game starting looks'),
 ];

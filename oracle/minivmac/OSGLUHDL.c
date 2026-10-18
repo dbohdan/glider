@@ -468,13 +468,41 @@ LOCALPROC FlushTraps(void)
 /* Called by the CPU (see build-minivmac.sh) as it takes an A-line trap. */
 LOCALPROC TraceGetKeys(void);
 
-void ALineTrap(unsigned long pc, unsigned long opcode)
+LOCALPROC TraceWatches(void);
+LOCALPROC TraceAutoKey(void);
+LOCALPROC TraceApp(unsigned long tick);
+
+/* Whether to print the KeyMap when it changes, and other key events (see "keys"). */
+LOCALVAR blnr KeyMapTrace = falseblnr;
+
+/*
+	The ticks in which the program asked the Event Manager for auto-key
+	events (GetOSEvent or OSEventAvail with autoKeyMask), when a repeat
+	could have come: whether one did tells what came first in the tick.
+*/
+LOCALVAR unsigned long KeyCheckTick = (unsigned long)-1;
+
+void ALineTrap(unsigned long pc, unsigned long opcode, unsigned long d0)
 {
 	unsigned long tick = (unsigned long)TrueEmulatedTime;
+
+	if (KeyMapTrace && ((0xA030 == (opcode & 0xF8FF)) || (0xA031 == (opcode & 0xF8FF)))
+		&& (0 != (d0 & 0x20)) && (tick != KeyCheckTick))
+	{
+		KeyCheckTick = tick;
+		printf("keycheck %lu\n", tick);
+		fflush(stdout);
+	}
+
+	if (pc < kRAM_Size) {
+		TraceApp(tick);
+	}
 
 	if (0xA976 == opcode) { /* GetKeys */
 		TraceGetKeys();
 	}
+	TraceWatches();
+	TraceAutoKey();
 
 	if (TrapTrace && (pc < kRAM_Size)) {
 		if ((0 != TrapCount) && ((tick != TrapTick) || (pc != TrapPC)
@@ -504,8 +532,7 @@ void ADBMouseTalked(int dh, int dv, int down)
 	}
 }
 
-/* Whether to print the KeyMap when it changes, and its last value. */
-LOCALVAR blnr KeyMapTrace = falseblnr;
+/* The KeyMap's last value, for the KeyMap trace. */
 
 /*
 	When the program first reads a new KeyMap with GetKeys: which tick's
@@ -526,6 +553,88 @@ LOCALPROC TraceGetKeys(void)
 		printf("\n");
 		fflush(stdout);
 	}
+}
+
+/*
+	Memory the script watches ("watch ADDR SIZE"): a value is printed when it
+	has changed, as seen at each A-line trap and as each tick begins, with
+	the cycles into the tick, to order events within a tick.
+*/
+#define kMaxWatches 8
+LOCALVAR int NWatches = 0;
+LOCALVAR ui5r WatchAddr[kMaxWatches];
+LOCALVAR int WatchSize[kMaxWatches];
+LOCALVAR ui5r WatchLast[kMaxWatches];
+
+LOCALFUNC ui5r WatchValue(int i)
+{
+	ui5r v = 0;
+	int j;
+
+	for (j = 0; j < WatchSize[i]; ++j) {
+		v = (v << 8) | RAM[WatchAddr[i] + j];
+	}
+	return v;
+}
+
+LOCALPROC TraceWatches(void)
+{
+	int i;
+
+	for (i = 0; i < NWatches; ++i) {
+		ui5r v = WatchValue(i);
+		if (v != WatchLast[i]) {
+			WatchLast[i] = v;
+			printf("watch %lu %lu %lX %lX\n",
+				(unsigned long)TrueEmulatedTime,
+				(unsigned long)(GetCuriCount() - TickStartCount),
+				(unsigned long)WatchAddr[i], (unsigned long)v);
+			fflush(stdout);
+		}
+	}
+}
+
+/*
+	Whether to print, for each tick, how many cycles into it the program
+	(code in RAM) first called a trap: interrupt work at the start of a tick
+	(the vertical blanking task, ADB transactions) runs before it.
+*/
+LOCALVAR blnr AppTrace = falseblnr;
+LOCALVAR unsigned long AppTick = (unsigned long)-1;
+
+LOCALPROC TraceApp(unsigned long tick)
+{
+	if (AppTrace && (tick != AppTick)) {
+		AppTick = tick;
+		printf("app %lu %lu\n", tick,
+			(unsigned long)(GetCuriCount() - TickStartCount));
+		fflush(stdout);
+	}
+}
+
+/*
+	Auto-key events: the Event Manager sets KeyRepTime ($18A) to Ticks when
+	it makes one, and the keyboard driver sets it, with KeyLast ($184), when
+	a key goes down. A change of KeyRepTime with KeyLast unchanged is a
+	repeat; it tells whether a key that came in the same tick came first.
+*/
+LOCALVAR ui5r LastKeyRepTime = 0;
+LOCALVAR ui4r LastKeyLast = 0;
+
+LOCALPROC TraceAutoKey(void)
+{
+	ui5r keyRepTime = do_get_mem_long(RAM + 0x018A);
+	ui4r keyLast = do_get_mem_word(RAM + 0x0184);
+
+	if (KeyMapTrace && (keyRepTime != LastKeyRepTime)
+		&& (keyLast == LastKeyLast) && (0 != keyLast))
+	{
+		printf("autokey %lu %04X\n", (unsigned long)TrueEmulatedTime,
+			(unsigned)keyLast);
+		fflush(stdout);
+	}
+	LastKeyRepTime = keyRepTime;
+	LastKeyLast = keyLast;
 }
 
 /* Called by the ADB keyboard (patched in) for each key event it gives the Mac. */
@@ -636,6 +745,17 @@ LOCALPROC RunScript(void)
 #endif
 		} else if (0 == strcmp(cmd, "mouse")) {
 			MouseTrace = (0 != ScriptNum(a1));
+		} else if (0 == strcmp(cmd, "watch")) {
+			if ((NULL == a2) || (kMaxWatches == NWatches)) {
+				ScriptError("watch needs an address and a size, and takes 8 at most");
+			} else {
+				WatchAddr[NWatches] = ScriptNum(a1);
+				WatchSize[NWatches] = ScriptNum(a2);
+				WatchLast[NWatches] = WatchValue(NWatches);
+				++NWatches;
+			}
+		} else if (0 == strcmp(cmd, "app")) {
+			AppTrace = (0 != ScriptNum(a1));
 		} else if (0 == strcmp(cmd, "traps")) {
 			FlushTraps();
 			TrapTrace = (0 != ScriptNum(a1));
@@ -678,6 +798,8 @@ GLOBALOSGLUPROC WaitForNextTick(void)
 		return;
 	}
 	TraceKeyMap(falseblnr);
+	TraceWatches();
+	TraceAutoKey();
 	TickStartCount = GetCuriCount();
 	RunScript();
 	if (ForceMacOff) {

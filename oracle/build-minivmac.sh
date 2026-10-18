@@ -27,9 +27,10 @@ grep -q 'define WantInitNotAutoSlow 1' cfg/CNFUDOSG.h
 sed -i '/X11/d' cfg/CNFUIOSG.h
 cp "$here/minivmac/OSGLUHDL.c" src/OSGLUXWN.c
 # Let the front end see each A-line trap (Toolbox and OS call) the CPU takes, for trap traces.
-sed -i -e '1i extern void ALineTrap(unsigned long pc, unsigned long opcode);' \
-	-e '/^LOCALIPROC DoCodeA(void)$/,/^}$/ s|^\tException(0xA);|\tALineTrap(m68k_getpc(), do_get_mem_word(V_pc_p));\n\tException(0xA);|' src/MINEM68K.c
-grep -q 'ALineTrap(m68k_getpc' src/MINEM68K.c
+# With D0, which holds an OS trap's argument (an event mask for GetOSEvent and OSEventAvail).
+sed -i -e '1i extern void ALineTrap(unsigned long pc, unsigned long opcode, unsigned long d0);' \
+	-e '/^LOCALIPROC DoCodeA(void)$/,/^}$/ s|^\tException(0xA);|\tALineTrap(m68k_getpc(), do_get_mem_word(V_pc_p), m68k_dreg(0));\n\tException(0xA);|' src/MINEM68K.c
+grep -q 'ALineTrap(m68k_getpc(), do_get_mem_word(V_pc_p), m68k_dreg(0))' src/MINEM68K.c
 # And each report the ADB mouse gives the Mac (a Mac II's), for mouse traces.
 sed -i -e '1i extern void ADBMouseTalked(int dh, int dv, int down);' \
 	-e '/(0 != partH) || (0 != partV) || MouseButtonChange) {/a\
