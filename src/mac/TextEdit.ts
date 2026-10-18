@@ -16,6 +16,7 @@ import {
 	type GrafPort,
 	GlobalToLocal,
 	InvertRect,
+	setHiliteMode,
 	MoveTo,
 	NewRgn,
 	SectRect,
@@ -282,6 +283,8 @@ function hilite(te: TERec): void {
 		return;
 	}
 	for (const r of selectionRects(te)) {
+		// A selection is highlighted: in color, its background and the highlight color swap.
+		setHiliteMode();
 		InvertRect(r);
 	}
 }

@@ -216,6 +216,7 @@ do {
 - Initial values of uninitialized Pascal globals (affects the `is4Channel` preference bug); `Globals.ts` starts them at zero.
 - Whether the Palette Manager changes the Mac II's color table for `pltt` 128, whose colors differ from `clut` 4 in their low bytes (tolerance 0). The oracle's CLUT dump (`c`) can tell.
 - How many times a chosen menu item blinks with the oracle's parameter RAM (the port assumes 3).
+- What a dialog's edit field does with text longer than it: in the oracle, a period key held into Glider's high-score name scrolls the field sideways (the periods' 4-pixel pattern hides it) and, at about 80 characters, the field starts over with one character. The port wraps and scrolls a line up instead.
 - Where System 6 puts a submenu in general: the oracle shows it 4 pixels inside the parent's right edge and 7 pixels below the parent item's top, for Glider's one submenu.
 - Which keyboard type the port reports (`SysEnvirons`' `keyBoardType`): the shipped preferences say 4, so any other value shows the "New keyboard" alert at first launch, as the oracle does on both machines.
 - SMS semantics: priorities, channel allocation, 2- and 4-channel mixing.
@@ -341,7 +342,7 @@ The port replays the same `Script` (`replay` in `test/game/harness.ts`), and all
 
 ### 2026-10-18 (timing)
 
-The 5-tick key latency of the previous entry was wrong: it made two errors cancel out. The port now matches the original tick for tick through the alert going away and a game starting, and a game steered with the keyboard, on both machines (85 tests).
+The 5-tick key latency of the previous entry was wrong: it made two errors cancel out. The port now matches the original tick for tick through the alert going away and a game starting, and a game steered with the keyboard, on both machines (85 tests at the time).
 
 New oracle tools made the difference:
 
@@ -355,3 +356,16 @@ What they showed:
 - At 32 times the instructions per tick, starting a game still took the original 4 ticks; at 256 times it takes none, as in the port. The game cases run at speed 8.
 - On the Mac II, ADB delivers a key milliseconds into the tick, after a game frame has read the keys; on the Mac Plus the keyboard delivers it first. The harness puts Mac II keys in the middle of their tick and lets input end a wait, so that an event loop still sees a key in its tick.
 - The title screen's demo depends on when the alert goes away, and Glider's keys after the "New keyboard" alert are its defaults (comma, period, Return, space), not the preferences' arrow keys.
+
+### 2026-10-18 (high scores)
+
+A new oracle case, `tour`, flies forward through the house for 20 seconds, lets the glider drift until the game ends, types a name into the high-score dialog, and follows the title screen with the high scores: 100 screenshots, all identical on the Mac Plus. What it took:
+
+- Auto-repeat survives `FlushEvents`: auto-key events come from the last key pressed while it stays down, not from the queue. Glider flushes events before the high-score dialog, and a key still held went on typing in the original.
+- The Dialog Manager turns on `TEAutoView` for edit fields. The system font's lines are 16 pixels and Glider's field 15, so once a key is typed the text scrolls up a pixel: `TESelView` brings the line's top into view, then its bottom.
+- Typing in a dialog obscures the cursor. It hides the caret too, and the caret comes back when it next blinks: the blink keeps its own time (compared tick by tick).
+- A selection from the start of a line is highlighted from the destination rectangle's left edge, and one to the end of the text to its right edge.
+- The oracle's Macs have different parameter RAM: `CaretTime` and `DoubleTime` are 12 and 20 ticks on the Mac Plus and 32 and 32 on the Mac II (read from low memory). They are now part of the machine configuration.
+- The 4.06 disk's "The House" has two more high scores than the shipped one; the game cases use the port's copy.
+- On the Mac II, a shelf's shadow showed that the rule for gray patterns painted in patCopy + transparent was wrong: the ROM does not simply invert the pattern in shapes that are not rectangles, it shifts it by the shape's bounding box (a polygon's polyBBox, a region's before clipping). The gray comes out inverted exactly when the box's top and left add up to an odd number, which held for every case seen before.
+- In color, TextEdit highlights a selection with highlight mode: the background color and the highlight color (black on the oracle's Mac II) swap, where plain inversion turned the dialog's gray into red. `setHiliteMode` stands for clearing the pHiliteBit of low memory HiliteMode.

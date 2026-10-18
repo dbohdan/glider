@@ -749,15 +749,51 @@ function clipToPort(rgn: Region): Region {
  * Fills a clipped region with a pattern in a pattern transfer mode. Patterns are aligned with the
  * bitmap: pattern row 0 is at bounds.top, and every eighth row after it.
  */
-function fillRegion(rgn: Region, pat: Pattern, mode: number, pixPat: PixPat | null = null): void {
+/**
+ * Highlighting (low memory HiliteMode, its pHiliteBit cleared): the next inversion in a color port
+ * swaps the background color with the highlight color instead of inverting pixel values.
+ */
+let hiliting = false;
+
+/** The highlight color (low memory HiliteRGB): black, as on the oracle's Mac II. */
+const hiliteRGB: RGBColor = { red: 0, green: 0, blue: 0 };
+
+/** Pascal `BitClr(Ptr(HiliteMode), pHiliteBit)`: makes the next inversion highlight. */
+export function setHiliteMode(): void {
+	hiliting = true;
+}
+
+function fillRegion(rgn: Region, pat: Pattern, mode: number, pixPat: PixPat | null = null, box: Rect = rgn.rgnBBox): void {
 	const port = thePort;
 	const s = surfaceOf(port.portBits);
+	const hilite = hiliting;
+	hiliting = false;
+	if (hilite && isColorPort(port) && (mode & 3) === patXor - patCopy) {
+		const table = port.portPixMap.pmTable;
+		const bk = colorToIndex(table, port.rgbBkColor);
+		const hi = colorToIndex(table, hiliteRGB);
+		for (const band of rgn.bands) {
+			for (let v = band.top; v < band.bottom; v++) {
+				for (let k = 0; k < band.xs.length; k += 2) {
+					for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
+						const p = getPixel(s, h, v);
+						if (p === bk) {
+							setPixel(s, h, v, hi);
+						} else if (p === hi) {
+							setPixel(s, h, v, bk);
+						}
+					}
+				}
+			}
+		}
+		return;
+	}
 	if (pixPat !== null && isColorPort(port)) {
 		fillPixPat(rgn, pixPat, mode, port, s);
 		return;
 	}
 	if (mode >= 32 && isColorPort(port)) {
-		fillArithmetic(rgn, pat, mode, port, s);
+		fillArithmetic(rgn, pat, mode, port, s, box);
 		return;
 	}
 	const { fg, bk } = portColors(port, s);
@@ -822,14 +858,18 @@ function fillPixPat(rgn: Region, pp: PixPat, mode: number, port: CGrafPort, s: S
  * pattern bits become the foreground or background color, the mode combines that color with the
  * destination's, and the result becomes the closest color of the destination's table.
  */
-function fillArithmetic(rgn: Region, pat: Pattern, mode: number, port: CGrafPort, s: Surface): void {
+function fillArithmetic(rgn: Region, pat: Pattern, mode: number, port: CGrafPort, s: Surface, box: Rect): void {
 	const table = port.portPixMap.pmTable;
 	const op = (mode & 7) | 32;
-	// Port: for regions that are not rectangles, the Mac II ROM inverts the pattern in transparent
-	// mode (seen in the oracle); Glider's color shadows, ovals and recorded regions painted in
-	// patCopy + transparent, show it. Some other arithmetic modes (subOver, adMin) seem to invert it
-	// too, and others (addOver, subPin) not; not used by Glider, not pinned down.
-	const flip = op === transparent && !rgn.isRect() ? 1 : 0;
+	// Port: for shapes that are not rectangles, the Mac II ROM shifts the pattern in transparent
+	// mode by the shape's bounding box (`box`: a polygon's polyBBox, a region's rgnBBox before
+	// clipping), in the port's coordinates. Seen in the oracle: Glider's color shadows, ovals,
+	// polygons and recorded regions painted in patCopy + transparent, in windows and off screen,
+	// have their gray inverted exactly when the box's top and left add up to an odd number. Some
+	// other arithmetic modes (subOver, adMin) seem to shift it too, and others (addOver, subPin)
+	// not; not used by Glider, not pinned down.
+	const shifted = op === transparent && !rgn.isRect();
+	const origin = { v: s.bounds.top + (shifted ? box.top : 0), h: s.bounds.left + (shifted ? box.left : 0) };
 	const combine = (src: number, dst: number, pin: number): number => {
 		switch (op) {
 			case blend:
@@ -852,10 +892,10 @@ function fillArithmetic(rgn: Region, pat: Pattern, mode: number, port: CGrafPort
 	};
 	for (const band of rgn.bands) {
 		for (let v = band.top; v < band.bottom; v++) {
-			const row = pat[(v - s.bounds.top) & 7]!;
+			const row = pat[(v - origin.v) & 7]!;
 			for (let k = 0; k < band.xs.length; k += 2) {
 				for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
-					const bit = ((row >> (7 - ((h - s.bounds.left) & 7))) & 1) ^ flip;
+					const bit = (row >> (7 - ((h - origin.h) & 7))) & 1;
 					if (op === transparent) {
 						// Background-colored pattern pixels leave the destination alone.
 						if (bit) {
@@ -918,7 +958,7 @@ function transferBit(s: Surface, h: number, v: number, bit: number, op: number, 
 }
 
 /** Draws a shape's region with a verb, as StdRgn does after the shape has become a region. */
-function drawShape(verb: GrafVerb, shape: Region, frameRgn?: () => Region): void {
+function drawShape(verb: GrafVerb, shape: Region, frameRgn?: () => Region, box: Rect = shape.rgnBBox): void {
 	const port = thePort;
 	if (port.pnVis < 0) {
 		return;
@@ -928,7 +968,7 @@ function drawShape(verb: GrafVerb, shape: Region, frameRgn?: () => Region): void
 		case paint: {
 			const pen = penTransfer(port);
 			if (pen !== null) {
-				fillRegion(clipToPort(verb === frame ? frameRgn!() : shape), pen.pat, pen.mode, isColorPort(port) ? port.pnPixPat : null);
+				fillRegion(clipToPort(verb === frame ? frameRgn!() : shape), pen.pat, pen.mode, isColorPort(port) ? port.pnPixPat : null, box);
 			}
 			break;
 		}
@@ -1314,7 +1354,7 @@ export function StdPoly(verb: GrafVerb, poly: Polygon): void {
 		port.pnLoc = save;
 		return;
 	}
-	drawShape(verb, polyRegion(poly));
+	drawShape(verb, polyRegion(poly), undefined, poly.polyBBox);
 }
 
 export function FramePoly(poly: Polygon): void {
