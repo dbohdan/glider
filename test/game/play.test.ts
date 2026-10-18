@@ -46,7 +46,6 @@ const knownDifferences: Record<string, number> = { stretchedColor: 55 };
 const unfinished: Record<string, string> = {
 	room9Color: 'from shot w35, after re-running with the GetKeys trace',
 	room35Color: 'two pixels from shot w82',
-	uiColor: 'from the Configure dialog on',
 };
 
 const cases: [MachineKind, Case][] = [

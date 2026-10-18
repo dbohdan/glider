@@ -176,7 +176,9 @@ export function newDialog(
 			}
 		} else if (kind & iconItem) {
 			const id = s16(it.data, 0);
-			handle = (color && colorScreen() ? GetCIcon(id) : null) ?? GetIcon(id);
+			// A 'cicn' of the same ID, on a color screen, even in a dialog that is not a color window
+			// (seen in the oracle: Glider's Configure dialog, which has no 'dctb').
+			handle = (colorScreen() ? GetCIcon(id) : null) ?? GetIcon(id);
 		} else if (kind & picItem) {
 			handle = GetPicture(s16(it.data, 0));
 		}

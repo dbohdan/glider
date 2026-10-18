@@ -688,7 +688,21 @@ interface Surface {
 	bounds: Rect;
 }
 
-function surfaceOf(bm: BitMap): Surface {
+/**
+ * The bitmap that drawing into `bm` reaches. Color QuickDraw draws an old-style port's bits that
+ * point at the screen through the main screen's pixel map, at its depth, so that old programs draw; the
+ * port's dialogs without a 'dctb' are such ports (seen in the oracle: Glider's Configure dialog).
+ */
+function deviceBits(bm: BitMap): BitMap {
+	if (!hasColorQD || isPixMap(bm)) {
+		return bm;
+	}
+	const screen = GetMainDevice()?.gdPMap;
+	return screen !== undefined && bm.baseAddr === screen.baseAddr ? { ...screen, bounds: bm.bounds } : bm;
+}
+
+function surfaceOf(given: BitMap): Surface {
+	const bm = deviceBits(given);
 	const depth = isPixMap(bm) ? bm.pixelSize : 1;
 	const rowBytes = bm.rowBytes & 0x3fff;
 	const height = bm.bounds.bottom - bm.bounds.top;
@@ -1584,7 +1598,8 @@ function blit(at: (h: number, v: number) => number, upward: boolean, dst: Surfac
 }
 
 /** The color table a bitmap's pixel values refer to: black and white for bitmaps. */
-function colorTableOf(bm: BitMap): ColorTable {
+function colorTableOf(given: BitMap): ColorTable {
+	const bm = deviceBits(given);
 	return isPixMap(bm) ? bm.pmTable : bwTable;
 }
 
@@ -1607,7 +1622,8 @@ function sameColors(a: ColorTable, b: ColorTable): boolean {
 /**
  * Copies pixels between bitmaps, clipped to the current port's visRgn and clipRgn when the
  * destination is its bitmap, and to maskRgn (in destination coordinates) when given.
- * One-bit sources are drawn with the port's foreground and background colors in color ports.
+ * One-bit bitmaps are drawn with the port's foreground and background colors in color ports; a
+ * one-bit pixel map with its color table's colors (seen in the oracle: the About box's color icons).
  * Pixel values change from the source's color table to the destination's by matching colors,
  * unless the tables are the same or the source's is a device's.
  */
@@ -1616,7 +1632,7 @@ export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRec
 	const dst = surfaceOf(dstBits);
 	const clip = copyClip(srcBits, dstBits, srcRect, dstRect, maskRgn);
 	const at = copySource(src, srcRect, dstRect);
-	if (src.depth === 1 && dst.depth > 1) {
+	if (src.depth === 1 && dst.depth > 1 && !isPixMap(srcBits)) {
 		const { fg, bk } = portColors(thePort, dst);
 		const op = mode & 3;
 		const not = (mode & 4) !== 0;
@@ -1635,7 +1651,13 @@ export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRec
 	const srcTable = colorTableOf(srcBits);
 	const dstTable = colorTableOf(dstBits);
 	if (src.depth === dst.depth && sameColors(srcTable, dstTable)) {
-		blit(at, srcRect.top < dstRect.top, dst, clip, mode & 7, () => true);
+		// Colorizing: in srcCopy, a color port's foreground and background colors other than black and
+		// white combine with each pixel value, (value AND fore) OR (NOT value AND back) (seen in the
+		// oracle: Glider's help screens, copied with a cyan background).
+		const { fg, bk } = portColors(thePort, dst);
+		const ones = (1 << dst.depth) - 1;
+		const colorized = isColorPort(thePort) && (mode & 7) === srcCopy && dst.depth > 1 && (fg !== ones || bk !== 0);
+		blit(colorized ? (h, v) => ((at(h, v) & fg) | (~at(h, v) & bk)) & ones : at, srcRect.top < dstRect.top, dst, clip, mode & 7, () => true);
 		return;
 	}
 	if ((mode & 7) !== srcCopy) {
@@ -1656,10 +1678,10 @@ export function CopyBits(srcBits: BitMap, dstBits: BitMap, srcRect: Rect, dstRec
 
 /**
  * How source pixel values become destination pixel values in srcCopy: unchanged between the same
- * colors, the port's colors for one-bit sources in color, and the closest color otherwise.
+ * colors, the port's colors for one-bit bitmaps in color, and the closest color otherwise.
  */
 function pixelConverter(srcBits: BitMap, dstBits: BitMap, src: Surface, dst: Surface): (value: number) => number {
-	if (src.depth === 1 && dst.depth > 1) {
+	if (src.depth === 1 && dst.depth > 1 && !isPixMap(srcBits)) {
 		const { fg, bk } = portColors(thePort, dst);
 		return (v) => (v ? fg : bk);
 	}

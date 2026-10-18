@@ -214,7 +214,7 @@ do {
 ## Open questions
 
 - The exact oval rule (see the journal): the original QuickDraw source (Computer History Museum, 2010) is under a non-commercial license, so it could only be read for the algorithm, not copied; not consulted so far.
-- Exact Color QuickDraw behavior for: colorizing with a cyan background (help screens), inverse table matching, arithmetic modes other than transparent on regions that are not rectangles.
+- Exact Color QuickDraw behavior for: inverse table matching, arithmetic modes other than transparent on regions that are not rectangles.
 - Effective device color table after the Palette Manager applies `pltt` 128.
 - Initial values of uninitialized Pascal globals (affects the `is4Channel` preference bug); `Globals.ts` starts them at zero.
 - Whether the Palette Manager changes the Mac II's color table for `pltt` 128, whose colors differ from `clut` 4 in their low bytes (tolerance 0). The oracle's CLUT dump (`c`) can tell.
@@ -409,4 +409,5 @@ New oracle cases start games in other rooms: The House with its rooms rotated so
 - The interface case (`interfaceScript`: Glider's messages, settings, About box, high scores, help, a paused game) differs at once after the first dialog: the title screen's little gliders a step apart. Tick by tick, the port drew an idle frame the original did not, as the Apple menu went down: Glider looks for events every other tick, and the button reached the program a tick later in the port. The harness's rule (a Mac Plus takes the button a tick after it comes) held for one menu and not the next: the ROM's debouncing takes one tick or two. The emulator now traces low memory MBState, the button as the ROM has taken it, and the harness goes by it. With that, the case matches on the Mac Plus.
 - When Glider shows the menu bar again (pausing), the original paints the screen's rounded corners beside it black, over the game; the port's DrawMenuBar now does too.
 - The oracle's Apple menu lists the System's desk accessories, the port's none; the shots do not show the menu open.
+- On the Mac II the interface case showed three things the port's Color QuickDraw lacked, each seen in the oracle. An old-style window's port (a dialog without a 'dctb', like Configure) draws to the screen at the screen's depth, through its pixel map; the port drew it as one bit per pixel into four-bit memory, squeezed into a strip. A dialog's icon item takes a 'cicn' of the same ID on a color screen even when the dialog is not a color window. A one-bit pixel map is drawn in its color table's colors, not the port's (the About box's icons). And CopyBits in srcCopy colorizes pixel values with the port's colors, (value AND fore) OR (NOT value AND back): the help screens are copied with a cyan background. With these the case matches on the Mac II too.
 

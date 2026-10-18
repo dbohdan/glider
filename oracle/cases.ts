@@ -270,7 +270,7 @@ function withSwitches405(rf: ResourceFork): void {
  * and the port's art and The House (4.06's black-and-white art has other sprites, and
  * its The House two more high scores), so that the game plays as the port's does.
  */
-function gameFiles(house?: Uint8Array): MacFile[] {
+export function gameFiles(house?: Uint8Array): MacFile[] {
 	const prefs = parseDeRez(readFileSync(join(oracleDir, '..', 'Glider_405', 'Glider.r'))).get('Gprf', 128)!;
 	const port = new Map(bundledFiles().map((f) => [f.name, f]));
 	return [...glider406().values()].map((f) => {
