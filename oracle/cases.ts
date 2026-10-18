@@ -3,6 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { MacFile } from '../src/mac/MacBinary.ts';
+import { bundledFiles } from '../tools/build-resources.ts';
 import { parseDeRez } from '../tools/DeRez.ts';
 import { alternateScreenFile, editResources, glider406, macII, macPlus, makeDisk, oracleDir, type RunResult, run } from './Oracle.ts';
 import { Script } from './Script.ts';
@@ -64,84 +65,98 @@ export const cases: Record<string, (dir: string) => RunResult> = {
 	/** A game on a Mac Plus, as the port plays it: a fast CPU, and Glider 4.05's preferences. */
 	play(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
 		return run(macPlus, playScript(), disk, dir);
 	},
 
 	/** A game on a Mac II, as the port plays it. */
 	playColor(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		makeDisk(disk, gameFiles(), 'Glider 4.06');
 		return run(macII, playScript(), disk, dir);
 	},
 
 	/** Every tick of the alert going away and of a game starting, on a Mac Plus. */
 	everyTick(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
 		return run(macPlus, everyTickScript(), disk, dir);
 	},
 
 	/** Every tick of the alert going away and of a game starting, on a Mac II. */
 	everyTickColor(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		makeDisk(disk, gameFiles(), 'Glider 4.06');
 		return run(macII, everyTickScript(), disk, dir);
 	},
 
 	/** A game on a Mac Plus, steered with the keyboard. */
 	steer(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
 		return run(macPlus, steerScript(), disk, dir);
 	},
 
 	/** A game on a Mac II, steered with the keyboard. */
 	steerColor(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		makeDisk(disk, gameFiles(), 'Glider 4.06');
 		return run(macII, steerScript(), disk, dir);
 	},
 
 	/** A game on a Mac Plus steered with the mouse (the Controls menu's Mouse). */
 	mouse(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
 		return run(macPlus, mouseScript(false), disk, dir);
 	},
 
 	/** A game on a Mac II steered with the mouse. */
 	mouseColor(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		makeDisk(disk, gameFiles(), 'Glider 4.06');
 		return run(macII, mouseScript(false), disk, dir);
 	},
 
 	/** A game on a Mac Plus steered with mouse movements (the Controls menu's Joystick). */
 	joystick(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
 		return run(macPlus, mouseScript(true), disk, dir);
 	},
 
 	/** A game on a Mac II steered with mouse movements. */
 	joystickColor(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		makeDisk(disk, gameFiles(), 'Glider 4.06');
 		return run(macII, mouseScript(true), disk, dir);
+	},
+
+	/** A minute of a game played with random keys on a Mac Plus. */
+	wander(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, wanderScript(1), disk, dir);
+	},
+
+	/** A minute of a game played with random keys on a Mac II. */
+	wanderColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, gameFiles(), 'Glider 4.06');
+		return run(macII, wanderScript(1), disk, dir);
 	},
 
 	/** A long flight forward through the house on a Mac Plus. */
 	tour(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
 		return run(macPlus, tourScript(), disk, dir);
 	},
 
 	/** A long flight forward through the house on a Mac II. */
 	tourColor(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		makeDisk(disk, gameFiles(), 'Glider 4.06');
 		return run(macII, tourScript(), disk, dir);
 	},
 
@@ -197,18 +212,18 @@ function dialogScript(): Script {
 }
 
 /**
- * Glider 4.06's files with Glider 4.05's preferences (from Glider_405/Glider.r) and the port's copy
- * of The House (the 4.06 disk's has two more high scores), so that the game starts in the same
- * state as the port's.
+ * Glider 4.06's application with Glider 4.05's preferences (from Glider_405/Glider.r), and the
+ * port's art and The House (4.06's black-and-white art has other sprites, and its The House two more
+ * high scores), so that the game starts as the port's does.
  */
-function withPrefs405(): MacFile[] {
+function gameFiles(): MacFile[] {
 	const prefs = parseDeRez(readFileSync(join(oracleDir, '..', 'Glider_405', 'Glider.r'))).get('Gprf', 128)!;
-	const house = new Uint8Array(readFileSync(join(oracleDir, '..', 'assets', 'houses', 'The House')));
+	const port = new Map(bundledFiles().map((f) => [f.name, f]));
 	return [...glider406().values()].map((f) => {
 		if (f.name === 'Glider 4.06') {
 			return editResources(f, (rf) => rf.put({ ...prefs }));
 		}
-		return f.name === 'The House' ? { ...f, data: house } : f;
+		return port.get(f.name) ?? f;
 	});
 }
 
@@ -355,5 +370,62 @@ export function mouseScript(joystick: boolean): Script {
 	s.button(false);
 	shots(10);
 	steer(10, 120);
+	return s;
+}
+
+/**
+ * Starts a game as playScript does and plays it for a minute with keys chosen at random from a
+ * seed: forward and back (period and comma) for a third to two thirds of a second, mostly forward;
+ * drifting; energy (Return) and rubber bands (space) on the way. A screenshot every 20 ticks.
+ */
+export function wanderScript(seed: number): Script {
+	// mulberry32
+	let state = seed >>> 0;
+	const random = (): number => {
+		state = (state + 0x6d2b79f5) >>> 0;
+		let t = state;
+		t = Math.imul(t ^ (t >>> 15), t | 1);
+		t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+	};
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(900).press('return').wait(60);
+	s.press('n', 'command').wait(20);
+	const start = s.tick;
+	let shot = 0;
+	let next = start + 20;
+	/** Waits, taking the screenshots that fall due. */
+	const wait = (ticks: number): void => {
+		const end = s.tick + ticks;
+		while (next <= end) {
+			s.until(next).shot(`w${shot++}`);
+			next += 20;
+		}
+		s.until(end);
+	};
+	while (s.tick < start + 3600) {
+		const r = random();
+		const ticks = 20 + Math.floor(random() * 21);
+		const key = r < 0.55 ? '.' : r < 0.8 ? ',' : null;
+		if (key !== null) {
+			s.key(key, true);
+		}
+		if (random() < 0.15) {
+			s.key('return', true);
+			wait(6);
+			s.key('return', false);
+		}
+		if (random() < 0.2) {
+			s.key('space', true);
+			wait(3);
+			s.key('space', false);
+		}
+		wait(ticks);
+		if (key !== null) {
+			s.key(key, false);
+		}
+		wait(2);
+	}
 	return s;
 }

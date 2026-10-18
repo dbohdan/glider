@@ -388,3 +388,9 @@ Games steered with the mouse match the original on both machines: the Controls m
 - A Mac II's ADB mouse reports when the bus is polled. A new trace (`Script.traceMouse`, Mini vMac's ADB mouse patched to call the front end) gives each report's tick and how many cycles into it; the harness replays them. Reports that come as a tick begins reach the program in that tick or the next, depending on whether the ROM finishes the ADB transaction before the vertical blanking task; the trace cannot say which, so the scripts give movements in the ticks between frames.
 - On a Mac Plus, Mini vMac holds back other input for 4 ticks after a button event; scripts leave room.
 - In the browser, a game played with the mouse captures the pointer (Pointer Lock) at the next click or key press and lets it go when the game stops or pauses; captured, the pointer's movements move the Mac's mouse, which Glider puts back where it wants.
+
+### 2026-10-18 (random play)
+
+A new oracle case plays a minute of a game with keys chosen at random from a seed (`wanderScript`): forward, back, drifting, energy, rubber bands, deaths, and the title screen's demos after the game ends. It matches on both machines.
+
+- The only difference was a white line beside the copter in the title demo on the Mac Plus: 4.06's black-and-white art (PICTs 128 and 129) differs from 4.05's. The game cases now give the oracle the port's art, as they give it the port's The House (`gameFiles`).

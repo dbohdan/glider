@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { everyTickScript, mouseScript, playScript, steerScript, tourScript } from '../../oracle/cases.ts';
+import { everyTickScript, mouseScript, playScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import { writePNG } from '../../oracle/Image.ts';
 import { cacheDir } from '../../oracle/Oracle.ts';
 import { differences, oracleOutput, oracleRunAvailable, oracleShot, writeComparison } from '../toolbox/machine.ts';
@@ -23,6 +23,8 @@ for (const [kind, caseName, makeScript, what] of [
 	['ii', 'mouseColor', () => mouseScript(false), 'a game steered with the mouse plays'],
 	['plus', 'joystick', () => mouseScript(true), 'a game steered with mouse movements plays'],
 	['ii', 'joystickColor', () => mouseScript(true), 'a game steered with mouse movements plays'],
+	['plus', 'wander', () => wanderScript(1), 'a minute of random keys plays'],
+	['ii', 'wanderColor', () => wanderScript(1), 'a minute of random keys plays'],
 	['plus', 'tour', tourScript, 'a long flight through the house plays'],
 	['ii', 'tourColor', tourScript, 'a long flight through the house plays'],
 	['plus', 'everyTick', everyTickScript, 'every tick of the alert going away and a game starting looks'],
