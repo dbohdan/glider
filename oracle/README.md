@@ -9,6 +9,7 @@ The oracle runs the original Glider in an emulated Mac so that the port can be c
 - **Software:** the ROMs, System 6.0.8, and Glider 4.06 from [Infinite Mac](https://github.com/mihaip/infinite-mac), pinned to a commit and checked by SHA-256.
   Glider 4.06 is the closest available build to the 4.05 source; see [`docs/versions.md`](../docs/versions.md).
 - **Boot disk:** a fresh HFS volume for each run, holding only the System, the Finder, Glider and its files, and any test houses.
+  The emulator boots a copy, so a case's disk (`runs/CASE.dsk`) stays as built: Glider writes high scores and preferences to its disk.
   The boot blocks launch Glider at startup without MultiFinder.
   On the Mac Plus, the disk also carries our stand-in for the "MacsBug" file that Glider ships for page flipping (see `alternateScreenFile` in [`Oracle.ts`](Oracle.ts)).
 

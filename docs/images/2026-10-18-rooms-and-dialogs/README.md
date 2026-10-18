@@ -42,9 +42,11 @@ In the oracle and in the tests the menu bar shows Apple's logo, as the original 
 
 ## A rank on the Mac II
 
-Still unexplained when these were taken.
+Unexplained when these were taken; the cause turned out to be in the oracle, not in Glider or the ROM.
 
 - `13-high-score-list-mac-ii.png`: the high scores after random play from room 35. Two pixels differ: the second entry's name has one more period in the port.
 - `14-high-score-dialog-number-4-original-mac-ii.png` and `15-high-score-dialog-number-2-port-mac-ii.png`: the dialog before it, tick 2572. With the same score, 3308, the original on the Mac II says "number 4", the port "number 2".
 - `16-high-score-dialog-number-2-original-plus.png`: the Mac Plus original, in the same game, says "number 2".
-- `17-high-score-list-top-original-mac-ii.png`: the top of the original's list afterwards, enlarged: the score is second, as "number 2" would have it. Glider 4.06's SortHiScores is the same as 4.05's, so the rank variable held 3 for some other reason.
+- `17-high-score-list-top-original-mac-ii.png`: the top of the original's list afterwards, enlarged: the score is second, as "number 2" would have it.
+
+The "number 4" frame came from a second oracle run made to take a screenshot every tick, and that run booted from the disk the case's own run had used. Glider had saved that game's 3308 into the house on the disk, and an earlier per-tick run had added another, so the replayed game ranked below both. The case's own shot at that tick says "number 2", and a RAM dump of a run on a fresh disk has the rank at 1. Oracle runs now boot from a copy of their disk.

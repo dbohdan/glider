@@ -27,7 +27,7 @@ const shotTick = 100;
 const speed = 5;
 
 /** Changes when the way pictures are run changes, to invalidate cached results. */
-const runVersion = 3;
+const runVersion = 4;
 
 /** Where the picture's top left corner appears on each machine's screen. */
 function pictureOrigin(m: Machine): { h: number; v: number } {

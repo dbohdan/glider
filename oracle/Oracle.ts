@@ -5,7 +5,7 @@
 
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { encodeMacRoman } from '../src/mac/MacRoman.ts';
 import { fourCCAt, put16, u16 } from '../src/mac/Binary.ts';
@@ -196,9 +196,19 @@ const prefsKeyboardOffset = 168;
 export const rIdleID = 200;
 export const rColorIdleID = 210;
 
-// hfsutils keeps the current volume in $HOME/.hcwd; give it a home of its own.
-function hfs(...args: string[]): string {
-	return execFileSync(args[0]!, args.slice(1), { encoding: 'latin1', env: { ...process.env, HOME: cacheDir } });
+/**
+ * Runs hfsutils commands with a directory of their own as home, where they keep the current
+ * volume ($HOME/.hcwd); the directory also holds temporary files. Each caller gets a new one, so
+ * that oracle runs in parallel processes do not copy files onto each other's disks.
+ */
+function withHFS<T>(body: (hfs: (...args: string[]) => string, tmp: string) => T): T {
+	mkdirSync(cacheDir, { recursive: true });
+	const tmp = mkdtempSync(join(cacheDir, 'hfs-'));
+	try {
+		return body((...args) => execFileSync(args[0]!, args.slice(1), { encoding: 'latin1', env: { ...process.env, HOME: tmp } }), tmp);
+	} finally {
+		rmSync(tmp, { recursive: true, force: true });
+	}
 }
 
 /** Extracts the System and Finder from the Infinite Mac disk. */
@@ -209,11 +219,13 @@ export function systemFiles(): MacFile[] {
 		mkdirSync(dir, { recursive: true });
 		const copy = join(dir, 'source.dsk');
 		writeFileSync(copy, readFileSync(join(cacheDir, 'System 6.0.8 HD.dsk')));
-		hfs('hmount', copy);
-		for (const n of names) {
-			hfs('hcopy', '-m', `:System Folder:${n}`, join(dir, n + '.bin'));
-		}
-		hfs('humount');
+		withHFS((hfs) => {
+			hfs('hmount', copy);
+			for (const n of names) {
+				hfs('hcopy', '-m', `:System Folder:${n}`, join(dir, n + '.bin'));
+			}
+			hfs('humount');
+		});
 		writeFileSync(join(dir, 'bootblocks'), readFileSync(copy).subarray(0, 1024));
 		rmSync(copy);
 	}
@@ -228,19 +240,17 @@ export function makeDisk(path: string, files: MacFile[], startup: string, megaby
 	const system = systemFiles();
 	mkdirSync(dirname(path), { recursive: true });
 	writeFileSync(path, new Uint8Array(megabytes * 1024 * 1024));
-	hfs('hformat', '-l', 'Oracle HD', path);
-	hfs('hmkdir', ':System Folder');
-	const tmp = join(cacheDir, 'tmp');
-	rmSync(tmp, { recursive: true, force: true });
-	mkdirSync(tmp);
-	[...system, ...files].forEach((f, i) => {
-		const bin = join(tmp, `${i}.bin`);
-		writeFileSync(bin, writeMacBinary(f));
-		hfs('hcopy', '-m', bin, `:System Folder:${f.name}`);
+	withHFS((hfs, tmp) => {
+		hfs('hformat', '-l', 'Oracle HD', path);
+		hfs('hmkdir', ':System Folder');
+		[...system, ...files].forEach((f, i) => {
+			const bin = join(tmp, `${i}.bin`);
+			writeFileSync(bin, writeMacBinary(f));
+			hfs('hcopy', '-m', bin, `:System Folder:${f.name}`);
+		});
+		hfs('hattrib', '-b', ':System Folder');
+		hfs('humount');
 	});
-	hfs('hattrib', '-b', ':System Folder');
-	hfs('humount');
-	rmSync(tmp, { recursive: true });
 	// The boot blocks name the startup application (bbHelloName at offset 0x5A, a Str15).
 	const boot = new Uint8Array(readFileSync(join(cacheDir, 'system', 'bootblocks')));
 	const name = encodeMacRoman(startup);
@@ -263,14 +273,22 @@ export interface RunResult {
 	dir: string;
 }
 
-/** Runs a script on a machine booting from a disk; screenshots and RAM dumps go to `dir`. */
+/**
+ * Runs a script on a machine booting from a copy of a disk; screenshots and RAM dumps go to `dir`.
+ * The disk itself stays as it was: Glider writes to its disk (high scores into the house,
+ * preferences), and a second run from a used disk once started with the first run's scores.
+ */
 export function run(m: Machine, script: Script, disk: string, dir: string): RunResult {
 	rmSync(dir, { recursive: true, force: true });
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, 'script.txt'), script.text());
-	const res = spawnSync(emulatorPath(m), [join(cacheDir, m.rom), 'script.txt', disk], { cwd: dir, encoding: 'utf8' });
+	const copy = join(dir, 'disk.dsk');
+	writeFileSync(copy, readFileSync(disk));
+	// Trap traces print hundreds of megabytes at high speeds; the default limit is 1 MB.
+	const res = spawnSync(emulatorPath(m), [join(cacheDir, m.rom), 'script.txt', copy], { cwd: dir, encoding: 'utf8', maxBuffer: 2 ** 30 });
+	rmSync(copy);
 	if (res.status !== 0 || res.stderr) {
-		throw new Error(`emulator failed (${res.status}): ${res.stderr}`);
+		throw new Error(`emulator failed (${res.status}): ${res.error?.message ?? res.stderr}`);
 	}
 	writeFileSync(join(dir, 'output.txt'), res.stdout);
 	const shots = new Map<string, Image>();

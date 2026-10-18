@@ -18,8 +18,12 @@ mkdir -p "$out"
 cp -R "$src/src" "$src/setup" "$out/"
 cd "$out"
 gcc -o setup_t setup/tool.c
-./setup_t -t lx64 -api xwn -sound 0 -speed a "$@" > setup.sh
+# No AutoSlow: it drops the extra speed after 60 ticks without screen changes or input, which
+# would give the program less time in quiet stretches, and screenshots (which look for screen
+# changes) could move where a stretch ends. Turning it off changed none of the cases' screenshots.
+./setup_t -t lx64 -api xwn -sound 0 -speed a -as 0 "$@" > setup.sh
 sh setup.sh > setup.log
+grep -q 'define WantInitNotAutoSlow 1' cfg/CNFUDOSG.h
 sed -i '/X11/d' cfg/CNFUIOSG.h
 cp "$here/minivmac/OSGLUHDL.c" src/OSGLUXWN.c
 # Let the front end see each A-line trap (Toolbox and OS call) the CPU takes, for trap traces.
