@@ -64,6 +64,8 @@ export class TERec {
 	inPort!: GrafPort;
 	/** Offsets where lines start, with the text's length at the end. */
 	lineStarts: Integer[] = [0, 0];
+	/** Whether typing and clicking scroll the selection into view (TEAutoView). */
+	autoView = false;
 	caretState = false;
 	caretTime: LongInt = 0;
 	clickTime: LongInt = 0;
@@ -292,6 +294,14 @@ function caretRect(te: TERec): Rect {
 function selectionRects(te: TERec): Rect[] {
 	const a = pointOf(te, te.selStart);
 	const b = pointOf(te, te.selEnd);
+	// A selection from the start of a line is highlighted from the destination rectangle's left
+	// edge, and one to the end of the text up to its right edge (seen in the oracle).
+	if (te.selStart === te.lineStarts[lineOf(te, te.selStart)]) {
+		a.h = te.destRect.left;
+	}
+	if (te.selEnd >= te.teLength) {
+		b.h = te.destRect.right;
+	}
 	const rects: Rect[] = [];
 	if (a.v === b.v) {
 		rects.push({ top: a.v, left: a.h, bottom: a.v + te.lineHeight, right: b.h });
@@ -413,14 +423,49 @@ function replaceSelection(te: TERec, bytes: Uint8Array): void {
 	text.set(old.subarray(te.selEnd), te.selStart + bytes.length);
 	te.hText.data = text;
 	te.selStart = te.selEnd = te.selStart + bytes.length;
-	te.caretState = true;
-	te.caretTime = TickCount();
+	// Typing hides the caret, and it comes back when it next blinks: the blinking keeps its own
+	// time (seen in the oracle, tick by tick).
+	te.caretState = false;
 	TECalText(te);
 	TEUpdate(te.viewRect, te);
 }
 
+/** Pascal `TEAutoView`. */
+export function TEAutoView(auto: boolean, te: TERec): void {
+	te.autoView = auto;
+}
+
+/**
+ * Pascal `TESelView`: with automatic scrolling on, scrolls the text so that the line with the
+ * insertion point (the start of the selection) is in view: its top, then its bottom. A line taller
+ * than the view, as in a dialog's 15-pixel edit field in the 16-pixel system font, ends up with its
+ * bottom in view, a pixel up (seen in the oracle once a key is typed into Glider's high-score name).
+ */
+export function TESelView(te: TERec): void {
+	if (!te.autoView) {
+		return;
+	}
+	const top = te.destRect.top + lineOf(te, te.selStart) * te.lineHeight;
+	const bottom = top + te.lineHeight;
+	let dv = 0;
+	if (top < te.viewRect.top) {
+		dv = te.viewRect.top - top;
+	}
+	if (bottom + dv > te.viewRect.bottom) {
+		dv = te.viewRect.bottom - bottom;
+	}
+	if (dv !== 0) {
+		TEScroll(0, dv, te);
+	}
+}
+
 /** Pascal `TEKey`: types a character, deletes with backspace, moves with the arrow keys. */
 export function TEKey(key: string | Integer, te: TERec): void {
+	typeKey(key, te);
+	TESelView(te);
+}
+
+function typeKey(key: string | Integer, te: TERec): void {
 	const code = typeof key === 'string' ? encodeMacRoman(key)[0]! : key;
 	switch (code) {
 		case 8: // backspace
@@ -444,6 +489,7 @@ export function TEKey(key: string | Integer, te: TERec): void {
 
 export function TEDelete(te: TERec): void {
 	replaceSelection(te, new Uint8Array(0));
+	TESelView(te);
 }
 
 export function TEInsert(text: Uint8Array | string, length: LongInt, te: TERec): void {
@@ -452,6 +498,7 @@ export function TEInsert(text: Uint8Array | string, length: LongInt, te: TERec):
 	te.selEnd = te.selStart;
 	replaceSelection(te, bytes.slice(0, length));
 	te.selStart = te.selEnd = start;
+	TESelView(te);
 }
 
 export function TECut(te: TERec): void {
@@ -465,6 +512,7 @@ export function TECopy(te: TERec): void {
 
 export function TEPaste(te: TERec): void {
 	replaceSelection(te, scrap);
+	TESelView(te);
 }
 
 export function TESetJust(just: Integer, te: TERec): void {
@@ -508,6 +556,7 @@ export async function TEClick(pt: Point, extend: boolean, te: TERec): Promise<vo
 		SetPort(save);
 		select(offsetAt(te, p));
 	}
+	TESelView(te);
 }
 
 /** Pascal `TEScroll`: moves the text by (dh, dv) and redraws it. */

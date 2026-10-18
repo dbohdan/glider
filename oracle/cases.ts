@@ -103,6 +103,20 @@ export const cases: Record<string, (dir: string) => RunResult> = {
 		return run(macII, steerScript(), disk, dir);
 	},
 
+	/** A long flight forward through the house on a Mac Plus. */
+	tour(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, tourScript(), disk, dir);
+	},
+
+	/** A long flight forward through the house on a Mac II. */
+	tourColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		return run(macII, tourScript(), disk, dir);
+	},
+
 	/** Pull down Glider's menus on a Mac II. */
 	menusColor(dir) {
 		const disk = dir + '.dsk';
@@ -155,12 +169,19 @@ function dialogScript(): Script {
 }
 
 /**
- * Glider 4.06's files with Glider 4.05's preferences (from Glider_405/Glider.r), so that the game
- * starts in the same state as the port's.
+ * Glider 4.06's files with Glider 4.05's preferences (from Glider_405/Glider.r) and the port's copy
+ * of The House (the 4.06 disk's has two more high scores), so that the game starts in the same
+ * state as the port's.
  */
 function withPrefs405(): MacFile[] {
 	const prefs = parseDeRez(readFileSync(join(oracleDir, '..', 'Glider_405', 'Glider.r'))).get('Gprf', 128)!;
-	return [...glider406().values()].map((f) => (f.name === 'Glider 4.06' ? editResources(f, (rf) => rf.put({ ...prefs })) : f));
+	const house = new Uint8Array(readFileSync(join(oracleDir, '..', 'assets', 'houses', 'The House')));
+	return [...glider406().values()].map((f) => {
+		if (f.name === 'Glider 4.06') {
+			return editResources(f, (rf) => rf.put({ ...prefs }));
+		}
+		return f.name === 'The House' ? { ...f, data: house } : f;
+	});
 }
 
 /**
@@ -229,5 +250,31 @@ export function steerScript(): Script {
 	hold('space', 6, 6, 'band');
 	s.wait(30).shot('band');
 	hold('.', 240, 20, 'fly');
+	return s;
+}
+
+/**
+ * Starts a game as playScript does and flies forward (the period key) for 20 seconds, through rooms
+ * and past their objects, then lets the glider drift until the game ends; types a name for the high
+ * scores and presses Return, and follows the title screen with the high scores. A screenshot every
+ * half second.
+ */
+export function tourScript(): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(900).press('return').wait(60);
+	s.press('n', 'command').wait(20);
+	s.key('.', true);
+	for (let t = 0; t < 40; t++) {
+		s.wait(30).shot(`t${t}`);
+	}
+	s.key('.', false);
+	for (let t = 40; t < 60; t++) {
+		s.wait(30).shot(`t${t}`);
+	}
+	s.type('Port').wait(30).shot('typed').press('return');
+	for (let t = 60; t < 100; t++) {
+		s.wait(30).shot(`t${t}`);
+	}
 	return s;
 }

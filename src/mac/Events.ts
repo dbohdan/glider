@@ -3,6 +3,7 @@
 // Event calls are async: when no event is waiting they let time pass until the next tick or until
 // input arrives, so that event loops do not spin.
 
+import { getMachine } from './OSUtils.ts';
 import { GlobalToLocal } from './QuickDraw.ts';
 import {
 	autoKey,
@@ -208,11 +209,12 @@ export function EventAvail(mask: Integer, theEvent: EventRecord): boolean {
 	return e !== null;
 }
 
+/**
+ * Removes events from the queue. A key still held goes on repeating: auto-key events come from the
+ * last key pressed while it stays down (low memory KeyLast and KeyTime), not from the queue.
+ */
 export function FlushEvents(whichMask: Integer, stopMask: Integer): void {
 	flushOSEvents(whichMask, stopMask);
-	if (whichMask & (keyDownMask | autoKeyMask)) {
-		lastKey = null;
-	}
 }
 
 export function PostEvent(eventCode: Integer, eventMsg: LongInt): Integer {
@@ -256,10 +258,10 @@ export function SystemTask(): void {}
 
 /** Ticks between clicks that make a double click (low memory DoubleTime). */
 export function GetDblTime(): LongInt {
-	return 32;
+	return getMachine().doubleTime;
 }
 
 /** Ticks between blinks of the insertion point (low memory CaretTime). */
 export function GetCaretTime(): LongInt {
-	return 32;
+	return getMachine().caretTime;
 }

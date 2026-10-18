@@ -25,9 +25,10 @@ import {
 } from './QuickDraw.ts';
 import { GetResource, Handle } from './Resources.ts';
 import { s16 } from './Binary.ts';
+import { ObscureCursor } from './Cursors.ts';
 import { Delay, SysBeep } from './OSUtils.ts';
 import { GetCIcon, GetIcon, GetPicture } from './ToolUtils.ts';
-import { TEActivate, TEClick, TEDeactivate, TEIdle, TEKey, TENew, TERec, TESetSelect, TETextBox, teFlushDefault, TECalText, TEUpdate } from './TextEdit.ts';
+import { TEActivate, TEAutoView, TEClick, TEDeactivate, TEIdle, TEKey, TENew, TERec, TESetSelect, TETextBox, teFlushDefault, TECalText, TEUpdate } from './TextEdit.ts';
 import { BeginUpdate, CloseWindow, dBoxProc, dialogKind, EndUpdate, eventWindow, FindWindow, FrontWindow, GetWindowList, inContent, inFront, newWindow, SetWinColor, ShowWindow, WindowRecord } from './Windows.ts';
 import { type Integer, type LongInt, type Rect, type Ref, ref } from './Types.ts';
 
@@ -168,6 +169,7 @@ export function newDialog(
 			if (kind & editText && d.editField < 0) {
 				d.editField = i;
 				d.textH = TENew(it.rect, it.rect);
+				TEAutoView(true, d.textH);
 				d.textH.hText = handle;
 				TECalText(d.textH);
 				TESetSelect(0, 32767, d.textH);
@@ -336,6 +338,7 @@ function setEditField(d: DialogRecord, index: number): void {
 		TEDeactivate(d.textH);
 	}
 	const te = d.textH ?? TENew(it.rect, it.rect);
+	TEAutoView(true, te);
 	te.destRect = { ...it.rect };
 	te.viewRect = { ...it.rect };
 	te.hText = it.handle as Handle;
@@ -509,6 +512,8 @@ async function handleEvent(d: DialogRecord, ev: EventRecord, modal: boolean): Pr
 				return 0;
 			}
 			if (d.editField >= 0 && d.textH !== null) {
+				// Typing hides the cursor until the mouse moves (seen in the oracle).
+				ObscureCursor();
 				const save = thePort;
 				SetPort(d);
 				TEKey(ev.message & 0xff, d.textH);

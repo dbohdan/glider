@@ -36,10 +36,35 @@ export interface MachineConfig {
 	keyBoardType: Integer;
 	/** The System version, as SysEnvirons reports it ($0608 for System 6.0.8). */
 	systemVersion: Integer;
+	/**
+	 * From parameter RAM, in ticks: the longest time between the clicks of a double click (low
+	 * memory DoubleTime) and between blinks of the insertion point (CaretTime). The oracle's Macs
+	 * have different settings.
+	 */
+	doubleTime: LongInt;
+	caretTime: LongInt;
 }
 
-export const macPlusConfig: MachineConfig = { machineType: envMacPlus, processor: env68000, hasFPU: false, hasColorQD: false, keyBoardType: envMacPlusKbd, systemVersion: 0x0608 };
-export const macIIConfig: MachineConfig = { machineType: envMacII, processor: env68020, hasFPU: true, hasColorQD: true, keyBoardType: envStandADBKbd, systemVersion: 0x0608 };
+export const macPlusConfig: MachineConfig = {
+	machineType: envMacPlus,
+	processor: env68000,
+	hasFPU: false,
+	hasColorQD: false,
+	keyBoardType: envMacPlusKbd,
+	systemVersion: 0x0608,
+	doubleTime: 20,
+	caretTime: 12,
+};
+export const macIIConfig: MachineConfig = {
+	machineType: envMacII,
+	processor: env68020,
+	hasFPU: true,
+	hasColorQD: true,
+	keyBoardType: envStandADBKbd,
+	systemVersion: 0x0608,
+	doubleTime: 32,
+	caretTime: 32,
+};
 
 let machine: MachineConfig = macPlusConfig;
 

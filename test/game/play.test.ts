@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { everyTickScript, playScript, steerScript } from '../../oracle/cases.ts';
+import { everyTickScript, playScript, steerScript, tourScript } from '../../oracle/cases.ts';
 import { writePNG } from '../../oracle/Image.ts';
 import { cacheDir } from '../../oracle/Oracle.ts';
 import { differences, oracleOutput, oracleRunAvailable, oracleShot, writeComparison } from '../toolbox/machine.ts';
@@ -19,6 +19,8 @@ for (const [kind, caseName, makeScript, what] of [
 	['ii', 'playColor', playScript, 'a game plays'],
 	['plus', 'steer', steerScript, 'a game steered with the keys plays'],
 	['ii', 'steerColor', steerScript, 'a game steered with the keys plays'],
+	['plus', 'tour', tourScript, 'a long flight through the house plays'],
+	['ii', 'tourColor', tourScript, 'a long flight through the house plays'],
 	['plus', 'everyTick', everyTickScript, 'every tick of the alert going away and a game starting looks'],
 	['ii', 'everyTickColor', everyTickScript, 'every tick of the alert going away and a game starting looks'],
 ] as const) {
