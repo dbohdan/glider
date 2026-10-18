@@ -1,6 +1,10 @@
 // Oracle cases: scripted sessions with the original game.
 
-import { alternateScreenFile, glider406, macII, macPlus, makeDisk, type RunResult, run } from './Oracle.ts';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { MacFile } from '../src/mac/MacBinary.ts';
+import { parseDeRez } from '../tools/DeRez.ts';
+import { alternateScreenFile, editResources, glider406, macII, macPlus, makeDisk, oracleDir, type RunResult, run } from './Oracle.ts';
 import { Script } from './Script.ts';
 
 export const cases: Record<string, (dir: string) => RunResult> = {
@@ -57,6 +61,20 @@ export const cases: Record<string, (dir: string) => RunResult> = {
 		return run(macII, dialogScript(), disk, dir);
 	},
 
+	/** A game on a Mac Plus, as the port plays it: a fast CPU, and Glider 4.05's preferences. */
+	play(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...withPrefs405(), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, playScript(), disk, dir);
+	},
+
+	/** A game on a Mac II, as the port plays it. */
+	playColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, withPrefs405(), 'Glider 4.06');
+		return run(macII, playScript(), disk, dir);
+	},
+
 	/** Pull down Glider's menus on a Mac II. */
 	menusColor(dir) {
 		const disk = dir + '.dsk';
@@ -105,5 +123,29 @@ function dialogScript(): Script {
 	s.mouse(20, 10).wait(5).button(true).wait(15).mouse(40, 28).wait(15).button(false).wait(120).shot('about');
 	s.wait(100).shot('about2');
 	s.press('return').wait(60).shot('aboutClosed');
+	return s;
+}
+
+/**
+ * Glider 4.06's files with Glider 4.05's preferences (from Glider_405/Glider.r), so that the game
+ * starts in the same state as the port's.
+ */
+function withPrefs405(): MacFile[] {
+	const prefs = parseDeRez(readFileSync(join(oracleDir, '..', 'Glider_405', 'Glider.r'))).get('Gprf', 128)!;
+	return [...glider406().values()].map((f) => (f.name === 'Glider 4.06' ? editResources(f, (rf) => rf.put({ ...prefs })) : f));
+}
+
+/**
+ * Starts a game the way the boot case does, with a CPU fast enough (32 times the instructions per
+ * tick) that loading takes no time, as in the port; then follows it for 10 seconds.
+ */
+export function playScript(): Script {
+	const s = new Script();
+	s.speed(5);
+	s.until(900).shot('alert').press('return').wait(60).shot('title');
+	s.press('n', 'command');
+	for (let t = 0; t < 20; t++) {
+		s.wait(30).shot(`game${t}`);
+	}
 	return s;
 }

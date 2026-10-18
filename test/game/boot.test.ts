@@ -5,22 +5,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { type Image, writePNG } from '../../oracle/Image.ts';
+import { writePNG } from '../../oracle/Image.ts';
 import { cacheDir } from '../../oracle/Oracle.ts';
-import { renderScreen } from '../../src/platform/Screen.ts';
 import { differences, oracleRunAvailable, oracleShot, writeComparison } from '../toolbox/machine.ts';
-import { bootGlider, type GameRun, runGlider } from './harness.ts';
-
-function screen(run: GameRun): Image {
-	const { width, height } = run.machine;
-	const rgba = new Uint8ClampedArray(width * height * 4);
-	renderScreen(run.machine, rgba, true);
-	const rgb = new Uint8Array(width * height * 3);
-	for (let i = 0; i < width * height; i++) {
-		rgb.set(rgba.subarray(i * 4, i * 4 + 3), i * 3);
-	}
-	return { width, height, rgb };
-}
+import { bootGlider, runGlider } from './harness.ts';
 
 for (const [kind, caseName, shot, tick] of [
 	['plus', 'boot', 'alert', 900],
@@ -29,7 +17,7 @@ for (const [kind, caseName, shot, tick] of [
 	test(`Glider starts up as the original does on a ${kind === 'plus' ? 'Mac Plus' : 'Mac II'}`, { skip: oracleRunAvailable(caseName) ? false : `the oracle has not run "${caseName}"` }, async () => {
 		const run = bootGlider(kind);
 		await runGlider(run, tick);
-		const ours = screen(run);
+		const ours = run.shot(true);
 		const rom = oracleShot(caseName, shot);
 		const d = differences(ours, rom, [[0, 0, ours.width, ours.height]]);
 		if (d.length > 0) {

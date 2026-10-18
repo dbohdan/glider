@@ -200,7 +200,8 @@ do {
 - [ ] **8. Sound:** SMS reimplementation.
 - [ ] **9. Glider:** port the 11 units.
   - [x] All units translated (`src/glider/`); Glider starts up on both machines exactly as the original does (`test/game/`).
-  - [ ] Play: compare the title screen's idle animations, a game, and the dialogs with the oracle; mouse control (Pointer Lock and the program's mouse warping).
+  - [x] A game plays exactly as the original's: the oracle's `play` and `playColor` cases replayed on the port give identical screens through 10 seconds of play on both machines.
+  - [ ] Play with input: compare steering, items, and the in-game dialogs with the oracle; mouse control (Pointer Lock and the program's mouse warping).
 - [ ] **10. Launcher page:** house library, settings, credits, manual.
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
@@ -325,3 +326,13 @@ Run headless on the platform's machine (`test/game/`), it starts up exactly as t
 - Glider seeds `Random` from the clock (`GetDateTime(RandSeed)`), so runs repeat only with a fixed start date; the harness uses 1992-02-01.
 - ModalDialog leaves other windows' update events pending, as System 6 does, so during the startup alert `GetNextEvent` returns the main window's update again and again. On a Mac that loop takes time; in the port it took none and hung. Each event `GetNextEvent` returns now costs a millisecond of the machine's time.
 - Left for later, from the workers' reports: `ResetAnimate` is async only because the analysis took the field `delay` for the `Delay` call; `HorizonMouse` and `CenterMouse` warp the mouse through low memory, which the platform must turn into pointer movement; small helpers the workers added locally (`varOf` for passing `G` fields as `var` parameters, `HiWrd`, `SystemClick`, `kHMHelpMenuID`) belong in the Toolbox.
+
+### 2026-10-18 (play)
+
+A game plays exactly as the original's.
+The oracle's new `play` and `playColor` cases start a game with Glider 4.05's preferences (taken from `Glider_405/Glider.r`) on an emulated CPU 32 times as fast, so that loading takes no time, as in the port, and follow it for 10 seconds: the glider drops from the ceiling to the floor three times.
+The port replays the same `Script` (`replay` in `test/game/harness.ts`), and all 22 screenshots are identical on both machines (`test/game/play.test.ts`, under two seconds).
+
+- At first the oracle's glider was 6 pixels, two frames, higher in every screenshot, and its title screen showed another demo. The suspected cause, Mini vMac pulling the mouse back after Glider's `CenterMouse`, was wrong: the emulator only sets the mouse when the script moves it.
+- The real cause is input latency. Mini vMac passes key transitions to the Mac through its event queue and the Mac's keyboard or ADB polling, so the program sees a scripted key a few ticks after the script presses it; the port's input is instant. Delaying the replayed keys gives identical games with 4 or 5 ticks and identical title screens with 4 or more (Mac Plus) or 5 or more (Mac II). The harness delays keys by 5 ticks (`oracleKeyLatency`).
+- So the demo on the title screen was never a `Random` difference: it depends on when the alert is dismissed.
