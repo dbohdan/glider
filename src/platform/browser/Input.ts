@@ -104,7 +104,7 @@ export function attachInput(o: InputOptions): void {
 		if (code >= 0x37 && code <= 0x3b) {
 			keysDown[code] = false;
 		} else {
-			hostKeyUp(code, charCodeOf(e));
+			hostKeyUp(code);
 		}
 		o.wake();
 	});

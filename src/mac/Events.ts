@@ -110,9 +110,12 @@ export function hostKeyDown(code: number, charCode: number): void {
 	lastKey = { message, code, next: TickCount() + keyThresh };
 }
 
-export function hostKeyUp(code: number, charCode: number): void {
+/**
+ * Port: called by the host when a key comes up. The system event mask (SysEvtMask) leaves key-up
+ * events out of the queue, so a key's release only changes the KeyMap.
+ */
+export function hostKeyUp(code: number): void {
 	keysDown[code] = false;
-	postOSEvent(4, (code << 8) | charCode);
 	if (lastKey?.code === code) {
 		lastKey = null;
 	}
@@ -130,8 +133,7 @@ function nextEvent(mask: Integer, remove: boolean): EventRecord | null {
 			return e;
 		}
 	}
-	// keyUp events are not posted by default (the system event mask), so they are not reported.
-	const os = takeOSEvent(mask & ~(1 << 4), remove);
+	const os = takeOSEvent(mask, remove);
 	if (os !== null) {
 		return fromOS(os);
 	}

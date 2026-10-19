@@ -50,7 +50,7 @@ for (const [m, caseName, shot] of [
 			ours = machine.shot();
 		});
 		machine.host.at(31, () => hostKeyDown(0x24, 13));
-		machine.host.at(33, () => hostKeyUp(0x24, 13));
+		machine.host.at(33, () => hostKeyUp(0x24));
 		const item = await genericAlert(33);
 		assert.equal(item, 1);
 		assert.ok(ours !== undefined);
@@ -118,7 +118,7 @@ for (const [m, caseName] of [
 			ours = machine.shot();
 		});
 		machine.host.at(31, () => hostKeyDown(0x24, 13));
-		machine.host.at(33, () => hostKeyUp(0x24, 13));
+		machine.host.at(33, () => hostKeyUp(0x24));
 		const d = soundSettings(m === macII);
 		const item = await ModalDialog(null);
 		DisposDialog(d);

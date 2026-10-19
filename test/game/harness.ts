@@ -436,7 +436,7 @@ export function replay(run: GameRun, script: Script, trace?: OracleTrace): { sho
 					} else if (down) {
 						hostKeyDown(mac, charCodeOf(name, keysDown[0x38]!));
 					} else {
-						hostKeyUp(mac, charCodeOf(name, keysDown[0x38]!));
+						hostKeyUp(mac);
 					}
 				}, true);
 				break;
