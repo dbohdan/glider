@@ -447,9 +447,9 @@ export function houseEndScript(): Script {
  * whose dialog lists only it; the run keeps the saved game. The dialog takes the keys still in the
  * event queue before those typed into it, the period that flew the glider and the S of Command-S
  * (Glider reads the keys with GetKeys and leaves their events), so the game is saved as ".sGame",
- * in the disk's root, Standard File's directory. A screenshot every half second, but none while a
- * dialog of Standard File is up, which the port replaces with the page's. With `probe`, the
- * emulator also reports the traps the program calls from just before each dialog to after it.
+ * in the disk's root, Standard File's directory. A screenshot every half second, and of each dialog
+ * of Standard File. With `probe`, the emulator also reports the traps the program calls from just
+ * before each dialog to after it.
  */
 export function savedGameScript(probe = false): Script {
 	const s = new Script();
@@ -464,7 +464,7 @@ export function savedGameScript(probe = false): Script {
 	if (probe) {
 		s.traceTraps(true);
 	}
-	s.press('s', 'command').wait(60).type('Game').press('return');
+	s.press('s', 'command').wait(60).shot('saveDialog').type('Game').wait(10).shot('saveTyped').press('return');
 	for (let t = 0; t < 10; t++) {
 		s.wait(30).shot(`s${t}`);
 		if (probe && t === 1) {
@@ -479,7 +479,7 @@ export function savedGameScript(probe = false): Script {
 		s.traceTraps(true);
 	}
 	s.mouse(60, 10).wait(5).button(true).wait(15).mouse(60, 92).wait(15).button(false).wait(60); // Game > Load Game…
-	s.press('return');
+	s.shot('openDialog').press('return');
 	for (let t = 0; t < 20; t++) {
 		s.wait(30).shot(`l${t}`);
 		if (probe && t === 1) {
@@ -591,7 +591,7 @@ export function loadHouseScript(): Script {
 	s.speed(8).traceKeys();
 	s.until(900).press('return').wait(60);
 	s.mouse(60, 10).wait(5).button(true).wait(15).mouse(60, 44).wait(15).button(false).wait(60); // Game > Load House…
-	s.press('return').wait(30).press('down').wait(30).press('return').wait(60).shot('notFirst');
+	s.shot('root').press('return').wait(30).shot('systemFolder').press('down').wait(30).shot('selected').press('return').wait(60).shot('notFirst');
 	s.press('return');
 	for (let t = 0; t < 20; t++) {
 		s.wait(30).shot(`game${t}`);
