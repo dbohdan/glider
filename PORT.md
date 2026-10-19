@@ -48,8 +48,10 @@ Do not relitigate these without discussing them first.
     The repo's unlocked working copy ships as "The House (July 1991)".
     Fan-made houses from the web are not bundled; an importer for archives (BinHex, MacBinary, StuffIt) comes later.
 11. **Third-party binary libraries** (Buckland's SMS sound code, Jon Wind's About… library) are reimplemented from their interfaces and observed behavior, not translated.
+    Their code may be read (SMS's was disassembled) to learn exactly what they do.
 12. **Commercial files** (other Glider releases, manuals, ROMs, System software) are never committed.
     The oracle setup fetches them.
+13. **What the browser keeps:** only the player's part of the game's files, Glider's preferences and each bundled house's high scores, so that the game's files stay ours to update; files the player makes (saved games, their own houses) are kept whole.
 
 ## Translation conventions
 
@@ -212,6 +214,7 @@ do {
 - [ ] **10. Launcher page:** house library, settings, credits, manual.
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
+  - Switching between the game and the editor at Quit, through a page dialog like the house picker's.
 
 ## Open questions
 
@@ -436,3 +439,4 @@ SMS, Glider's sound library, came as 68000 object code in MPW's object format (`
 
 The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to TickCount when the program calls SMS or the platform asks for sound, and gives each tick's samples to the platform in the order they are heard. The tour and the random games now record their sound, and every tick of it matches on both machines.
 - In the browser, game sounds were silent when the page came over plain HTTP from another machine (the person's setup): browsers give audio worklets only to secure pages. The page now plays each animation frame's samples as a buffer at the Mac's rate, after those before, which works on any page.
+- The browser keeps only the player's part of the game's files (settled decision 13): Glider's 'Gprf' resource and the high scores of bundled houses, put back into the bundled files at start. Before, it kept every changed file whole, so a stored copy of the application hid any later change to the port's resources. Old records are read for their player's part.
