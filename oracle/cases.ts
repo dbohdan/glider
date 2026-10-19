@@ -321,6 +321,23 @@ export function houseFrom(first: number): Uint8Array {
 	return bytes;
 }
 
+/**
+ * The House cut to its first room, which opens on the right, with `nextFile` as the file that
+ * follows it: flying out of the room loads the next file, or with none ends the game with the
+ * closing animation (AdvanceARoom).
+ */
+export function houseOfOneRoom(nextFile: string): Uint8Array {
+	const bytes = new Uint8Array(readFileSync(join(oracleDir, '..', 'assets', 'houses', 'The House')));
+	const house = readLayout(houseRecLayout, bytes, 0);
+	house.numberORooms = 1;
+	house.nextFile = nextFile;
+	writeLayout(houseRecLayout, house, bytes, 0);
+	return bytes;
+}
+
+/** Houses that end after their first room, by the file that follows them (see houseOfOneRoom). */
+export const houseEnds: Record<string, string> = { nextHouse: 'The House 2', ending: '' };
+
 /** An object in a test room: its kind (Globals.ts) and where it goes, its size by default its sprite's. */
 type TestObject = [kind: number, left: number, top: number, width: number, height: number];
 
@@ -396,6 +413,45 @@ for (const [name, objects] of Object.entries(maskRooms)) {
 		const disk = dir + '.dsk';
 		makeDisk(disk, gameFiles(houseWith(objects)), 'Glider 4.06');
 		return run(macII, firstRoomScript(), disk, dir);
+	};
+}
+
+/**
+ * Starts a game and flies forward (the period key) for 10 seconds, out of the first room, then lets
+ * go for 40 seconds more: the next file's rooms, or the closing animation and the game's end; types
+ * a name in case of a high score. A screenshot every half second.
+ */
+export function houseEndScript(): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(900).press('return').wait(60);
+	s.press('n', 'command').wait(20);
+	s.key('.', true);
+	for (let t = 0; t < 20; t++) {
+		s.wait(30).shot(`t${t}`);
+	}
+	s.key('.', false);
+	for (let t = 20; t < 100; t++) {
+		s.wait(30).shot(`t${t}`);
+	}
+	s.type('Port').wait(30).shot('typed').press('return');
+	for (let t = 100; t < 110; t++) {
+		s.wait(30).shot(`t${t}`);
+	}
+	return s;
+}
+
+for (const [name, nextFile] of Object.entries(houseEnds)) {
+	/** A house that ends after its first room, on a Mac Plus and on a Mac II. */
+	cases[name] = (dir) => {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...gameFiles(houseOfOneRoom(nextFile)), alternateScreenFile()], 'Glider 4.06');
+		return run(macPlus, houseEndScript(), disk, dir);
+	};
+	cases[`${name}Color`] = (dir) => {
+		const disk = dir + '.dsk';
+		makeDisk(disk, gameFiles(houseOfOneRoom(nextFile)), 'Glider 4.06');
+		return run(macII, houseEndScript(), disk, dir);
 	};
 }
 

@@ -8,7 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { everyTickScript, firstRoomScript, houseFrom, houseWith, maskRooms, interfaceScript, mouseScript, playScript, repeatScript, roomStarts, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, maskRooms, interfaceScript, mouseScript, playScript, repeatScript, roomStarts, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 import { writePNG } from '../../oracle/Image.ts';
@@ -54,6 +54,7 @@ const cases: [MachineKind, Case][] = [
 	...both('wander', () => wanderScript(1), 'a minute of random keys plays'),
 	...roomStarts.flatMap((first) => both(`room${first}`, () => wanderScript(first), `a minute of random keys from room ${first} plays`, () => houseFrom(first))),
 	...Object.entries(maskRooms).flatMap(([name, objects]) => both(name, firstRoomScript, `a test room (${name}) looks`, () => houseWith(objects))),
+	...Object.entries(houseEnds).flatMap(([name, nextFile]) => both(name, houseEndScript, nextFile === '' ? 'the end of the last house plays' : 'going on to the next house file plays', () => houseOfOneRoom(nextFile))),
 	...both('tour', tourScript, 'a long flight through the house plays'),
 	...both('repeats', repeatScript, 'keys held in the high-score dialog repeat'),
 	...both('ui', interfaceScript, "Glider's menus, dialogs, help and a paused game look"),

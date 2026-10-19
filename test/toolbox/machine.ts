@@ -19,9 +19,9 @@ import { useAppleLogo } from './appleLogo.ts';
 // The oracle's screens show the Apple logo where the port draws a diamond.
 useAppleLogo();
 
-/** Whether the oracle has been set up and has run a case. */
+/** Whether the oracle has been set up and has run a case to its end (the output comes last, so a run still going is not). */
 export function oracleRunAvailable(caseName: string): boolean {
-	return existsSync(emulatorPath(macPlus)) && existsSync(join(cacheDir, 'runs', caseName));
+	return existsSync(emulatorPath(macPlus)) && existsSync(join(cacheDir, 'runs', caseName, 'output.txt'));
 }
 
 /** A screenshot the oracle took, as RGB. */
