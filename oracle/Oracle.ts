@@ -241,10 +241,10 @@ export type DiskLayout = 'systemFolder' | 'root';
 
 /**
  * Builds a boot disk holding the System, the Finder, and the given files (in a System Folder, or at
- * the root: `layout`), which launches `startup` at boot instead of the Finder (and without
- * MultiFinder).
+ * the root: `layout`), and empty folders at the root, which launches `startup` at boot instead of
+ * the Finder (and without MultiFinder).
  */
-export function makeDisk(path: string, files: MacFile[], startup: string, megabytes = 8, layout: DiskLayout = 'systemFolder'): void {
+export function makeDisk(path: string, files: MacFile[], startup: string, megabytes = 8, layout: DiskLayout = 'systemFolder', folders: string[] = []): void {
 	const system = systemFiles();
 	mkdirSync(dirname(path), { recursive: true });
 	writeFileSync(path, new Uint8Array(megabytes * 1024 * 1024));
@@ -262,6 +262,9 @@ export function makeDisk(path: string, files: MacFile[], startup: string, megaby
 				hfs('hattrib', '+i', folder + f.name);
 			}
 		});
+		for (const folder of folders) {
+			hfs('hmkdir', ':' + folder);
+		}
 		hfs('hattrib', '-b', layout === 'root' ? ':' : ':System Folder');
 		hfs('humount');
 	});

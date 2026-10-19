@@ -9,6 +9,7 @@ import { bdfToFontResource, readBdf } from './Bdf.ts';
 import type { VolumeManifest } from '../src/mac/Volume.ts';
 import { parseDeRez } from './DeRez.ts';
 import { applicationIcon } from './Favicon.ts';
+import { desktopFile } from './DesktopResources.ts';
 import { putStandardFileResources } from './SystemResources.ts';
 
 const root = new URL('..', import.meta.url).pathname;
@@ -47,6 +48,8 @@ export function bundledFiles(): MacFile[] {
 			files.push(macFile(name, 'GLhs', 'GLed', bytes, new Uint8Array(0)));
 		}
 	}
+	// The desktop, which plays the Finder's part (PORT.md, decision 16), invisible as the Finder is.
+	files.push(desktopFile(root));
 	return files;
 }
 

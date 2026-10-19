@@ -199,6 +199,7 @@ do {
   Toolbox tests (`test/toolbox/`) boot a simulated Mac with the System and Glider resources from the oracle, run scripted input on a virtual clock, and compare the screen with the oracle's screenshots.
 - **Standard File:** System 6.0.8's PACK 3, read from its code: its dialogs, its own list of files (not the List Manager's), its pop-up and keys, drawn by the port's Toolbox from resources of our own (`tools/SystemResources.ts`).
 - **Cursor:** the program sets the cursor's image and visibility (`src/mac/Cursors.ts`); the platform layer draws it.
+- **Programs:** Glider (`src/glider/`) and the desktop (`src/desktop/`, decision 16), each in a page load of its own, chosen by `?startup=`; the desktop's resources are an invisible file on the volume (`tools/DesktopResources.ts`), and it reaches the page through a small host interface (start a program, open a link, restart).
 
 ## Roadmap
 
@@ -242,7 +243,8 @@ do {
   - Not to be compared: a Mac II started at 256 colors, where Glider asks to switch (`CheckAndSwitch`). The port's Mac II starts at 16 colors, so no player meets that alert.
 - [ ] **10. Standard File and the desktop** (decisions 2 and 16).
   - [x] Standard File's dialogs on the Mac's screen, after System 6.0.8's (DLOG and DITL -3999 and -4000, measured in the oracle, with resources of our own), checked against the oracle during the saved-game and house cases.
-  - [ ] The desktop, after System 6.0.8's Finder (measured in the oracle), with `startup` and Quit.
+  - [x] The desktop, after System 6.0.8's Finder (measured in the oracle), with `startup` and Quit.
+  - [ ] The browser's operations in the desktop's menus: importing houses, exporting the player's files, resetting preferences and scores.
   - [ ] The README: what the port is and is not, credits and licenses, and the precedent below.
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
@@ -530,3 +532,13 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 
 - After the oracle was recorded again, room 9's high-score dialog differed by a caret: the port's was on, the original's off. Every tick of the original (shots spliced into the case's script) showed its caret blinking every 12 ticks, through the period's repeats. A trap trace of those ticks showed why the earlier recording had matched by chance: in some ticks TEIdle's TickCount read the new tick before GetNextEvent made the repeat, and in others the repeat came first, depending on where Glider's ModalDialog loop was when the tick began.
 - The emulator's `autokey` line now ends with how many times the program had called TickCount in that tick; 0 means the repeat came first. The harness passes those ticks to the port (`repeatBeforeClock`, a host method the browser does not have), and in them the port's ModalDialog lets TEIdle wait for the repeat. The port's own loop has the same race: an update event left pending comes back every millisecond, so a tick can begin between GetNextEvent and TEIdle.
+
+### 2026-10-19 (the desktop)
+
+- MiniFinder was not System 6's: the Finders of System 5.0 and 6.0 have none, and System 4.1's Finder installs it ("Use MiniFinder…", measured on a System 4.1 disk from Infinite Mac's library). With no menu bar and two plain windows of buttons, it was dropped for System 6.0.8's Finder desktop (decision 16).
+- The desktop (`src/desktop/Desktop.ts`) shows Glider 4.0, the Room Editor and Source Code on the Finder's desktop, measured in a new oracle case (`desktop`): the Finder booted without MultiFinder, the files dragged from the disk's window and cleaned up. Icons are drawn through their masks, names in Geneva 9 in a box 4 pixels wider than the name, a selection inverts both, and a click anywhere in an icon's square selects it (a click in a hole of Glider's mask did, in the oracle). The tests compare each icon with the Finder's one place lower (the Finder's column starts with the disk).
+- Opening an icon zooms as the Finder does. A trap trace during the zoom found its `FrameRect` calls; a RAM dump gave the routine (12 rectangles, a fraction of the way from 176/10000 growing by 7/5, one a tick, erased four later) and, off the stack, its arguments: the icon's rectangle and the screen's. A fit to the screenshots before that had put the zoom's end outside the screen. The port's zoom matches the oracle's rectangle for rectangle.
+- Shut Down is System 6.0.8's (a system error alert, `DSAT` 2, drawn without the Dialog Manager), measured in a case of its own (`shutDown`) and matched but for the words and the icon.
+- The page chooses the program with `?startup=` (`desktop`, or Glider by default); quitting Glider loads the desktop's page, and opening Glider on the desktop loads Glider's, each a fresh Mac. The desktop paints the desktop through a new `DeskHook` in the Window Manager, as the Finder does.
+- The desktop names its icons in Geneva 9: the port's System now has it as "Glinda" (decision 8).
+

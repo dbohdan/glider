@@ -38,3 +38,37 @@ With no menu bar for the browser's own operations, and two plain windows of butt
 **06.** System 6.0.8's Shut Down on a Mac Plus: the same words, another icon, and Restart at the right. The port's says "You may now close this window safely." A Mac II, whose power the Mac can switch off, just turns off.
 
 ![System 6.0.8's shut down screen](06-shut-down-system-6.0.8-plus.png)
+
+## The Finder, measured
+
+The oracle's case `desktop` boots System 6.0.8 into the Finder (without MultiFinder) with Glider 4.0, the Room Editor and a Source Code folder on its disk, drags them out of the disk's window onto the desktop, and cleans up.
+
+**07.** The Finder's desktop after Clean Up: a column 56 pixels in from the right edge, a place every 64 pixels from 28 down, the disk first and the Trash last. Each icon is drawn through its mask (the gray shows around it, and in the holes of Glider's), with its name in Geneva 9 in a white box 4 pixels wider than the name.
+
+![The Finder's desktop with Glider 4.0, the Room Editor and Source Code](07-finder-desktop-cleaned-up-plus.png)
+
+**08.** Opening Glider: the zoom, a tick after it began. The Finder's routine was read from a RAM dump (found with a trap trace of `FrameRect`): twelve dotted rectangles between the icon and the screen, a fraction of the way that starts at 176/10000 and grows by 7/5, one a tick, each erased four ticks later. Before the arguments were read off the stack, a fit put the end of the zoom at a rectangle well outside the screen; the true end is the screen itself, reached at a fraction of about 0.7.
+
+![The Finder's zoom as Glider opens](08-finder-zoom-opening-glider-plus.png)
+
+## The port's desktop
+
+**09.** The port's desktop on a Mac Plus: the Finder's desktop with the three icons alone, Glider in the disk's place, and a menu bar of its own. The tests compare each icon and name with the Finder's, a place lower, and the zoom rectangle for rectangle.
+
+![The port's desktop on a Mac Plus](09-port-desktop-plus.png)
+
+**10.** Glider selected on the Mac II: the icon inverted inside its mask, the name white on black. A click anywhere in the icon's square selects it, holes in its mask included, as in the Finder: the first version tested the mask, and on the Mac II a click between Glider's glider and its base did nothing.
+
+![Glider selected on the Mac II](10-port-desktop-glider-selected-mac-ii.png)
+
+**11.** About the Desktop…, an alert with Glider's icon.
+
+![About the Desktop](11-port-about-the-desktop-plus.png)
+
+**12.** Shut Down: System 6.0.8's last screen, the same to the pixel but for the words and the icon (Glider's, in place of Apple's). Its button's title was a pixel off at first: Chicago's R starts a pixel into its glyph.
+
+![The port's shut down screen](12-port-shut-down-plus.png)
+
+**13.** Source Code's icon, enlarged: System 6's folder, measured in the Finder's window, with the branch graph of Jason Long's Git logo inside it.
+
+![Source Code's icon, enlarged](13-source-code-icon-enlarged.png)

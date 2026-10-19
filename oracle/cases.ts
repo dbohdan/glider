@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { MacFile } from '../src/mac/MacBinary.ts';
-import type { ResourceFork } from '../src/mac/ResourceFork.ts';
+import { type ResourceFork, writeResourceFork } from '../src/mac/ResourceFork.ts';
 import { houseRecLayout } from '../src/glider/Globals.ts';
 import { readLayout, writeLayout } from '../src/mac/PascalLayout.ts';
 import { bundledFiles } from '../tools/build-resources.ts';
@@ -925,3 +925,68 @@ export function interfaceScript(): Script {
 	s.press('tab').wait(60).shot('resumed').wait(60).shot('resumed2');
 	return s;
 }
+
+/**
+ * The files for the desktop's cases: Glider (4.05's resources) and the Room Editor (1.03's), named as
+ * the port's desktop names them, with their bundles' icons, and a Source Code folder.
+ */
+function desktopFiles(): MacFile[] {
+	const glider = bundledFiles().find((f) => f.name === 'Glider 4.05')!;
+	const editor = parseDeRez(readFileSync(join(oracleDir, '..', 'RoomEditor_103', 'Editor.r')));
+	return [
+		{ ...glider, name: 'Glider 4.0', finderFlags: 0x2000 },
+		{ name: 'Room Editor', type: 'APPL', creator: 'GLed', finderFlags: 0x2000, created: 0, modified: 0, data: new Uint8Array(0), rsrc: writeResourceFork(editor) },
+	];
+}
+
+/**
+ * System 6.0.8's Finder with Glider 4.0, the Room Editor and the Source Code folder dragged from the
+ * disk's window to the desktop and cleaned up, for the port's desktop (PORT.md, decision 16): the
+ * desktop, Glider selected, and every tick of the zoom as Glider opens. The places in the disk's
+ * window are the Finder's own for these files, seen in a screenshot.
+ */
+export function desktopScript(width: number): Script {
+	const s = new Script();
+	s.speed(8);
+	const disk = width - 40;
+	const doubleClick = (h: number, v: number): void => {
+		s.mouse(h, v).wait(5).button(true).wait(3).button(false).wait(3).button(true).wait(3).button(false);
+	};
+	const drag = (h: number, v: number, toV: number): void => {
+		s.mouse(h, v).wait(5).button(true).wait(10).mouse(300, (v + toV) >> 1).wait(10).mouse(disk, toV).wait(10).button(false).wait(60);
+	};
+	s.until(1800);
+	doubleClick(disk, 45);
+	s.wait(120);
+	drag(172, 100, 100);
+	drag(236, 100, 150);
+	drag(38, 110, 200);
+	s.mouse(27, 51).wait(5).button(true).wait(5).button(false).wait(60); // the window's close box
+	s.mouse(250, 300).wait(5).button(true).wait(5).button(false).wait(60); // nothing selected
+	s.mouse(175, 10).wait(5).button(true).wait(20).mouse(200, 27).wait(20).button(false).wait(120); // Special > Clean Up Desktop
+	s.mouse(250, 300).wait(5).button(true).wait(5).button(false).wait(60).shot('desktop');
+	// Glider selected by a click in a hole of its icon's mask, between its glider and its base.
+	s.mouse(width - 40, 109).wait(5).button(true).wait(5).button(false).wait(60).mouse(250, 300).wait(10).shot('selected');
+	doubleClick(width - 40, 100);
+	for (let i = 1; i <= 20; i++) {
+		s.wait(1).shot(`z${i}`);
+	}
+	return s;
+}
+
+cases.desktop = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, desktopFiles(), 'Finder', 8, 'root', ['Source Code']);
+	return run(macPlus, desktopScript(512), disk, dir);
+};
+
+/** System 6.0.8's Finder shutting down a Mac Plus, for the port's desktop's Shut Down. */
+cases.shutDown = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, [], 'Finder', 8, 'root');
+	const s = new Script();
+	s.speed(8).until(1800);
+	s.mouse(175, 10).wait(5).button(true).wait(20).mouse(190, 123).wait(20).button(false).wait(600); // Special > Shut Down
+	s.mouse(250, 300).wait(10).shot('shutDown');
+	return run(macPlus, s, disk, dir);
+};

@@ -30,9 +30,9 @@ Each gallery says how its pictures are laid out.
 
 [![The open dialog on the Mac II](2026-10-19-standard-file/06-open-dialog-second-house-selected-mac-ii.png)](2026-10-19-standard-file/)
 
-**[The desktop](2026-10-19-desktop/)**, 19 October 2026: MiniFinder tried and dropped, and System 6.0.8's Finder measured for the port's desktop.
+**[The desktop](2026-10-19-desktop/)**, 19 October 2026: MiniFinder tried and dropped, System 6.0.8's Finder measured, and the port's desktop, where quitting Glider goes.
 
-[![System 6.0.8's shut down screen](2026-10-19-desktop/06-shut-down-system-6.0.8-plus.png)](2026-10-19-desktop/)
+[![The port's desktop](2026-10-19-desktop/09-port-desktop-plus.png)](2026-10-19-desktop/)
 
 **[Glider for Windows](windows/)**: the 1994 Windows release, for the port's planned Windows look.
 

@@ -370,7 +370,28 @@ function repaintScreen(): void {
 	PaintBehind(windowList, grayRgn);
 }
 
+/**
+ * Low memory DeskHook (Inside Macintosh I-288): a procedure that paints the desktop in place of
+ * the desk pattern, called in the Window Manager's port with the region to paint. The Finder
+ * draws its desktop icons this way.
+ */
+let deskHook: ((rgn: Region) => void) | null = null;
+
+/** Port: sets low memory DeskHook. */
+export function setDeskHook(hook: ((rgn: Region) => void) | null): void {
+	deskHook = hook;
+}
+
 function paintDesktop(rgn: Region): void {
+	if (deskHook !== null) {
+		deskHook(rgn);
+	} else {
+		paintDeskPattern(rgn);
+	}
+}
+
+/** Port: paints a region with the desk pattern (low memory DeskPattern), as the Window Manager does without a DeskHook. */
+export function paintDeskPattern(rgn: Region): void {
 	if (deskCPat !== null && isColorPort(thePort) && thePort.portPixMap.pixelSize > 2) {
 		FillCRgn(rgn, deskCPat);
 	} else {

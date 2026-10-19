@@ -1,6 +1,10 @@
 // Port: the browser page's entry point: loads the volume and the System, boots the machine, shows
-// its screen at an integer scale, and runs Glider.
+// its screen at an integer scale, and runs the program `?startup=` names: Glider (`glider4`, or no
+// parameter) or the desktop (`desktop`). Each program runs in a page load of its own (PORT.md,
+// decision 16): quitting Glider loads the desktop's page, and opening Glider on the desktop loads
+// Glider's.
 
+import { main as desktop, setDesktopHost } from '../../desktop/Desktop.ts';
 import { main as glider } from '../../glider/GameBody.ts';
 import { wantsMouseCapture } from '../../glider/Globals.ts';
 import { ExitToShellSignal, setBeeper } from '../../mac/Toolbox.ts';
@@ -35,8 +39,16 @@ function showMessage(text: string): void {
 	document.body.append(p);
 }
 
+/** The page's address with `startup` set to a program. */
+function startupURL(program: string): string {
+	const url = new URL(location.href);
+	url.searchParams.set('startup', program);
+	return url.href;
+}
+
 async function start(): Promise<void> {
 	const params = new URLSearchParams(location.search);
+	const onDesktop = params.get('startup') === 'desktop';
 	const kind: MachineKind = params.get('machine') === 'plus' ? 'plus' : 'ii';
 	const manifest = (await (await fetch('data/volume.json')).json()) as VolumeManifest;
 	const volume = await loadVolume(manifest, (p) => fetchBytes(`data/${p}`));
@@ -44,7 +56,7 @@ async function start(): Promise<void> {
 	await store.restore(volume);
 	const system = parseResourceFork(await fetchBytes('data/System.rsrc'));
 	const host = new BrowserHost();
-	const machine = bootMachine({ kind, system, volume, application: 'Glider 4.05', host, fileChanged: (f, deleted) => store.save(f, deleted), extendedKeyboard: true });
+	const machine = bootMachine({ kind, system, volume, application: onDesktop ? 'Desktop' : 'Glider 4.05', host, fileChanged: (f, deleted) => store.save(f, deleted), extendedKeyboard: true });
 	setBeeper(beep);
 	const sound = new BrowserSound();
 
@@ -72,17 +84,25 @@ async function start(): Promise<void> {
 	};
 	requestAnimationFrame(frame);
 
+	if (onDesktop) {
+		setDesktopHost({
+			launch: (program) => location.assign(startupURL(program)),
+			openURL: (url) => window.open(url, '_blank', 'noopener'),
+			restart: () => location.reload(),
+		});
+		await desktop();
+		return;
+	}
 	try {
 		await glider();
-		showMessage('Glider has quit.');
 	} catch (e) {
-		if (e instanceof ExitToShellSignal) {
-			showMessage('Glider has quit.');
-		} else {
+		if (!(e instanceof ExitToShellSignal)) {
 			showMessage(`Glider stopped: ${e instanceof Error ? e.message : String(e)}`);
 			throw e;
 		}
 	}
+	// Quitting goes to the desktop, as it went to the Finder.
+	location.assign(startupURL('desktop'));
 }
 
 void start();

@@ -1,0 +1,153 @@
+// The desktop's resource file (PORT.md, decision 16): its icons, Glider 4.0's and the Room Editor's
+// own from their bundles and "Source Code", a System 6 folder with Git's branch mark, and its
+// alerts. The file lies invisible on the port's volume, as the Finder lies in the System Folder.
+
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import type { MacFile } from '../src/mac/MacBinary.ts';
+import { ResourceFork, writeResourceFork } from '../src/mac/ResourceFork.ts';
+import { encodeMacRoman } from '../src/mac/MacRoman.ts';
+import { parseDeRez } from './DeRez.ts';
+
+/** The desktop's file on the volume. */
+export const desktopFileName = 'Desktop';
+
+/** Icon IDs: Glider 4.0, the Room Editor, and Source Code. */
+export const gliderIconID = 128;
+export const editorIconID = 129;
+export const sourceIconID = 130;
+
+/**
+ * Source Code's icon and mask, as rows of 32 pixels ('#' black). The folder is System 6's (measured
+ * from the Finder's window in the oracle, where it is drawn on white); the mark inside is the
+ * branch graph of Jason Long's Git logo (CC BY 3.0): two commits on a line and a branch to a third.
+ */
+const sourceIcon = [
+	'................................',
+	'................................',
+	'................................',
+	'................................',
+	'................................',
+	'................................',
+	'................................',
+	'.....#######....................',
+	'....#.......#...................',
+	'...#.........#..................',
+	'..#...........#.................',
+	'.#############################..',
+	'#.............................#.',
+	'#........##.........##........#.',
+	'#.......####.......####.......#.',
+	'#.......####.......####.......#.',
+	'#........##.........##........#.',
+	'#........##........##.........#.',
+	'#........##.......##..........#.',
+	'#........##......##...........#.',
+	'#........##.....##............#.',
+	'#........##....##.............#.',
+	'#........##...##..............#.',
+	'#........##..##...............#.',
+	'#........##.##................#.',
+	'#........####.................#.',
+	'#........##...................#.',
+	'#.......####..................#.',
+	'#.......####..................#.',
+	'#........##...................#.',
+	'#.............................#.',
+	'###############################.',
+];
+
+/** The folder's shape: everything inside its outline. */
+const sourceMask = [
+	'................................',
+	'................................',
+	'................................',
+	'................................',
+	'................................',
+	'................................',
+	'................................',
+	'.....#######....................',
+	'....#########...................',
+	'...###########..................',
+	'..#############.................',
+	'.#############################..',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+	'###############################.',
+];
+
+function bits(rows: string[]): number[] {
+	const out: number[] = [];
+	for (const row of rows) {
+		for (let i = 0; i < 32; i += 8) {
+			out.push(parseInt(row.slice(i, i + 8).replace(/#/g, '1').replace(/\./g, '0'), 2));
+		}
+	}
+	return out;
+}
+
+function word(v: number): number[] {
+	return [(v >> 8) & 0xff, v & 0xff];
+}
+
+/** A 'DITL' of buttons (4), static text (8, disabled 136) and icons (32, disabled 160). */
+function ditl(items: [type: number, rect: [number, number, number, number], data: number[]][]): Uint8Array {
+	const out: number[] = [...word(items.length - 1)];
+	for (const [type, rect, data] of items) {
+		out.push(0, 0, 0, 0, ...rect.flatMap(word), type, data.length, ...data);
+		if (data.length & 1) {
+			out.push(0);
+		}
+	}
+	return new Uint8Array(out);
+}
+
+function text(s: string): number[] {
+	return [...encodeMacRoman(s)];
+}
+
+/** The desktop's resource file, read from the original applications' resources. */
+export function desktopFile(root: string): MacFile {
+	const rf = new ResourceFork();
+	const put = (type: string, id: number, data: Uint8Array | number[]) => rf.put({ type, id, name: null, attrs: 0, data: new Uint8Array(data) });
+	const glider = parseDeRez(readFileSync(join(root, 'Glider_405/Glider.r')));
+	const editor = parseDeRez(readFileSync(join(root, 'RoomEditor_103/Editor.r')));
+	// Each application's own icon: its bundle's FREF for 'APPL' names ICN# 128 (local ID 0).
+	put('ICN#', gliderIconID, glider.get('ICN#', 128)!.data);
+	put('ICN#', editorIconID, editor.get('ICN#', 128)!.data);
+	put('ICN#', sourceIconID, [...bits(sourceIcon), ...bits(sourceMask)]);
+	// The alerts' icon: Glider's, the black and white half of its ICN#.
+	put('ICON', gliderIconID, glider.get('ICN#', 128)!.data.slice(0, 128));
+	// The Room Editor, not yet ported: a note alert, 1 beep, OK.
+	put('ALRT', 128, [...word(80), ...word(96), ...word(166), ...word(416), ...word(128), 0x55, 0x55]);
+	put('DITL', 128, ditl([
+		[4, [56, 238, 76, 308], text('OK')],
+		[136, [10, 72, 46, 308], text('The Room Editor has not been ported yet.')],
+		[160, [10, 20, 42, 52], word(gliderIconID)],
+	]));
+	// About the Desktop…: a note alert, OK.
+	put('ALRT', 129, [...word(70), ...word(76), ...word(196), ...word(436), ...word(129), 0x55, 0x55]);
+	put('DITL', 129, ditl([
+		[4, [96, 278, 116, 348], text('OK')],
+		[136, [10, 72, 90, 348], text('Glider 4.0, by John Calhoun, \u00a9 1991 Casady & Greene, ported to run in a web browser. Its source code, and the port\u2019s, are at github.com/dbohdan/glider.')],
+		[160, [10, 20, 42, 52], word(gliderIconID)],
+	]));
+	return { name: desktopFileName, type: 'FNDR', creator: 'GLD4', finderFlags: 0x4000, created: 0, modified: 0, data: new Uint8Array(0), rsrc: writeResourceFork(rf) };
+}
