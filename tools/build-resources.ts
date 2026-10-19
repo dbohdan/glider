@@ -52,13 +52,18 @@ export function bundledFiles(): MacFile[] {
 
 /**
  * The port's System file: what Glider uses of the System's resources, made by the port. The system
- * font is Ozma (Chicago 12's glyphs); the desktop pattern is 50% gray.
+ * font is Ozma (Chicago 12's glyphs), the application font Glinda (Geneva 9's); the desktop pattern
+ * is 50% gray.
  */
 export function systemFork(): ResourceFork {
 	const rf = new ResourceFork();
 	const ozma = bdfToFontResource(readBdf(readFileSync(join(root, 'assets/fonts/Ozma-12.bdf'), 'latin1')));
 	rf.put({ type: 'FONT', id: 0, name: 'Chicago', attrs: 0, data: new Uint8Array(0) });
 	rf.put({ type: 'FONT', id: 12, name: null, attrs: 0, data: ozma });
+	// The application font, Geneva (family 3), in the size the desktop names its icons in.
+	const glinda = bdfToFontResource(readBdf(readFileSync(join(root, 'assets/fonts/Glinda-9.bdf'), 'latin1')));
+	rf.put({ type: 'FONT', id: 3 * 128, name: 'Geneva', attrs: 0, data: new Uint8Array(0) });
+	rf.put({ type: 'FONT', id: 3 * 128 + 9, name: null, attrs: 0, data: glinda });
 	const gray = [0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55];
 	rf.put({ type: 'PAT ', id: 16, name: null, attrs: 0, data: new Uint8Array(gray) });
 	// The scroll bars' track (CDEF 1): System 6.0.8's PAT 17.

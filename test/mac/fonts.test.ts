@@ -50,3 +50,22 @@ test('Ozma draws every character as System 6.0.8 Chicago 12 does', { skip: exist
 		assert.equal(glyphKey(ozma, ch), glyphKey(chicago, ch), `character ${ch}`);
 	}
 });
+
+const glindaText = readFileSync(new URL('../../assets/fonts/Glinda-9.bdf', import.meta.url), 'utf8');
+const glinda = parseFontStrike(bdfToFontResource(readBdf(glindaText)));
+
+test('Glinda survives BDF to FONT and back', () => {
+	const again = writeBdf(strikeToBdf(glinda, 'Glinda-9', 'Glinda', 9), []);
+	const strip = (t: string) => t.split('\n').filter((l) => !l.startsWith('COMMENT')).join('\n');
+	assert.equal(strip(again), strip(glindaText));
+});
+
+test('Glinda draws every character as System 6.0.8 Geneva 9 does', { skip: existsSync(join(cacheDir, 'System 6.0.8 HD.dsk')) ? false : 'the oracle is not set up (make oracle)' }, () => {
+	const geneva = parseFontStrike(parseResourceFork(systemFiles().find((f) => f.name === 'System')!.rsrc).get('FONT', 3 * 128 + 9)!.data);
+	for (const key of ['ascent', 'descent', 'leading', 'widMax', 'kernMax', 'fRectHeight'] as const) {
+		assert.equal(glinda[key], geneva[key], key);
+	}
+	for (let ch = 0; ch < 256; ch++) {
+		assert.equal(glyphKey(glinda, ch), glyphKey(geneva, ch), `character ${ch}`);
+	}
+});
