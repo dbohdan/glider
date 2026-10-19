@@ -518,6 +518,15 @@ LOCALVAR blnr KeyMapTrace = falseblnr;
 */
 LOCALVAR unsigned long KeyCheckTick = (unsigned long)-1;
 
+/*
+	How many times the program has called TickCount in the tick: a repeat
+	made before any came before the program's loop saw the new tick (TEIdle
+	reads the clock with TickCount, and whether a caret's blink or a repeat
+	comes first in a tick depends on where the loop is as the tick begins).
+*/
+LOCALVAR unsigned long ClockTick = (unsigned long)-1;
+LOCALVAR unsigned long ClockReads = 0;
+
 /* Called by the CPU (see build-minivmac.sh) as it takes an A-line trap. */
 void ALineTrap(unsigned long pc, unsigned long opcode, unsigned long d0)
 {
@@ -540,6 +549,13 @@ void ALineTrap(unsigned long pc, unsigned long opcode, unsigned long d0)
 	}
 	TraceWatches();
 	TraceAutoKey();
+	if (0xA975 == opcode) { /* TickCount */
+		if (tick != ClockTick) {
+			ClockTick = tick;
+			ClockReads = 0;
+		}
+		++ClockReads;
+	}
 
 	if ((2 == TrapTrace) || ((1 == TrapTrace) && (pc < kRAM_Size))) {
 		if ((0 != TrapCount) && ((tick != TrapTick) || (pc != TrapPC)
@@ -661,6 +677,7 @@ LOCALPROC TraceApp(unsigned long tick)
 	it makes one, and the keyboard driver sets it, with KeyLast ($184), when
 	a key goes down. A change of KeyRepTime with KeyLast unchanged is a
 	repeat; it tells whether a key that came in the same tick came first.
+	The line ends with the TickCount calls made before it in the tick.
 */
 LOCALVAR ui5r LastKeyRepTime = 0;
 LOCALVAR ui4r LastKeyLast = 0;
@@ -673,8 +690,9 @@ LOCALPROC TraceAutoKey(void)
 	if (KeyMapTrace && (keyRepTime != LastKeyRepTime)
 		&& (keyLast == LastKeyLast) && (0 != keyLast))
 	{
-		printf("autokey %lu %04X\n", (unsigned long)TrueEmulatedTime,
-			(unsigned)keyLast);
+		printf("autokey %lu %04X %lu\n", (unsigned long)TrueEmulatedTime,
+			(unsigned)keyLast,
+			(ClockTick == TrueEmulatedTime) ? ClockReads : 0UL);
 		fflush(stdout);
 	}
 	LastKeyRepTime = keyRepTime;

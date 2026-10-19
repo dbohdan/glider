@@ -12,6 +12,13 @@ export interface Host {
 	now(): number;
 	/** Resolves when the time reaches `ms`, or earlier when input arrives. */
 	sleep(ms: number): Promise<void>;
+	/**
+	 * Whether a key's repeat in this tick comes before the program's loop reads the new tick's
+	 * clock. On a Mac it depends on where the loop is as the tick begins, and varies from tick to
+	 * tick; a test that follows the oracle says what its trace shows. Without it, the clock comes
+	 * first.
+	 */
+	repeatBeforeClock?(tick: number): boolean;
 }
 
 /** Ticks per second: the 60.15 Hz vertical blanking of the compact Macs' screens. */

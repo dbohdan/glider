@@ -3,9 +3,10 @@
 
 import { GetMainDevice, parseColorTable } from './Color.ts';
 import { ControlRecord, checkBoxProc, Draw1Control, DrawControls, HiliteControl, inButton, NewControl, GetNewControl, pushButProc, radioButProc, TrackControl } from './Controls.ts';
-import { autoKey, cmdKey, type EventRecord, GetNextEvent, keyDown, mouseDown, newEventRecord, activateEvt, updateEvt, everyEvent } from './Events.ts';
+import { autoKey, autoKeyMask, cmdKey, EventAvail, type EventRecord, GetNextEvent, keyDown, mouseDown, newEventRecord, activateEvt, TickCount, updateEvt, everyEvent } from './Events.ts';
 import { decodeMacRoman, encodeMacRoman, pascalString } from './MacRoman.ts';
 import { forgetAddress } from './Memory.ts';
+import { getHost } from './OS.ts';
 import { DrawPicture, type Picture } from './Picture.ts';
 import {
 	type CIcon,
@@ -564,29 +565,49 @@ export async function ModalDialog(filterProc: ModalFilterProc | null): Promise<I
 	if (!(d instanceof DialogRecord)) {
 		throw new Error('ModalDialog with no dialog in front');
 	}
-	for (;;) {
-		const ev = newEventRecord();
-		await GetNextEvent(everyEvent, ev);
+	const idle = (): void => {
 		if (d.textH !== null) {
 			const save = thePort;
 			SetPort(d);
 			TEIdle(d.textH);
 			SetPort(save);
 		}
-		if (filterProc !== null) {
-			const itemHit = ref<Integer>(0);
-			if (await filterProc(d, ev, itemHit)) {
-				return itemHit.v;
-			}
-		} else if ((ev.what === keyDown || ev.what === autoKey) && ((ev.message & 0xff) === 13 || (ev.message & 0xff) === 3)) {
-			await flashButton(d, d.aDefItem);
-			return d.aDefItem;
+	};
+	for (;;) {
+		const ev = newEventRecord();
+		await GetNextEvent(everyEvent, ev);
+		// TEIdle blinks the caret when the clock says, and a repeat typed at the caret hides it: in a
+		// tick where both fall due, which comes first is a race on a Mac, decided by where the loop is
+		// as the tick begins (traced in the oracle: the high-score name, `room9`). The clock comes
+		// first unless the host says otherwise; then TEIdle waits for the repeat.
+		const repeatFirst = getHost().repeatBeforeClock?.(TickCount()) ?? false;
+		const waiting = repeatFirst && ev.what !== autoKey && EventAvail(autoKeyMask, newEventRecord());
+		if (!waiting && !(repeatFirst && ev.what === autoKey)) {
+			idle();
 		}
-		const hit = await handleEvent(d, ev, true);
-		if (hit !== 0) {
+		const hit = await respond(d, ev, filterProc);
+		if (repeatFirst && ev.what === autoKey) {
+			idle();
+		}
+		if (hit !== null) {
 			return hit;
 		}
 	}
+}
+
+/** ModalDialog's answer to one event: the item to return, or null to go on. */
+async function respond(d: DialogRecord, ev: EventRecord, filterProc: ModalFilterProc | null): Promise<Integer | null> {
+	if (filterProc !== null) {
+		const itemHit = ref<Integer>(0);
+		if (await filterProc(d, ev, itemHit)) {
+			return itemHit.v;
+		}
+	} else if ((ev.what === keyDown || ev.what === autoKey) && ((ev.message & 0xff) === 13 || (ev.message & 0xff) === 3)) {
+		await flashButton(d, d.aDefItem);
+		return d.aDefItem;
+	}
+	const hit = await handleEvent(d, ev, true);
+	return hit !== 0 ? hit : null;
 }
 
 /**
