@@ -8,6 +8,7 @@ import { ResourceFork, writeResourceFork } from '../src/mac/ResourceFork.ts';
 import { bdfToFontResource, readBdf } from './Bdf.ts';
 import type { VolumeManifest } from '../src/mac/Volume.ts';
 import { parseDeRez } from './DeRez.ts';
+import { applicationIcon } from './Favicon.ts';
 
 const root = new URL('..', import.meta.url).pathname;
 
@@ -83,6 +84,7 @@ function main(outDir: string): void {
 	});
 	writeFileSync(join(outDir, 'volume.json'), JSON.stringify(manifest, null, '\t') + '\n');
 	writeFileSync(join(outDir, 'System.rsrc'), writeResourceFork(systemFork()));
+	writeFileSync(join(outDir, 'icon.png'), applicationIcon(bundledFiles().find((f) => f.type === 'APPL')!));
 	console.log(`Wrote ${manifest.files.length} files to ${volumeDir}`);
 }
 
