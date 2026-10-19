@@ -561,6 +561,33 @@ export function settingsScript(kind: 'plus' | 'ii'): Script {
 	return s;
 }
 
+/**
+ * Holds Command as Glider starts, which on a Mac II has it switch the screen to black and white
+ * (ForceBlackAndWhite); then the alert, a game for 10 seconds, and Sound Settings, in black and
+ * white. The key goes down in the first tick, as a player would hold it while launching Glider.
+ */
+export function blackAndWhiteScript(): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.key('command', true).wait(800).key('command', false);
+	s.until(900).shot('alert').press('return').wait(60).shot('title');
+	s.press('n', 'command');
+	for (let t = 0; t < 20; t++) {
+		s.wait(30).shot(`game${t}`);
+	}
+	s.press('e', 'command').wait(700).shot('over');
+	s.mouse(120, 10).wait(5).button(true).wait(15).mouse(120, 44).wait(15).button(false).wait(60); // Options > Sound…
+	s.shot('sound').press('return').wait(60).shot('soundClosed');
+	return s;
+}
+
+/** A Mac II in black and white, chosen with Command at launch. */
+cases.blackAndWhiteColor = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, gameFiles(), 'Glider 4.06');
+	return run(macII, blackAndWhiteScript(), disk, dir);
+};
+
 /** Settings changed and played with, on a Mac Plus and on a Mac II. */
 cases.settings = (dir) => {
 	const disk = dir + '.dsk';
