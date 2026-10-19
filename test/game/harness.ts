@@ -63,22 +63,57 @@ export interface GameRun {
 }
 
 /**
- * Standard File as the oracle's scripts use it, in place of the page's dialogs: a name typed and
- * Return to save, Return to open the first file listed. The keys come from the event queue, as the
- * original dialog takes them, with any left there before it opened, and the dialog answers in the tick Return arrives: in the oracle,
+ * Standard File as the oracle's scripts use it, in place of the page's dialogs. The original's
+ * dialogs start at the disk's root, where the oracle's disks have only the System Folder, which
+ * holds Glider and its files, and they stay in the folder they were last in; a file saved goes
+ * where the dialog is. To open, the arrow keys move the selection in the list (folders and files,
+ * by name) and Return opens the selected folder or file; to save, the keys typed make the name and
+ * Return saves. The keys come from the event queue, as the original dialog takes them, with any
+ * left there before it opened, and the dialog answers in the tick Return arrives: in the oracle,
  * SFPutFile closes on Return without flashing the Save button, and Glider writes the game and goes
  * on playing in that tick (traced: `savedGameProbe`).
  */
 export const scriptedStandardFile: StandardFileHost = {
 	async getFile(request) {
-		await typedUntilReturn();
-		return request.files[0]?.name ?? null;
+		const listed = (): string[] => {
+			const names = request.files.map((f) => f.name).filter((n) => savedAtRoot.has(n) !== inSystemFolder);
+			return (inSystemFolder ? names : [...names, 'System Folder']).sort((a, b) => (a.toUpperCase() < b.toUpperCase() ? -1 : 1));
+		};
+		let list = listed();
+		let selected = 0;
+		const event = newEventRecord();
+		for (;;) {
+			if (await GetNextEvent(keyDownMask | autoKeyMask, event)) {
+				const c = event.message & 0xff;
+				if (c === 31) {
+					selected = Math.min(selected + 1, list.length - 1);
+				} else if (c === 30) {
+					selected = Math.max(selected - 1, 0);
+				} else if (c === 13 || c === 3) {
+					if (!inSystemFolder && list[selected] === 'System Folder') {
+						inSystemFolder = true;
+						list = listed();
+						selected = 0;
+					} else {
+						return list[selected] ?? null;
+					}
+				}
+			}
+		}
 	},
 	async putFile(request) {
 		const typed = await typedUntilReturn();
-		return typed === '' ? request.defaultName : typed;
+		const name = typed === '' ? request.defaultName : typed;
+		if (!inSystemFolder) {
+			savedAtRoot.add(name);
+		}
+		return name;
 	},
 };
+
+/** Where scriptedStandardFile's dialogs are, and the files saved at the disk's root. */
+let inSystemFolder = false;
+const savedAtRoot = new Set<string>();
 
 async function typedUntilReturn(): Promise<string> {
 	const event = newEventRecord();

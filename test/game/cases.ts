@@ -1,7 +1,7 @@
 // The game cases: the oracle's scripts (oracle/cases.ts) that the port replays, on each machine, with
 // the houses they play.
 
-import { blackAndWhiteScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, maskRooms, interfaceScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { blackAndWhiteScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 
@@ -47,6 +47,7 @@ export const gameCases: [MachineKind, Case][] = [
 	...Object.entries(maskRooms).flatMap(([name, objects]) => both(name, firstRoomScript, `a test room (${name}) looks`, () => houseWith(objects))),
 	...Object.entries(houseEnds).flatMap(([name, nextFile]) => both(name, houseEndScript, nextFile === '' ? 'the end of the last house plays' : 'going on to the next house file plays', () => houseOfOneRoom(nextFile))),
 	...both('savedGame', () => savedGameScript(), 'a game saved and opened again plays'),
+	...both('loadHouse', loadHouseScript, 'another house opened plays'),
 	['plus', { caseName: 'settings', makeScript: () => settingsScript('plus'), what: 'a game with changed settings plays' }],
 	['ii', { caseName: 'settingsColor', makeScript: () => settingsScript('ii'), what: 'a game with changed settings plays' }],
 	// Command held from the first tick, before Glider starts.

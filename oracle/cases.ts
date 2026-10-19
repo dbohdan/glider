@@ -581,6 +581,36 @@ export function blackAndWhiteScript(): Script {
 	return s;
 }
 
+/**
+ * Opens another house from the Game menu (Load House…): Standard File's dialog starts at the disk's
+ * root, so Return opens the System Folder, the down arrow selects "The House 2", and Return opens
+ * it. It is not the first house of its chain, so Glider says so and starts The House instead.
+ */
+export function loadHouseScript(): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(900).press('return').wait(60);
+	s.mouse(60, 10).wait(5).button(true).wait(15).mouse(60, 44).wait(15).button(false).wait(60); // Game > Load House…
+	s.press('return').wait(30).press('down').wait(30).press('return').wait(60).shot('notFirst');
+	s.press('return');
+	for (let t = 0; t < 20; t++) {
+		s.wait(30).shot(`game${t}`);
+	}
+	return s;
+}
+
+/** Another house opened, on a Mac Plus and on a Mac II. */
+cases.loadHouse = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
+	return run(macPlus, loadHouseScript(), disk, dir);
+};
+cases.loadHouseColor = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, gameFiles(), 'Glider 4.06');
+	return run(macII, loadHouseScript(), disk, dir);
+};
+
 /** A Mac II in black and white, chosen with Command at launch. */
 cases.blackAndWhiteColor = (dir) => {
 	const disk = dir + '.dsk';
