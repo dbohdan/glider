@@ -75,6 +75,49 @@ export function withScores(house: MacFile, scores: Scores): MacFile {
 	return { ...house, data };
 }
 
+function samePrefs(a: Uint8Array | null, b: Uint8Array | null): boolean {
+	return a !== null && b !== null && a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
+/**
+ * The player's part of a file on the volume, given the game's files as they came: a file the
+ * player made, whole; the application or a bundled house if its preferences or scores changed;
+ * null for the rest.
+ */
+export function playerPart(bundled: Map<string, MacFile>, file: MacFile): MacFile | null {
+	const game = bundled.get(file.name);
+	if (game === undefined) {
+		return file;
+	}
+	if (isApplication(game)) {
+		return samePrefs(prefsOf(game), prefsOf(file)) ? null : file;
+	}
+	if (isHouse(game)) {
+		return JSON.stringify(scoresOf(game)) === JSON.stringify(scoresOf(file)) ? null : file;
+	}
+	return null;
+}
+
+/**
+ * What an imported file becomes on the volume: a file of the player's own, whole; for the
+ * application, its preferences in the game's copy; for a bundled house, its scores in the game's
+ * copy; null for the game's other files, which are ours.
+ */
+export function importedFile(bundled: Map<string, MacFile>, current: MacFile | undefined, file: MacFile): MacFile | null {
+	const game = bundled.get(file.name);
+	if (game === undefined) {
+		return file;
+	}
+	if (isApplication(game)) {
+		const prefs = prefsOf(file);
+		return prefs === null ? null : withPrefs(current ?? game, prefs);
+	}
+	if (isHouse(game) && isHouse(file) && file.data.length === game.data.length) {
+		return withScores(current ?? game, scoresOf(file));
+	}
+	return null;
+}
+
 export class FileStore {
 	private db: IDBDatabase | null = null;
 	/** The files that came with the game, by name, as they came. */
@@ -119,6 +162,47 @@ export class FileStore {
 				volume.put({ ...parseMacBinary(s.macBinary), name: s.name });
 			}
 		}
+	}
+
+	/** The player's part of the volume's files (playerPart), for Export Files…. */
+	playerFiles(volume: Volume): MacFile[] {
+		return volume
+			.list()
+			.map((f) => playerPart(this.bundled, f))
+			.filter((f) => f !== null);
+	}
+
+	/** Puts an imported file on the volume and keeps it; false if it is one of the game's own files. */
+	import(volume: Volume, file: MacFile): boolean {
+		const f = importedFile(this.bundled, volume.get(file.name), file);
+		if (f === null) {
+			return false;
+		}
+		volume.put(f);
+		this.save(f, false);
+		return true;
+	}
+
+	/** Puts back the game's preferences and the bundled houses' high scores. */
+	async reset(volume: Volume): Promise<void> {
+		for (const game of this.bundled.values()) {
+			if (isApplication(game) || isHouse(game)) {
+				volume.put(game);
+			}
+		}
+		if (this.db === null) {
+			return;
+		}
+		const tx = this.db.transaction(storeName, 'readwrite');
+		for (const game of this.bundled.values()) {
+			if (isApplication(game) || isHouse(game)) {
+				tx.objectStore(storeName).delete(game.name);
+			}
+		}
+		await new Promise<void>((resolve, reject) => {
+			tx.oncomplete = () => resolve();
+			tx.onerror = () => reject(tx.error ?? new Error('cannot write storage'));
+		});
 	}
 
 	/** Keeps the player's part of a changed file, or that it was deleted. */

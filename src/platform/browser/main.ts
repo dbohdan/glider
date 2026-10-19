@@ -17,6 +17,8 @@ import { BrowserHost } from './Clock.ts';
 import { attachInput } from './Input.ts';
 import { BrowserSound } from './Sound.ts';
 import { FileStore } from './Storage.ts';
+import { download, inflate, pickFiles } from './PageFiles.ts';
+import { exportArchive, readUploads } from '../Transfer.ts';
 
 async function fetchBytes(path: string): Promise<Uint8Array> {
 	const r = await fetch(path);
@@ -89,6 +91,30 @@ async function start(): Promise<void> {
 			launch: (program) => location.assign(startupURL(program)),
 			openURL: (url) => window.open(url, '_blank', 'noopener'),
 			restart: () => location.reload(),
+			importFiles: async () => {
+				const uploads = await pickFiles();
+				if (uploads === null) {
+					return null;
+				}
+				const { files, rejected } = await readUploads(uploads, inflate);
+				const added: string[] = [];
+				for (const f of files) {
+					if (store.import(volume, f)) {
+						added.push(f.name);
+					} else {
+						rejected.push(f.name);
+					}
+				}
+				return { added, rejected };
+			},
+			exportFiles: () => {
+				const files = store.playerFiles(volume);
+				if (files.length > 0) {
+					download('Glider Files.zip', exportArchive(files, new Date()), 'application/zip');
+				}
+				return files.length;
+			},
+			resetPlayerData: () => store.reset(volume),
 		});
 		await desktop();
 		return;

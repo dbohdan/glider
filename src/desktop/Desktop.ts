@@ -47,6 +47,8 @@ import {
 	NewRgn,
 	newEventRecord,
 	NoteAlert,
+	CautionAlert,
+	ParamText,
 	notPatXor,
 	paintDeskPattern,
 	PenMode,
@@ -91,9 +93,22 @@ export interface DesktopHost {
 	launch(program: 'glider4'): void;
 	openURL(url: string): void;
 	restart(): void;
+	/** Asks for files and puts those it can read on the volume: their names, and those it could not read; null if the player cancels. */
+	importFiles(): Promise<{ added: string[]; rejected: string[] } | null>;
+	/** Saves the player's files to their computer; how many there were. */
+	exportFiles(): number;
+	/** Puts back the game's preferences and the bundled houses' high scores. */
+	resetPlayerData(): Promise<void>;
 }
 
-let host: DesktopHost = { launch: () => {}, openURL: () => {}, restart: () => {} };
+let host: DesktopHost = {
+	launch: () => {},
+	openURL: () => {},
+	restart: () => {},
+	importFiles: () => Promise.resolve(null),
+	exportFiles: () => 0,
+	resetPlayerData: () => Promise.resolve(),
+};
 
 export function setDesktopHost(h: DesktopHost): void {
 	host = h;
@@ -106,6 +121,8 @@ const editorIconID = 129;
 const sourceIconID = 130;
 const editorAlertID = 128;
 const aboutAlertID = 129;
+const messageAlertID = 130;
+const resetAlertID = 131;
 
 interface DesktopIcon {
 	name: string;
@@ -368,10 +385,10 @@ function setUpMenus(): void {
 	AppendMenu(apple, 'About the Desktop…');
 	InsertMenu(apple, 0);
 	const file = NewMenu(fileID, 'File');
-	AppendMenu(file, 'Open/O');
+	AppendMenu(file, 'Open/O;(-;Import Files\u2026;Export Files\u2026');
 	InsertMenu(file, 0);
 	const special = NewMenu(specialID, 'Special');
-	AppendMenu(special, 'Restart;Shut Down');
+	AppendMenu(special, 'Reset Preferences and Scores\u2026;(-;Restart;Shut Down');
 	InsertMenu(special, 0);
 	DrawMenuBar();
 }
@@ -386,12 +403,60 @@ async function doMenu(result: number): Promise<void> {
 		if (icon !== undefined) {
 			await icon.open();
 		}
+	} else if (menu === fileID && item === 3) {
+		await importFiles();
+	} else if (menu === fileID && item === 4) {
+		await exportFiles();
 	} else if (menu === specialID && item === 1) {
+		await resetPlayerData();
+	} else if (menu === specialID && item === 3) {
 		host.restart();
-	} else if (menu === specialID && item === 2) {
+	} else if (menu === specialID && item === 4) {
 		await shutDown();
 	}
 	HiliteMenu(0);
+}
+
+// ---------------------------------------------------------------------------------------------
+// The browser's operations: the files the player brings and takes, and a fresh start
+
+async function message(text: string): Promise<void> {
+	ParamText(text, '', '', '');
+	await NoteAlert(messageAlertID, null);
+}
+
+async function importFiles(): Promise<void> {
+	const result = await host.importFiles();
+	if (result === null) {
+		return;
+	}
+	const { added, rejected } = result;
+	const parts: string[] = [];
+	if (added.length === 1) {
+		parts.push(`\u201c${added[0]}\u201d is on the disk now.`);
+	} else if (added.length > 1) {
+		parts.push(`${added.length} files are on the disk now.`);
+	}
+	if (rejected.length === 1) {
+		parts.push(`\u201c${rejected[0]}\u201d is not a Mac file Glider can use.`);
+	} else if (rejected.length > 1) {
+		parts.push(`${rejected.length} files are not Mac files Glider can use.`);
+	}
+	if (parts.length > 0) {
+		await message(parts.join(' '));
+	}
+}
+
+async function exportFiles(): Promise<void> {
+	if (host.exportFiles() === 0) {
+		await message('There is nothing to export yet: no saved games, houses of your own, high scores, or preferences.');
+	}
+}
+
+async function resetPlayerData(): Promise<void> {
+	if ((await CautionAlert(resetAlertID, null)) === 2) {
+		await host.resetPlayerData();
+	}
 }
 
 // ---------------------------------------------------------------------------------------------

@@ -72,3 +72,19 @@ The oracle's case `desktop` boots System 6.0.8 into the Finder (without MultiFin
 **13.** Source Code's icon, enlarged: System 6's folder, measured in the Finder's window, with the branch graph of Jason Long's Git logo inside it.
 
 ![Source Code's icon, enlarged](13-source-code-icon-enlarged.png)
+
+## The browser's operations
+
+The desktop's menus hold what a Mac's disks did: File > Import Files… and Export Files…, and Special > Reset Preferences and Scores….
+
+**14.** Import Files… after choosing a bare house, a saved game in MacBinary, and a text file. Import reads MacBinary and AppleSingle files, ZIP archives of them (a macOS archive keeps resource forks and types under `__MACOSX`), and bare houses and saved games, known by their sizes. Export Files… saves a ZIP archive of MacBinary files, which Import reads back.
+
+![Import Files… done](14-port-import-files-plus.png)
+
+**15.** Reset Preferences and Scores…, which puts back Glider's preferences and the high scores of the houses that came with it.
+
+![Reset Preferences and Scores…](15-port-reset-preferences-and-scores-plus.png)
+
+**16.** The imported house in Glider's Load House…, in a page loaded afterwards: the browser keeps it.
+
+![The imported house in Load House](16-imported-house-in-load-house-plus.png)

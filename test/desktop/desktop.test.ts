@@ -113,7 +113,7 @@ test('the desktop shuts down as System 6.0.8 does on a Mac Plus, with its own wo
 	const rgba = new Uint8ClampedArray(machine.width * machine.height * 4);
 	let shot: Image | null = null;
 	// Special > Shut Down.
-	host.mouseAt(20, 100, 10).buttonAt(21, true).mouseAt(30, 100, 44).buttonAt(40, false).mouseAt(41, 250, 300);
+	host.mouseAt(20, 100, 10).buttonAt(21, true).mouseAt(30, 100, 76).buttonAt(40, false).mouseAt(41, 250, 300);
 	host.at(80, () => {
 		renderScreen(machine, rgba, false);
 		const rgb = new Uint8Array(machine.width * machine.height * 3);
@@ -142,5 +142,5 @@ test('the desktop shuts down as System 6.0.8 does on a Mac Plus, with its own wo
 			}
 		}
 	}
-	assert.deepEqual(differ, []);
+	assert.equal(differ.length, 0, `${differ.length} pixels differ, first at ${differ.slice(0, 8).join(' ')}`);
 });

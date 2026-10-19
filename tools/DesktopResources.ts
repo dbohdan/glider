@@ -150,5 +150,20 @@ export function desktopFile(root: string): MacFile {
 		[136, [10, 72, 58, 308], text('Glider 4.0, by John Calhoun, \u00a9 2016 softdorothy. Distributed under the MIT License.')],
 		[160, [10, 20, 42, 52], word(gliderIconID)],
 	]));
+	// A message from the desktop (^0): a note alert, OK.
+	put('ALRT', 130, [...word(80), ...word(96), ...word(176), ...word(416), ...word(130), 0x55, 0x55]);
+	put('DITL', 130, ditl([
+		[4, [66, 238, 86, 308], text('OK')],
+		[136, [10, 72, 58, 308], text('^0')],
+		[160, [10, 20, 42, 52], word(gliderIconID)],
+	]));
+	// Reset Preferences and Scores…: a caution alert, Cancel the default.
+	put('ALRT', 131, [...word(80), ...word(96), ...word(192), ...word(416), ...word(131), 0x55, 0x55]);
+	put('DITL', 131, ditl([
+		[4, [82, 238, 102, 308], text('Cancel')],
+		[4, [82, 150, 102, 220], text('Reset')],
+		[136, [10, 72, 74, 308], text('Put back Glider\u2019s preferences and the high scores of the houses that came with it? Your saved games and your own houses stay.')],
+		[160, [10, 20, 42, 52], word(gliderIconID)],
+	]));
 	return { name: desktopFileName, type: 'FNDR', creator: 'GLD4', finderFlags: 0x4000, created: 0, modified: 0, data: new Uint8Array(0), rsrc: writeResourceFork(rf) };
 }

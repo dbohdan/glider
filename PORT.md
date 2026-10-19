@@ -244,7 +244,7 @@ do {
 - [ ] **10. Standard File and the desktop** (decisions 2 and 16).
   - [x] Standard File's dialogs on the Mac's screen, after System 6.0.8's (DLOG and DITL -3999 and -4000, measured in the oracle, with resources of our own), checked against the oracle during the saved-game and house cases.
   - [x] The desktop, after System 6.0.8's Finder (measured in the oracle), with `startup` and Quit.
-  - [ ] The browser's operations in the desktop's menus: importing houses, exporting the player's files, resetting preferences and scores.
+  - [x] The browser's operations in the desktop's menus: importing houses, exporting the player's files, resetting preferences and scores.
   - [ ] The README: what the port is and is not, credits and licenses, and the precedent below.
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
@@ -541,4 +541,11 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 - Shut Down is System 6.0.8's (a system error alert, `DSAT` 2, drawn without the Dialog Manager), measured in a case of its own (`shutDown`) and matched but for the words and the icon.
 - The page chooses the program with `?startup=` (`desktop`, or Glider by default); quitting Glider loads the desktop's page, and opening Glider on the desktop loads Glider's, each a fresh Mac. The desktop paints the desktop through a new `DeskHook` in the Window Manager, as the Finder does.
 - The desktop names its icons in Geneva 9: the port's System now has it as "Glinda" (decision 8).
+
+### 2026-10-19 (importing and exporting)
+
+- The desktop's File menu has Import Files… and Export Files…, and its Special menu Reset Preferences and Scores… (decision 16). The page does the work through the desktop's host: the browser's file chooser and downloads, and the store of the player's files (decision 13).
+- Import reads MacBinary and AppleSingle files, ZIP archives of them (an archive made on macOS keeps each file's type and resource fork in an AppleDouble file under `__MACOSX`), and bare houses and saved games, known by their sizes (13,830 and 4,060 bytes: Glider writes them with no resource fork). What comes in is split as the store splits what it keeps: Glider brings only its preferences, a bundled house only its high scores, and the game's other files nothing; the rest is the player's whole.
+- Export saves the player's part of the volume, the files they made and the bundled files whose preferences or scores changed, as a ZIP archive of MacBinary files (`src/platform/Zip.ts`, which the oracle's archive reader now shares), and Import reads it back (`test/platform/transfer.test.ts`).
+- A failing desktop test seemed to hang for most of a minute: its screen comparison listed every differing pixel, and `assert.deepEqual` spent the time diffing 170,000 strings. It now reports how many differ and where the first are.
 
