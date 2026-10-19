@@ -503,6 +503,76 @@ for (const [name, nextFile] of Object.entries(houseEnds)) {
 	};
 }
 
+/**
+ * Changes Glider's settings and plays with them: in Sound Settings, the volume down three steps,
+ * Music off, and 4-Channel; in Configure, Z and X for left and right, and the button to fire bands;
+ * then a game steered with Z and X, its sound recorded; then Command-Q, after which Glider has
+ * written its preferences into its own file, which the run keeps. The dialogs are centered on the
+ * screen, so their items are at other places on each machine.
+ */
+export function settingsScript(kind: 'plus' | 'ii'): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	if (kind === 'ii') {
+		s.traceMouse();
+	}
+	/** A point of a dialog item, from the dialog's place (Sound Settings, DLOG 131; Configure, 137). */
+	const at = (dialog: 131 | 137, h: number, v: number): [number, number] => {
+		const [left, top] = dialog === 131 ? (kind === 'plus' ? [120, 88] : [184, 157]) : kind === 'plus' ? [120, 72] : [184, 141];
+		return [left + h, top + v];
+	};
+	const click = ([h, v]: [number, number]): void => {
+		s.mouse(h, v).wait(5).button(true).wait(5).button(false).wait(20);
+	};
+	s.until(900).press('return').wait(60);
+	s.mouse(120, 10).wait(5).button(true).wait(15).mouse(120, 44).wait(15).button(false).wait(60); // Options > Sound…
+	s.shot('sound');
+	for (let i = 0; i < 3; i++) {
+		click(at(131, 134, 94)); // the volume's "<"
+	}
+	s.shot('volume');
+	click(at(131, 60, 77)); // Music On
+	click(at(131, 60, 99)); // 4-Channel
+	s.shot('changed');
+	click(at(131, 211, 143)); // Okay
+	s.wait(40).shot('soundClosed');
+	s.press('k', 'command').wait(60).shot('configure');
+	click(at(137, 32, 26)); // the left key's icon
+	s.shot('waiting').press('z').wait(30);
+	click(at(137, 32, 59)); // the right key's icon
+	s.press('x').wait(30);
+	click(at(137, 127, 177)); // Fires Bands
+	s.shot('configured');
+	click(at(137, 221, 165)); // Okay
+	s.wait(40).shot('configureClosed');
+	s.sound('sound.raw');
+	s.press('n', 'command').wait(20);
+	for (const [key, ticks] of [['x', 90], ['z', 120], ['x', 60]] as const) {
+		s.key(key, true);
+		for (let t = 0; t < ticks; t += 30) {
+			s.wait(30).shot(`${key}${s.shots.length}`);
+		}
+		s.key(key, false);
+	}
+	for (let t = 0; t < 6; t++) {
+		s.wait(30).shot(`drift${t}`);
+	}
+	s.press('q', 'command').wait(120);
+	return s;
+}
+
+/** Settings changed and played with, on a Mac Plus and on a Mac II. */
+cases.settings = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
+	return run(macPlus, settingsScript('plus'), disk, dir, [':System Folder:Glider 4.06']);
+};
+cases.settingsColor = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, gameFiles(), 'Glider 4.06');
+	return run(macII, settingsScript('ii'), disk, dir, [':System Folder:Glider 4.06']);
+};
+
 /** A game saved and opened again, on a Mac Plus and on a Mac II. */
 cases.savedGame = (dir) => {
 	const disk = dir + '.dsk';

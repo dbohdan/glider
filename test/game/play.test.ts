@@ -8,13 +8,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, maskRooms, interfaceScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, maskRooms, interfaceScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 import { writePNG } from '../../oracle/Image.ts';
 import { gameRec } from '../../src/glider/FileInNOut.ts';
 import { houseRecLayout } from '../../src/glider/Globals.ts';
-import { parseMacBinary } from '../../src/mac/MacBinary.ts';
+import { type MacFile, parseMacBinary } from '../../src/mac/MacBinary.ts';
+import { parseResourceFork } from '../../src/mac/ResourceFork.ts';
 import { type Layout, readLayout } from '../../src/mac/PascalLayout.ts';
 import { cacheDir } from '../../oracle/Oracle.ts';
 import { differences, oracleOutput, oracleRunAvailable, oracleShot, writeComparison } from '../toolbox/machine.ts';
@@ -63,6 +64,8 @@ const cases: [MachineKind, Case][] = [
 	...Object.entries(maskRooms).flatMap(([name, objects]) => both(name, firstRoomScript, `a test room (${name}) looks`, () => houseWith(objects))),
 	...Object.entries(houseEnds).flatMap(([name, nextFile]) => both(name, houseEndScript, nextFile === '' ? 'the end of the last house plays' : 'going on to the next house file plays', () => houseOfOneRoom(nextFile))),
 	...both('savedGame', () => savedGameScript(), 'a game saved and opened again plays'),
+	['plus', { caseName: 'settings', makeScript: () => settingsScript('plus'), what: 'a game with changed settings plays' }],
+	['ii', { caseName: 'settingsColor', makeScript: () => settingsScript('ii'), what: 'a game with changed settings plays' }],
 	...both('tour', tourScript, 'a long flight through the house plays'),
 	...both('repeats', repeatScript, 'keys held in the high-score dialog repeat'),
 	...both('ui', interfaceScript, "Glider's menus, dialogs, help and a paused game look"),
@@ -103,6 +106,13 @@ for (const [kind, { caseName, makeScript, what, house, known = 0 }] of cases) {
 		const runDir = join(cacheDir, 'runs', caseName);
 		for (const bin of readdirSync(runDir).filter((f) => f.endsWith('.bin'))) {
 			const rom = parseMacBinary(readFileSync(join(runDir, bin)));
+			if (rom.type === 'APPL') {
+				// Glider itself (4.06 in the oracle, 4.05 here), for the preferences it writes into its 'Gprf' resource.
+				const ours = run.volume.list().find((f) => f.type === 'APPL' && f.creator === rom.creator)!;
+				const gprf = (f: MacFile) => parseResourceFork(f.rsrc).resources.find((r) => r.type === 'Gprf' && r.id === 128)!.data;
+				assert.deepEqual(gprf(ours), gprf(rom), "Glider's preferences");
+				continue;
+			}
 			const ours = run.volume.get(rom.name);
 			assert.ok(ours !== undefined, `the port saved no "${rom.name}"`);
 			assert.deepEqual([ours.type, ours.creator, ours.data.length], [rom.type, rom.creator, rom.data.length]);
