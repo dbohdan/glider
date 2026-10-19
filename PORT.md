@@ -220,7 +220,7 @@ do {
   - [x] Saving a game (Command-S) and opening it again (Load Game…), with the saved file compared field by field (`savedGameScript`).
   - [x] Changing the Sound and Configure settings, playing with them, and the preferences Glider writes at Quit (`settingsScript`).
   - [x] A Mac II switched to black and white with Command held at launch (`blackAndWhiteScript`).
-  - [ ] Not yet compared with the oracle: opening another house.
+  - [x] Opening another house (Load House…), here one that is not the first of its chain (`loadHouseScript`).
   - Not to be compared: a Mac II started at 256 colors, where Glider asks to switch (`CheckAndSwitch`). The port's Mac II starts at 16 colors, so no player meets that alert.
 - [ ] **10. Launcher page:** house library, settings, credits, manual.
 - [ ] **11. Windows look:** palettes, then art.
@@ -488,3 +488,10 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 
 - A Mac II with Command held as Glider starts matches the original (`blackAndWhiteColor`): Glider switches the screen to one bit (ForceBlackAndWhite), and the alert, a game, game over and Sound Settings are drawn in black and white on the 640-by-480 screen.
 - The key must be down before Glider starts, and the port starts Glider at tick 0; the case starts it later (`launchTick`). Even then the port stayed in color: the harness started its clock at the launch tick, so input scheduled before it was delivered at the program's first wait, after Glider had read the keys. The harness now delivers it before the program starts (`catchUp`), as a Mac's keyboard would have.
+
+### 2026-10-19 (another house)
+
+- Opening another house matches on both machines (`loadHouse`): Load House…, The House 2 chosen, Glider's alert that it is not the first house of its chain, and the game in The House that Glider opens instead.
+- Standard File's dialogs start at the disk's root, where the oracle's disks have only the System Folder: the script presses Return to open it, the down arrow, and Return. The harness's Standard File follows the keys through a small model of that (`scriptedStandardFile`): folders and files by name, the folder it was last in, and files saved where the dialog is.
+- Mini vMac's Mac Plus gives the arrow keys the Extended Keyboard's codes ($7D for down), where a real Mac Plus keyboard gives $48 (Inside Macintosh IV; Mini vMac's own source has "0x48" in a comment beside 0x7D). The port keeps the real codes; the harness now reads the oracle's key traces by the emulator's.
+- Behind the original's alert was a blank rectangle where Standard File's dialog had been: closing a window erases what was under it and leaves it to be updated, and Glider handles the update only after the alert. The port's Standard File now does what closing the original's dialog would (`modalDialogClosed`), with the dialog's frame from its DLOG and a dBoxProc window's 8-pixel frame (System 6.0.8's own dialogs, -3999 and -4000, are 304 by 184 and 348 by 200), along with the activate event found with saved games.

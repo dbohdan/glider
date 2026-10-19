@@ -9,8 +9,8 @@ import { type FInfo, getVolume, portVRefNum } from './Files.ts';
 import type { MacFile } from './MacBinary.ts';
 import { GetResource, type Handle } from './Resources.ts';
 import { s16 } from './Binary.ts';
-import { activateAfterModalDialog, dBoxProc } from './Windows.ts';
-import type { Integer, OSType, Point } from './Types.ts';
+import { dBoxProc, modalDialogClosed } from './Windows.ts';
+import type { Integer, OSType, Point, Rect } from './Types.ts';
 
 /** Pascal `SFReply`. */
 export interface SFReply {
@@ -106,6 +106,26 @@ async function hookTitle(dlgHook: DlgHookProc | null, dlgID: Integer): Promise<s
 	return texts.join(' ');
 }
 
+/**
+ * The size of System 6.0.8's own Standard File dialogs (DLOG -3999, to save, and -4000, to open),
+ * which the port's System lacks; both are dBoxProc windows.
+ */
+const systemDialogSizes: Record<number, { width: number; height: number }> = {
+	[-3999]: { width: 304, height: 184 },
+	[-4000]: { width: 348, height: 200 },
+};
+
+/**
+ * Where the original's dialog would have been, frame included: its DLOG's size with its top left
+ * corner at `where`, and a dBoxProc window's 8-pixel frame around it (measured in the oracle: the
+ * blank area Load House… leaves, from (77, 42) to (441, 266) for DLOG 256 at (85, 50)).
+ */
+function dialogFrame(dlgID: Integer, where: Point): Rect {
+	const dlog = GetResource('DLOG', dlgID);
+	const size = dlog === null ? systemDialogSizes[dlgID]! : { width: s16(dlog.data, 6) - s16(dlog.data, 2), height: s16(dlog.data, 4) - s16(dlog.data, 0) };
+	return { top: where.v - 8, left: where.h - 8, bottom: where.v + size.height + 8, right: where.h + size.width + 8 };
+}
+
 /** Pascal `SFPGetFile`: asks for a file of one of the types (all if numTypes is -1) that the filter keeps. */
 export async function SFPGetFile(
 	where: Point,
@@ -123,7 +143,7 @@ export async function SFPGetFile(
 		.filter((f) => fileFilter === null || !fileFilter(fileParam(f)))
 		.sort((a, b) => (a.name.toUpperCase() < b.name.toUpperCase() ? -1 : 1));
 	const name = await host.getFile({ title: await hookTitle(dlgHook, dlgID), files, where });
-	activateAfterModalDialog();
+	modalDialogClosed(dialogFrame(dlgID, where));
 	const file = name === null ? undefined : getVolume()?.get(name);
 	Object.assign(reply, newSFReply());
 	if (file !== undefined) {
@@ -142,7 +162,7 @@ export function SFGetFile(where: Point, prompt: string, fileFilter: FileFilterPr
 /** Pascal `SFPutFile`: asks for a name to save under. */
 export async function SFPutFile(where: Point, prompt: string, origName: string, _dlgHook: DlgHookProc | null, reply: SFReply): Promise<void> {
 	const name = await host.putFile({ prompt, defaultName: origName, where });
-	activateAfterModalDialog();
+	modalDialogClosed(dialogFrame(-3999, where));
 	Object.assign(reply, newSFReply());
 	if (name !== null && name.length > 0) {
 		reply.good = true;

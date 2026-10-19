@@ -244,7 +244,12 @@ export function soundDifferences(kind: MachineKind, sound: GameRun['sound'], rec
 	return bad;
 }
 
-/** The Mac Plus keyboard's arrow keys, by the Apple Extended Keyboard's codes the scripts use. */
+/**
+ * The Mac Plus keyboard's arrow keys, by the Apple Extended Keyboard's codes the scripts use
+ * (Inside Macintosh IV). Mini vMac's Mac Plus gives the arrows the Extended Keyboard's codes instead
+ * (its MKC_Down is "0x48" in a comment, 0x7D in code), an approximation: the port's Mac Plus keeps
+ * the real codes, and the oracle's traces are read by the emulator's.
+ */
 const plusArrows: Record<number, number> = { 0x7b: 0x46, 0x7c: 0x42, 0x7d: 0x48, 0x7e: 0x4d };
 
 /** Ticks before a held key repeats, and between repeats: low memory KeyThresh and KeyRepThresh on both oracle Macs. */
@@ -332,7 +337,7 @@ export function oracleKeyTimes(output: string, script: Script, kind: MachineKind
 		if (op === 'w') {
 			tick += Number(a);
 		} else if (op === 'k') {
-			const code = kind === 'plus' ? (plusArrows[Number(a)] ?? Number(a)) : Number(a);
+			const code = Number(a);
 			const c = changes.find((c) => !c.used && c.code === code && c.down === (b === '1') && c.tick > tick);
 			if (c === undefined) {
 				throw new Error(`the oracle's trace does not show key ${code} going ${b === '1' ? 'down' : 'up'} after tick ${tick}`);
