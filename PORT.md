@@ -60,9 +60,10 @@ Do not relitigate these without discussing them first.
     The game itself (play, rooms, drawing, sound, timing) stays exact.
     An addition's setting is kept apart from the original's preference record, so that 'Gprf' keeps its format.
 15. **Names:** the game is "Glider 4.0" in readable text, as on its About box and in Casady & Greene's materials (its releases are 4.0 to 4.10).
-    The page's `startup` parameter names a program, after the Finder's Set Startup…: `?startup=glider4` and `?startup=room-editor` (Glider 4.0 is the only Glider with a separate Room Editor); a bare URL starts Glider.
+    The page's `startup` parameter names a program, after the Finder's Set Startup…: `?startup=glider4` and `?startup=room-editor` (Glider 4.0 is the only Glider with a separate Room Editor), and `?startup=desktop` for the desktop (decision 16); a bare URL starts Glider.
     The repository is `dbohdan/glider`, with room for earlier Glider versions should their sources appear.
-16. **The launcher:** an application of our own on the port's Toolbox, in the manner of System 6's MiniFinder, plays the Finder's part: Quit goes to it.
+16. **The desktop:** an application of our own on the port's Toolbox plays the Finder's part, as System 6.0.8's Finder desktop with only our three icons and a small Finder-style menu bar (no disks, no Trash, no windows of folders): Quit goes to it.
+    MiniFinder was considered and dropped: it is System 4.1's (Finder 5.5's "Use MiniFinder…"; System 5 and 6 have none), it has no menu bar, and its two plain windows of buttons look less like a Mac than the desktop does (`docs/images/2026-10-19-desktop/`).
     Its icons are Glider 4.0's and the Room Editor's own, and "Source Code", a System 6 folder with Git's branch mark (from Jason Long's Git logo, CC BY 3.0, credited in the README), which opens the repository in a new tab.
     Its Shut Down says "You may now close this window safely.", with Restart.
     The browser's own operations (importing houses, exporting the player's files, resetting preferences and scores) are in its menus.
@@ -238,13 +239,13 @@ do {
   - [x] A Mac II switched to black and white with Command held at launch (`blackAndWhiteScript`).
   - [x] Opening another house (Load House…), here one that is not the first of its chain (`loadHouseScript`).
   - Not to be compared: a Mac II started at 256 colors, where Glider asks to switch (`CheckAndSwitch`). The port's Mac II starts at 16 colors, so no player meets that alert.
-- [ ] **10. Standard File and the launcher** (decisions 2 and 16).
+- [ ] **10. Standard File and the desktop** (decisions 2 and 16).
   - [x] Standard File's dialogs on the Mac's screen, after System 6.0.8's (DLOG and DITL -3999 and -4000, measured in the oracle, with resources of our own), checked against the oracle during the saved-game and house cases.
-  - [ ] The launcher, after MiniFinder (measured from a System 6 disk that has it), with `startup` and Quit.
+  - [ ] The desktop, after System 6.0.8's Finder (measured in the oracle), with `startup` and Quit.
   - [ ] The README: what the port is and is not, credits and licenses, and the precedent below.
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
-  - Started from the launcher, or with `?startup=room-editor`.
+  - Started from the desktop, or with `?startup=room-editor`.
 - [ ] **13. Additions** (decision 14), once the port is complete:
   - Switching machines and palettes (Mac Plus, Mac II in color or black and white, the Windows palettes) from a submenu of the Options menu, built like Glider's own submenu.
     A machine change restarts the program, as changing the Mac would; a palette change may not need to.
