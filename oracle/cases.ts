@@ -490,7 +490,7 @@ export function steerScript(): Script {
  */
 export function tourScript(): Script {
 	const s = new Script();
-	s.speed(8).traceKeys();
+	s.speed(8).traceKeys().sound('sound.raw');
 	s.until(900).press('return').wait(60);
 	s.press('n', 'command').wait(20);
 	s.key('.', true);
@@ -592,7 +592,7 @@ export function wanderScript(seed: number): Script {
 		return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 	};
 	const s = new Script();
-	s.speed(8).traceKeys();
+	s.speed(8).traceKeys().sound('sound.raw');
 	s.until(900).press('return').wait(60);
 	s.press('n', 'command').wait(20);
 	const start = s.tick;

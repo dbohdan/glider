@@ -140,6 +140,15 @@ export class Script {
 	}
 
 	/**
+	 * Has the emulator write the Mac's sound to a file in the run's directory from the next tick on
+	 * (8-bit samples, 370 a tick), until another call; `null` stops. The output says the first tick.
+	 */
+	sound(name: string | null): this {
+		this.lines.push(name === null ? 'sound' : `sound ${name}`);
+		return this;
+	}
+
+	/**
 	 * Has the emulator print `size` bytes of RAM at `address` whenever they change, as seen at each
 	 * A-line trap and each tick's start, with the cycles into the tick: `watch TICK CYCLES ADDR VALUE`.
 	 */
@@ -157,9 +166,9 @@ export class Script {
 		return this;
 	}
 
-	/** Starts or stops the emulator's report of the traps the program calls (see OSGLUHDL.c). */
-	traceTraps(on: boolean): this {
-		this.lines.push(`traps ${on ? 1 : 0}`);
+	/** Starts or stops the emulator's report of the traps the program calls, or every trap with `rom` (see OSGLUHDL.c). */
+	traceTraps(on: boolean, rom = false): this {
+		this.lines.push(`traps ${on ? (rom ? 2 : 1) : 0}`);
 		return this;
 	}
 

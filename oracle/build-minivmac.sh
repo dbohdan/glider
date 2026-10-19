@@ -18,10 +18,9 @@ mkdir -p "$out"
 cp -R "$src/src" "$src/setup" "$out/"
 cd "$out"
 gcc -o setup_t setup/tool.c
-# No AutoSlow: it drops the extra speed after 60 ticks without screen changes or input, which
-# would give the program less time in quiet stretches, and screenshots (which look for screen
-# changes) could move where a stretch ends. Turning it off changed none of the cases' screenshots.
-./setup_t -t lx64 -api xwn -sound 0 -speed a -as 0 "$@" > setup.sh
+# No AutoSlow, which drops the extra speed after 60 ticks without screen changes or input (the
+# front end also turns it off at run time). Sound, for the front end to write to a file.
+./setup_t -t lx64 -api xwn -sound 1 -speed a -as 0 "$@" > setup.sh
 sh setup.sh > setup.log
 grep -q 'define WantInitNotAutoSlow 1' cfg/CNFUDOSG.h
 sed -i '/X11/d' cfg/CNFUIOSG.h
@@ -36,6 +35,9 @@ sed -i -e '1i extern void ADBMouseTalked(int dh, int dv, int down);' \
 	-e '/(0 != partH) || (0 != partV) || MouseButtonChange) {/a\
 					ADBMouseTalked((si4b)partH, (si4b)partV, SavedCurMouseButton);' src/ADBSHARE.h
 grep -q 'ADBMouseTalked((si4b)partH' src/ADBSHARE.h
+# Sound as the Mac's program wrote it, without Mini vMac's stand-in for the volume control.
+sed -i 's|^\t\tif (SoundVolume < 7) {|\t\tif (0) { /* oracle: no volume scaling */|' src/SNDEMDEV.c src/ASCEMDEV.c
+test "$(grep -c 'oracle: no volume scaling' src/SNDEMDEV.c src/ASCEMDEV.c | awk -F: '{s += $2} END {print s}')" = 2
 # And each key event the ADB keyboard gives, for key traces.
 sed -i -e '1i extern void ADBKeyTalked(int evt);' \
 	-e 's|^\(\t*\)ADB_DatBuf\[\([01]\)\] = NextADBkeyevt;|&\n\1ADBKeyTalked(NextADBkeyevt);|' src/ADBSHARE.h

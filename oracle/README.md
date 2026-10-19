@@ -39,7 +39,8 @@ How the emulator's time lines up with the port's, which the game tests (`test/ga
   (Mini vMac copies the screen after the first 1/2^n of each tick's instructions at speed n; the front end copies it again for a screenshot.)
 - At the normal speed, drawing takes time: the game takes ticks to start, and a screenshot can catch a frame half drawn.
   Cases that follow the game run 256 times the instructions per tick (`Script.speed(8)`), so that the program's work takes no time, as in the port, and cost about 20 seconds each.
-- `Script.traceTraps` has the emulator report every trap the program calls, by tick: the way to see what the original does when, and why it takes the time it does.
+- `Script.traceTraps` has the emulator report every trap the program calls, by tick: the way to see what the original does when, and why it takes the time it does. With `rom`, it reports the ROM's traps too.
+- `Script.sound` has the emulator write the sound the Mac plays to a file in the run's directory (8-bit samples, 370 a tick, from the tick `output.txt` names); the build leaves out Mini vMac's stand-in for the volume control, so the samples are those the program wrote. On a Mac II, Mini vMac's sound chip plays only once its FIFO is half full, so it can be silent where the Mac is not.
 - To order things within a tick: `Script.watch` reports a value in low memory when it changes, with the cycles into the tick, as seen at each trap (Ticks, `$16A`; the KeyMap, `$174`; KeyRepTime, `$18A`), and `Script.traceApp` how far into each tick the program first calls a trap.
   On a Mac II at speed 8 a tick begins with interrupt work: Ticks changes about 1.1 million cycles in, a key from ADB reaches the KeyMap about 2.7 million cycles in, and the program runs between and after them.
 

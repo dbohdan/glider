@@ -6,7 +6,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { everyTickScript, firstRoomScript, houseFrom, houseWith, maskRooms, interfaceScript, mouseScript, playScript, repeatScript, roomStarts, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
@@ -14,7 +14,7 @@ import type { MachineKind } from '../../src/platform/Machine.ts';
 import { writePNG } from '../../oracle/Image.ts';
 import { cacheDir } from '../../oracle/Oracle.ts';
 import { differences, oracleOutput, oracleRunAvailable, oracleShot, writeComparison } from '../toolbox/machine.ts';
-import { bootGlider, oracleTrace, replay, runGlider } from './harness.ts';
+import { bootGlider, oracleTrace, replay, runGlider, soundDifferences } from './harness.ts';
 
 interface Case {
 	caseName: string;
@@ -81,5 +81,12 @@ for (const [kind, { caseName, makeScript, what, house, known = 0 }] of cases) {
 			}
 		}
 		assert.deepEqual(failures, []);
+		// The sound, where the oracle recorded it (Script.sound).
+		const recording = join(cacheDir, 'runs', caseName, 'sound.raw');
+		if (existsSync(recording)) {
+			const first = Number(/^sound (\d+)$/m.exec(oracleOutput(caseName))![1]);
+			assert.ok(run.sound.size > 0);
+			assert.deepEqual(soundDifferences(run, readFileSync(recording), first).slice(0, 10), [], 'ticks whose sound differs');
+		}
 	});
 }

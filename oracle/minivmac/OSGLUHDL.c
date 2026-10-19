@@ -335,6 +335,42 @@ LOCALFUNC blnr WriteScreenFile(char *path)
 	return trueblnr;
 }
 
+/* --- sound --- */
+
+#if MySoundEnabled
+
+/*
+	The emulated Mac's sound (8-bit samples, 22255 a second, 370 a tick)
+	goes to a file while the script asks ("sound PATH"; "sound" stops),
+	to compare the port's sound with the original's.
+*/
+LOCALVAR FILE *SoundFile = NULL;
+#define kSoundBuffLen 1024
+LOCALVAR trSoundSamp SoundBuff[kSoundBuffLen];
+
+GLOBALOSGLUFUNC tpSoundSamp MySound_BeginWrite(ui4r n, ui4r *actL)
+{
+	*actL = (n < kSoundBuffLen) ? n : kSoundBuffLen;
+	return SoundBuff;
+}
+
+GLOBALOSGLUPROC MySound_EndWrite(ui4r actL)
+{
+	if (NULL != SoundFile) {
+		(void) fwrite(SoundBuff, sizeof(trSoundSamp), actL, SoundFile);
+	}
+}
+
+LOCALPROC StopSoundFile(void)
+{
+	if (NULL != SoundFile) {
+		fclose(SoundFile);
+		SoundFile = NULL;
+	}
+}
+
+#endif
+
 /* --- time, date, location --- */
 
 LOCALVAR ui5b TrueEmulatedTime = 0;
@@ -446,7 +482,8 @@ LOCALPROC WriteRamFile(ui5r addr, ui5r n, char *path)
 }
 
 /* Whether to print trap calls, and the run of identical calls not yet printed. */
-LOCALVAR blnr TrapTrace = falseblnr;
+/* 0: no trap trace; 1: the program's traps (code in RAM); 2: every trap, the ROM's too. */
+LOCALVAR int TrapTrace = 0;
 LOCALVAR unsigned long TrapTick = 0;
 LOCALVAR unsigned long TrapPC = 0;
 LOCALVAR unsigned long TrapOpcode = 0;
@@ -504,7 +541,7 @@ void ALineTrap(unsigned long pc, unsigned long opcode, unsigned long d0)
 	TraceWatches();
 	TraceAutoKey();
 
-	if (TrapTrace && (pc < kRAM_Size)) {
+	if ((2 == TrapTrace) || ((1 == TrapTrace) && (pc < kRAM_Size))) {
 		if ((0 != TrapCount) && ((tick != TrapTick) || (pc != TrapPC)
 			|| (opcode != TrapOpcode)))
 		{
@@ -765,7 +802,7 @@ LOCALPROC RunScript(void)
 			AppTrace = (0 != ScriptNum(a1));
 		} else if (0 == strcmp(cmd, "traps")) {
 			FlushTraps();
-			TrapTrace = (0 != ScriptNum(a1));
+			TrapTrace = (int)ScriptNum(a1);
 		} else if (0 == strcmp(cmd, "keys")) {
 			KeyMapTrace = (0 != ScriptNum(a1));
 			TraceKeyMap(trueblnr);
@@ -775,6 +812,22 @@ LOCALPROC RunScript(void)
 			StartMacDate = (ui5b)strtoul(a1, NULL, 0)
 				- (CurMacDateInSeconds - StartMacDate);
 			UpdateMacDate();
+		} else if (0 == strcmp(cmd, "sound")) {
+#if MySoundEnabled
+			StopSoundFile();
+			if (NULL != a1) {
+				SoundFile = fopen(a1, "wb");
+				if (NULL == SoundFile) {
+					ScriptError("sound file not opened");
+				} else {
+					/* The next tick's samples come first. */
+					printf("sound %lu\n", (unsigned long)TrueEmulatedTime + 1);
+					fflush(stdout);
+				}
+			}
+#else
+			ScriptError("built without sound");
+#endif
 		} else if (0 == strcmp(cmd, "q")) {
 			FlushTraps();
 			ForceMacOff = trueblnr;
@@ -888,6 +941,9 @@ int main(int argc, char **argv)
 
 	ProgramMain();
 
+#if MySoundEnabled
+	StopSoundFile();
+#endif
 	UnInitDrives();
 	return 0;
 }

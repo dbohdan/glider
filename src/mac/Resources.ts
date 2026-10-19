@@ -146,6 +146,13 @@ export function ReleaseResource(h: Handle | null): void {
 	found?.file.handles.delete(found.res);
 }
 
+/** A resource's attributes (resPreload and the others in ResourceFork.ts); 0 if the handle is not one. */
+export function GetResAttrs(h: Handle): Integer {
+	const found = resourceOf(h);
+	resErr = found === null ? resNotFound : noErr;
+	return found === null ? 0 : found.res.attrs;
+}
+
 /** Pascal `GetResInfo(theResource, theID, theType, name)`. */
 export function GetResInfo(h: Handle): { id: Integer; type: OSType; name: string } | null {
 	const found = resourceOf(h);

@@ -27,6 +27,7 @@ import {
 	type PixMap,
 	resetInput,
 	resetMemory,
+	resetSMS,
 	setHost,
 	setMachine,
 	setMainDevice,
@@ -88,6 +89,7 @@ export interface Machine {
 export function bootMachine(options: MachineOptions): Machine {
 	resetMemory();
 	resetInput();
+	resetSMS();
 	// The mouse starts where the oracle's Macs have it after starting up.
 	mouse.where = { h: 15, v: 15 };
 	setHost(options.host);

@@ -5,6 +5,7 @@ import { type Image } from '../../oracle/Image.ts';
 import { keyCodes, type Script } from '../../oracle/Script.ts';
 import { main } from '../../src/glider/GameBody.ts';
 import { hostKeyDown, hostKeyUp } from '../../src/mac/Events.ts';
+import { samplesPerTick, setSoundOutput, SMSUpdate } from '../../src/mac/SMS.ts';
 import { macRomanCode } from '../../src/mac/MacRoman.ts';
 import { mouseMoved } from '../../src/mac/Cursors.ts';
 import { keysDown, mouse, postOSEvent, tickTime } from '../../src/mac/OS.ts';
@@ -52,6 +53,8 @@ export interface GameRun {
 	host: GameHost;
 	/** The screen as the monitor shows it, with or without the cursor. */
 	shot(withCursor?: boolean): Image;
+	/** Each tick's sound from SMS, and where SMS wrote it in the Mac Plus sound buffer. */
+	sound: Map<number, { samples: Uint8Array; offset: number }>;
 }
 
 /**
@@ -79,7 +82,9 @@ export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array
 		}
 		return { width: machine.width, height: machine.height, rgb };
 	};
-	return { machine, host, shot };
+	const sound = new Map<number, { samples: Uint8Array; offset: number }>();
+	setSoundOutput((tick, samples, offset) => sound.set(tick, { samples: samples.slice(), offset }));
+	return { machine, host, shot, sound };
 }
 
 /** Runs Glider until a tick; returns normally at that tick, or if the program quits. */
@@ -92,6 +97,41 @@ export async function runGlider(run: GameRun, endTick: number): Promise<void> {
 			throw e;
 		}
 	}
+	SMSUpdate();
+}
+
+/**
+ * The ticks whose sound differs from the oracle's recording (`Script.sound`; `first` is its first
+ * tick), among those SMS played. On a Mac II, the tick after SMS writes its samples plays them
+ * all. On a Mac Plus the hardware plays the buffer through each tick as SMS writes it, from where
+ * SMS starts writing and round to the start (writeOffset): in the oracle Mini vMac reads the buffer
+ * 25 to 40 samples at a time, and SMS's task runs between the first reads or during them, so each
+ * sample is the tick's or, up to sample 90, the tick before's.
+ * Mini vMac's Mac II sound chip plays only once its FIFO holds 512 samples and stops when it runs
+ * dry, so after SMSInit it is silent for up to a second; a Mac II tick of silence is not counted
+ * (the Mac Plus's sound shows whether the port plays sound the original does not).
+ */
+export function soundDifferences(run: GameRun, recording: Uint8Array, first: number): number[] {
+	const ii = run.machine.kind === 'ii';
+	const n = samplesPerTick;
+	const heard = (t: number) => recording.subarray((t - first) * n, (t - first + 1) * n);
+	const bad: number[] = [];
+	for (const [t, { samples, offset }] of run.sound) {
+		const out = heard(ii ? t + 1 : t);
+		const before = run.sound.get(t - 1);
+		if (out.length < n || (!ii && (before === undefined || t <= first))) {
+			continue;
+		}
+		/** What position p of the buffer holds after SMS writes a tick's samples. */
+		const at = (written: { samples: Uint8Array; offset: number }, p: number) => written.samples[(p - written.offset + n) % n];
+		const ok = ii
+			? out.every((v, i) => v === samples[i]) || out.every((v) => v === 0x80)
+			: out.every((v, p) => v === at({ samples, offset }, p) || (p < 90 && v === at(before!, p)));
+		if (!ok) {
+			bad.push(t);
+		}
+	}
+	return bad;
 }
 
 /** The Mac Plus keyboard's arrow keys, by the Apple Extended Keyboard's codes the scripts use. */

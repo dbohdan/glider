@@ -12,6 +12,7 @@ import { beep } from './Beep.ts';
 import { BrowserHost } from './Clock.ts';
 import { browserFilePicker } from './FilePicker.ts';
 import { attachInput } from './Input.ts';
+import { BrowserSound } from './Sound.ts';
 import { FileStore } from './Storage.ts';
 
 async function fetchBytes(path: string): Promise<Uint8Array> {
@@ -47,6 +48,7 @@ async function start(): Promise<void> {
 	const machine = bootMachine({ kind, system, volume, application: 'Glider 4.05', host, fileChanged: (f, deleted) => store.save(f, deleted), extendedKeyboard: true });
 	setBeeper(beep);
 	setStandardFileHost(browserFilePicker);
+	const sound = new BrowserSound();
 
 	const canvas = document.createElement('canvas');
 	canvas.width = machine.width;
@@ -65,6 +67,7 @@ async function start(): Promise<void> {
 	window.addEventListener('resize', layout);
 	attachInput({ screen: canvas, scale: () => scale, plusKeyboard: kind === 'plus', width: machine.width, height: machine.height, capture: wantsMouseCapture, wake: () => host.wake() });
 	const frame = (): void => {
+		sound.update();
 		renderScreen(machine, image.data);
 		ctx.putImageData(image, 0, 0);
 		requestAnimationFrame(frame);
