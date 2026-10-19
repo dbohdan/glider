@@ -441,6 +441,51 @@ export function houseEndScript(): Script {
 	return s;
 }
 
+/**
+ * Starts a game, flies a little, and saves it (Command-S) as "Game" in Standard File's dialog; plays
+ * on, ends the game (Command-E), and opens the saved game from the Game menu (Load Game…), whose
+ * dialog lists only it. A screenshot every half second, but none while a dialog of Standard File is
+ * up, which the port replaces with the page's. With `probe`, the emulator also reports the traps
+ * the program calls from just before each dialog to after it.
+ */
+export function savedGameScript(probe = false): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(900).press('return').wait(60);
+	s.press('n', 'command').wait(20);
+	s.key('.', true);
+	for (let t = 0; t < 6; t++) {
+		s.wait(30).shot(`g${t}`);
+	}
+	s.key('.', false);
+	if (probe) {
+		s.traceTraps(true);
+	}
+	s.press('s', 'command').wait(60).type('Game').press('return');
+	for (let t = 0; t < 10; t++) {
+		s.wait(30).shot(`s${t}`);
+		if (probe && t === 1) {
+			s.traceTraps(false);
+		}
+	}
+	s.press('e', 'command');
+	for (let t = 0; t < 10; t++) {
+		s.wait(30).shot(`e${t}`);
+	}
+	if (probe) {
+		s.traceTraps(true);
+	}
+	s.mouse(60, 10).wait(5).button(true).wait(15).mouse(60, 92).wait(15).button(false).wait(60); // Game > Load Game…
+	s.press('return');
+	for (let t = 0; t < 20; t++) {
+		s.wait(30).shot(`l${t}`);
+		if (probe && t === 1) {
+			s.traceTraps(false);
+		}
+	}
+	return s;
+}
+
 for (const [name, nextFile] of Object.entries(houseEnds)) {
 	/** A house that ends after its first room, on a Mac Plus and on a Mac II. */
 	cases[name] = (dir) => {
@@ -454,6 +499,23 @@ for (const [name, nextFile] of Object.entries(houseEnds)) {
 		return run(macII, houseEndScript(), disk, dir);
 	};
 }
+
+/** A game saved and opened again, on a Mac Plus and on a Mac II. */
+cases.savedGame = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
+	return run(macPlus, savedGameScript(), disk, dir);
+};
+cases.savedGameColor = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, gameFiles(), 'Glider 4.06');
+	return run(macII, savedGameScript(), disk, dir);
+};
+cases.savedGameProbe = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
+	return run(macPlus, savedGameScript(true), disk, dir);
+};
 
 for (const first of roomStarts) {
 	/** A minute of random keys from room `first`, on a Mac Plus and on a Mac II. */

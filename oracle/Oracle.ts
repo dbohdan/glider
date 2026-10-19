@@ -232,6 +232,19 @@ export function systemFiles(): MacFile[] {
 	return names.map((n) => parseMacBinary(readFileSync(join(dir, n + '.bin'))));
 }
 
+/** A file from a disk the oracle ran, such as one the program saved (`path` in HFS form, ":System Folder:Game"). */
+export function readDiskFile(disk: string, path: string): MacFile {
+	return withHFS((hfs, tmp) => {
+		hfs('hmount', disk);
+		try {
+			hfs('hcopy', '-m', path, join(tmp, 'file.bin'));
+		} finally {
+			hfs('humount');
+		}
+		return parseMacBinary(readFileSync(join(tmp, 'file.bin')));
+	});
+}
+
 /**
  * Builds a boot disk with a System Folder holding the System, the Finder, and the given files,
  * which launches `startup` at boot instead of the Finder (and without MultiFinder).
