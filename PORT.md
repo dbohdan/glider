@@ -224,7 +224,7 @@ do {
   - Scaling (integer factors, and the largest that fits) from another Options submenu, in place of the page's own control.
   - A "Bass Beat" checkbox in the Sound Settings dialog, as in Glider for Windows, whose dialog has "Object", "Music" and "Bass Beat" under "Sounds To Play".
     On the Mac, Music covers both the jingle on entering a room and the bass during play; the checkbox would split off the bass.
-    Its default is open: on keeps the original's sound, while the Windows dialog in the screenshot has it off.
+    It is on by default, as the Mac plays it; Glider for Windows had it off by default (`docs/versions.md`).
 
 ## Open questions
 
@@ -453,3 +453,4 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 - The page's icon is Glider's own: the application's 'icl8' 128 in the Mac's standard 8-bit colors, with the mask of its 'ICN#' (`tools/Favicon.ts`, written by the resource build).
 - The bass "duh-dum" during play is Glider's: with Music on it plays every (256 − frames in the room) ÷ 8 + 14 frames, from about a second and a half on entering a room to under half a second when the time bonus has run out (PlayActive). It checks Music, not Sound, so it plays with Sound off.
 - Glider for Windows has a "Bass Beat" setting of its own, beside "Music" and "Object" in its sound dialog (seen in a screenshot of it the person sent), which explains why the bass in the Mac version seemed more frequent than remembered: the screenshot has it off, likely as the person played. Recorded as a planned addition (roadmap 13).
+- Glider for Windows' Bass Beat is off by default, read from its `GLIDER.EXE` (a 16-bit NE executable built with Borland Pascal: length-prefixed strings, `inc bp; push bp` prologues). The `GLIDER.INI` key names led to the routine that reads them, its caller to the routine that sets the defaults before, and the relocation records named each far call's target; capstone in 16-bit mode disassembled it. The bass in Windows follows the Mac's rule but only plays with the sound system on. The port will default the addition to on, as the Mac plays.

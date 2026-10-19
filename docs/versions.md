@@ -267,6 +267,10 @@ Whether it existed before 4.05 is unknown; the 4.02 and 4.04 downloads would sho
   _Inference:_ trimmed or converted, not edited.
 - Sound 31 is new; it has the same length as sound 21 (the score tick).
 - Mixing is done by Microsoft's WaveMix library.
+- The Sound Settings dialog has "Sound System" On/Off and, under "Sounds To Play", "Object", "Music" and "Bass Beat"; the Mac's Music covers both the room jingle and the bass.
+  They are saved in `GLIDER.INI` as `UseSoundSystem`, `ObjSndActive`, `MusicActive` and `BassBeatActive`, each `T` or `F`.
+  Bass Beat is **off by default** (disassembled: the routine of segment 13 at `0x37D`, entry 99, sets Object and Music to true and Bass Beat to false before `GLIDER.INI` is read, and a missing key keeps the default; the installer writes only `GliderHouse` to `GLIDER.INI`).
+- The bass uses the Mac's rule, (256 − frames in the room) ÷ 8 + 14 frames with a minimum of 14, starting at 46 (segment 11 at `0xD27`), but plays only while the sound system is on, where the Mac plays it with Sound off.
 
 ### Features not in the Mac version
 
