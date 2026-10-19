@@ -60,6 +60,8 @@ export function systemFork(): ResourceFork {
 	rf.put({ type: 'FONT', id: 12, name: null, attrs: 0, data: ozma });
 	const gray = [0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55];
 	rf.put({ type: 'PAT ', id: 16, name: null, attrs: 0, data: new Uint8Array(gray) });
+	// The scroll bars' track (CDEF 1): System 6.0.8's PAT 17.
+	rf.put({ type: 'PAT ', id: 17, name: null, attrs: 0, data: new Uint8Array([0x88, 0x22, 0x88, 0x22, 0x88, 0x22, 0x88, 0x22]) });
 	// A pixel pattern of type 0 is drawn as its one-bit pattern.
 	const ppat = new Uint8Array(28);
 	ppat.set(gray, 20);

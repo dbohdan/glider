@@ -1,5 +1,6 @@
 // Port: the Control Manager (Inside Macintosh I, chapter 10, and V, chapter 12), with System 6's
-// standard buttons (CDEF 0): push buttons, check boxes, and radio buttons.
+// standard buttons (CDEF 0): push buttons, check boxes, and radio buttons; and its scroll bars
+// (CDEF 1), read from System 6.0.8's code (see drawScrollBar).
 //
 // The geometry is measured from the oracle (Glider's dialogs on a Mac Plus): push buttons are
 // rounded rectangles whose corners' curvature is half their height, with the title centered; check
@@ -9,6 +10,11 @@
 
 import { getHost, mouse, TickCount, tickTime } from './OS.ts';
 import {
+	type BitMap,
+	CopyBits,
+	FillRect,
+	srcCopy,
+	white,
 	DrawText,
 	EraseRect,
 	FrameOval,
@@ -56,6 +62,8 @@ import { encodeMacRoman, pascalString } from './MacRoman.ts';
 import { rectRegion } from './Region.ts';
 import { GetResource } from './Resources.ts';
 import { s16 } from './Binary.ts';
+import { bytesAt, DisposPtr, NewPtr } from './Memory.ts';
+import { GetPattern } from './ToolUtils.ts';
 import type { WindowRecord } from './Windows.ts';
 import type { Integer, LongInt, Point, Rect, Ref } from './Types.ts';
 
@@ -345,18 +353,22 @@ function drawControl(c: ControlRecord, part: Integer): void {
 		}
 		TextMode(srcOr);
 		const colors = controlColors(port);
-		switch (c.procID & 7) {
-			case pushButProc:
-				drawPushButton(c, colors);
-				break;
-			case checkBoxProc:
-				drawCheckBox(c, part, colors, false);
-				break;
-			case radioButProc:
-				drawCheckBox(c, part, colors, true);
-				break;
+		if (c.procID >> 4 === scrollBarProc >> 4) {
+			drawScrollBar(c, part);
+		} else {
+			switch (c.procID & 7) {
+				case pushButProc:
+					drawPushButton(c, colors);
+					break;
+				case checkBoxProc:
+					drawCheckBox(c, part, colors, false);
+					break;
+				case radioButProc:
+					drawCheckBox(c, part, colors, true);
+					break;
+			}
 		}
-		if (c.contrlHilite === 255) {
+		if (c.contrlHilite === 255 && c.procID >> 4 !== scrollBarProc >> 4) {
 			// An inactive control is dimmed.
 			PenPat(gray);
 			PenMode(notPatBic);
@@ -499,6 +511,9 @@ export function FindControl(thePoint: Point, theWindow: WindowRecord, whichContr
 }
 
 export function TestControl(theControl: ControlRecord, thePt: Point): Integer {
+	if (theControl.procID >> 4 === scrollBarProc >> 4) {
+		return testScrollBar(theControl, thePt);
+	}
 	if (theControl.contrlHilite === 255 || !PtInRect(thePt, theControl.contrlRect)) {
 		return 0;
 	}
@@ -537,5 +552,130 @@ export async function TrackControl(theControl: ControlRecord, startPt: Point, ac
 	}
 	HiliteControl(theControl, 0);
 	return inside ? part : 0;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Scroll bars (CDEF 1)
+//
+// System 6.0.8's scroll bar definition: its arrows are 16-by-16 bitmaps, framed, copied in srcCopy
+// into the bar's ends (pressed ones while their part is highlighted); the track between them, the
+// bar inset by 1 across and by its thickness along, is filled with PAT 17 (a light gray), or white
+// when the bar is inactive (highlighted 255, or its minimum equal to its maximum), and an active
+// bar's thumb is a white square framed, 16 along, at its value's place in the track's length less
+// three thicknesses, to the nearest pixel (halves down). The bar's rectangle is framed last.
+
+/** The arrows' bitmaps, from CDEF 1 (offsets $D8 to $1D7): each 16 rows of 16 bits. */
+const scrollArrows = {
+	right: [0xffff, 0x8081, 0x80c1, 0x80a1, 0x8f91, 0x8809, 0x8805, 0x8803, 0x8805, 0x8809, 0x8f91, 0x80a1, 0x80c1, 0x8081, 0x8001, 0xffff],
+	rightPressed: [0xffff, 0x8081, 0x80c1, 0x80e1, 0x8ff1, 0x8ff9, 0x8ffd, 0x8fff, 0x8ffd, 0x8ff9, 0x8ff1, 0x80e1, 0x80c1, 0x8081, 0x8001, 0xffff],
+	left: [0xffff, 0x8101, 0x8301, 0x8501, 0x89f1, 0x9011, 0xa011, 0xc011, 0xa011, 0x9011, 0x89f1, 0x8501, 0x8301, 0x8101, 0x8001, 0xffff],
+	leftPressed: [0xffff, 0x8101, 0x8301, 0x8701, 0x8ff1, 0x9ff1, 0xbff1, 0xfff1, 0xbff1, 0x9ff1, 0x8ff1, 0x8701, 0x8301, 0x8101, 0x8001, 0xffff],
+	down: [0xffff, 0x8001, 0x8001, 0x8fe1, 0x8821, 0x8821, 0x8821, 0xf83d, 0xa009, 0x9011, 0x8821, 0x8441, 0x8281, 0x8101, 0x8001, 0xffff],
+	downPressed: [0xffff, 0x8001, 0x8001, 0x8fe1, 0x8fe1, 0x8fe1, 0x8fe1, 0xfffd, 0xbff9, 0x9ff1, 0x8fe1, 0x87c1, 0x8381, 0x8101, 0x8001, 0xffff],
+	up: [0xffff, 0x8001, 0x8101, 0x8281, 0x8441, 0x8821, 0x9011, 0xa009, 0xf83d, 0x8821, 0x8821, 0x8821, 0x8fe1, 0x8001, 0x8001, 0xffff],
+	upPressed: [0xffff, 0x8001, 0x8101, 0x8381, 0x87c1, 0x8fe1, 0x9ff1, 0xbff9, 0xfffd, 0x8fe1, 0x8fe1, 0x8fe1, 0x8fe1, 0x8001, 0x8001, 0xffff],
+};
+
+/** Whether a bar runs up and down (it is not wider than it is tall), and its thickness. */
+function barShape(r: Rect): { vertical: boolean; thickness: number } {
+	const height = r.bottom - r.top;
+	const width = r.right - r.left;
+	return width > height ? { vertical: false, thickness: height } : { vertical: true, thickness: width };
+}
+
+function scrollBarActive(c: ControlRecord): boolean {
+	return c.contrlHilite !== 255 && c.contrlHilite !== 254 && c.contrlMin !== c.contrlMax;
+}
+
+/** The thumb's rectangle (CDEF 1's routine at $37A). */
+function thumbRect(c: ControlRecord): Rect {
+	const r = { ...c.contrlRect };
+	const { vertical, thickness } = barShape(r);
+	const [start, end] = vertical ? (['top', 'bottom'] as const) : (['left', 'right'] as const);
+	const [across0, across1] = vertical ? (['left', 'right'] as const) : (['top', 'bottom'] as const);
+	const travel = r[end] - r[start] - 3 * thickness;
+	const range = c.contrlMax - c.contrlMin;
+	let pos = thickness;
+	if (range !== 0) {
+		const product = travel * (c.contrlValue - c.contrlMin);
+		pos = Math.trunc(product / range);
+		if (product % range > range >> 1) {
+			pos++;
+		}
+	}
+	r[start] += pos + thickness;
+	r[end] = r[start] + thickness;
+	r[across0]++;
+	r[across1]--;
+	return r;
+}
+
+function copyArrow(rows: number[], dst: Rect): void {
+	const p = NewPtr(32);
+	const bytes = bytesAt(p, 32);
+	rows.forEach((w, i) => {
+		bytes[i * 2] = w >> 8;
+		bytes[i * 2 + 1] = w & 0xff;
+	});
+	const bm: BitMap = { baseAddr: p, rowBytes: 2, bounds: { top: 0, left: 0, bottom: 16, right: 16 } };
+	CopyBits(bm, thePort.portBits, bm.bounds, dst, srcCopy, null);
+	DisposPtr(p);
+}
+
+/** Draws a scroll bar, or one part of it (CDEF 1's drawCntl at $200). */
+function drawScrollBar(c: ControlRecord, part: Integer): void {
+	const r = c.contrlRect;
+	const { vertical, thickness } = barShape(r);
+	if (part === 0 || part === inUpButton) {
+		const box = vertical ? { ...r, bottom: r.top + thickness } : { ...r, right: r.left + thickness };
+		copyArrow(vertical ? (c.contrlHilite === inUpButton ? scrollArrows.upPressed : scrollArrows.up) : c.contrlHilite === inUpButton ? scrollArrows.leftPressed : scrollArrows.left, box);
+	}
+	if (part === 0 || part === inDownButton) {
+		const box = vertical ? { ...r, top: r.bottom - thickness } : { ...r, left: r.right - thickness };
+		copyArrow(vertical ? (c.contrlHilite === inDownButton ? scrollArrows.downPressed : scrollArrows.down) : c.contrlHilite === inDownButton ? scrollArrows.rightPressed : scrollArrows.right, box);
+	}
+	if (part !== 0 && part !== inThumb) {
+		return;
+	}
+	const track = { ...r };
+	if (vertical) {
+		InsetRect(track, 1, thickness);
+	} else {
+		InsetRect(track, thickness, 1);
+	}
+	const active = scrollBarActive(c);
+	FillRect(track, active ? (GetPattern(17) ?? gray) : white);
+	if (active) {
+		const thumb = thumbRect(c);
+		FillRect(thumb, white);
+		FrameRect(thumb);
+	}
+	FrameRect(r);
+}
+
+/** Which part of a scroll bar a point is in (CDEF 1's testCntl at $3FC). */
+function testScrollBar(c: ControlRecord, pt: Point): Integer {
+	if (c.contrlHilite === 254) {
+		return 254;
+	}
+	if (!scrollBarActive(c) || !PtInRect(pt, c.contrlRect)) {
+		return 0;
+	}
+	const r = c.contrlRect;
+	const { vertical, thickness } = barShape(r);
+	const along = vertical ? pt.v : pt.h;
+	const [start, end] = vertical ? [r.top, r.bottom] : [r.left, r.right];
+	if (along - start <= thickness) {
+		return inUpButton;
+	}
+	if (end - along <= thickness) {
+		return inDownButton;
+	}
+	const thumb = thumbRect(c);
+	if (PtInRect(pt, thumb)) {
+		return inThumb;
+	}
+	const [t0, t1] = vertical ? [thumb.top, thumb.bottom] : [thumb.left, thumb.right];
+	return along >= t0 + ((t1 - t0) >> 1) ? inPageDown : inPageUp;
 }
 
