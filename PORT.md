@@ -199,6 +199,8 @@ do {
   - [x] Color ports, 4-bit pixel maps, the standard color table, RGB fore and back colors, pattern and text modes in color, transparent mode, version 2 pictures with pixel maps, `CopyBits` between depths and color tables.
   - [ ] Pixel patterns (`ppat`), color icons (`cicn`), color cursors, the Palette Manager, the inverse table for arithmetic modes.
 - [ ] **5. Platform:** display, scaling, input, time, cursors.
+  - [x] The browser page: the screen with its cursor at integer scales, keys (arrow keys by key, for remote desktops), the mouse with Pointer Lock, the clock, sound, storage of the player's files, Standard File as page dialogs.
+  - [ ] Choosing the machine other than by the URL (`?machine=plus`); deploying to GitHub Pages.
 - [ ] **6. Toolbox user interface (System 6):** Window, Menu, Control, Dialog, TextEdit, and Alert managers.
   - [x] Every Toolbox routine Glider calls exists with its Inside Macintosh name (`src/mac/Toolbox.ts`).
   - [x] Glider's menus, its "New keyboard" alert, and its Sound Settings dialog match the oracle pixel for pixel on both machines.
@@ -208,12 +210,13 @@ do {
   - [x] File Manager over the in-memory volume; `OpenResFile` writes resource changes back; Standard File's filter and hook.
 - [ ] **8. Sound:** SMS reimplementation.
   - [x] SMS's engine, read from its object code; every tick of the sound matches the oracle's recordings on both machines (`test/game/`).
-  - [ ] Playing it in the browser.
+  - [x] Playing it in the browser.
 - [ ] **9. Glider:** port the 11 units.
   - [x] All units translated (`src/glider/`); Glider starts up on both machines exactly as the original does (`test/game/`).
   - [x] A game plays exactly as the original's: the oracle's `play` and `playColor` cases replayed on the port give identical screens through 10 seconds of play on both machines.
   - [x] Steering with the keyboard matches the oracle on both machines, and so does every tick of the alert going away and of a game starting.
-  - [ ] Play with input: items, rooms, deaths, and the in-game dialogs; mouse control (Pointer Lock and the program's mouse warping).
+  - [x] Play with input: items, rooms, deaths, game over, high-score entry, the menus, dialogs, help and pause; mouse control (`test/game/`).
+  - [ ] Not yet compared with the oracle: finishing a house (`AdvanceAFile` into the next file, `ClosingAnimation` at the end), saving and opening a game, opening another house, changing the Configure and Sound settings, a Mac II in black and white (Command held at launch) and one switched down from 256 colors (`CheckAndSwitch`).
 - [ ] **10. Launcher page:** house library, settings, credits, manual.
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
