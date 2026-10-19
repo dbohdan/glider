@@ -4,12 +4,13 @@
 import { type Image } from '../../oracle/Image.ts';
 import { keyCodes, type Script } from '../../oracle/Script.ts';
 import { main } from '../../src/glider/GameBody.ts';
-import { hostKeyDown, hostKeyUp } from '../../src/mac/Events.ts';
+import { autoKeyMask, GetNextEvent, hostKeyDown, hostKeyUp, keyDownMask, newEventRecord } from '../../src/mac/Events.ts';
 import { samplesPerTick, setSoundOutput, SMSUpdate } from '../../src/mac/SMS.ts';
-import { macRomanCode } from '../../src/mac/MacRoman.ts';
+import { macRomanChar, macRomanCode } from '../../src/mac/MacRoman.ts';
 import { mouseMoved } from '../../src/mac/Cursors.ts';
 import { keysDown, mouse, postOSEvent, tickTime } from '../../src/mac/OS.ts';
 import { Volume } from '../../src/mac/Volume.ts';
+import { setStandardFileHost, type StandardFileHost } from '../../src/mac/StandardFile.ts';
 import { bootMachine, type Machine, type MachineKind } from '../../src/platform/Machine.ts';
 import { renderScreen } from '../../src/platform/Screen.ts';
 import { bundledFiles, systemFork } from '../../tools/build-resources.ts';
@@ -50,11 +51,45 @@ export const startDateTime = 2779747200;
 
 export interface GameRun {
 	machine: Machine;
+	/** The program's volume, with the files it saved. */
+	volume: Volume;
 	host: GameHost;
 	/** The screen as the monitor shows it, with or without the cursor. */
 	shot(withCursor?: boolean): Image;
 	/** Each tick's sound from SMS, and where SMS wrote it in the Mac Plus sound buffer. */
 	sound: Map<number, { samples: Uint8Array; offset: number }>;
+}
+
+/**
+ * Standard File as the oracle's scripts use it, in place of the page's dialogs: a name typed and
+ * Return to save, Return to open the first file listed. The keys come from the event queue, as the
+ * original dialog takes them, with any left there before it opened, and the dialog answers in the tick Return arrives: in the oracle,
+ * SFPutFile closes on Return without flashing the Save button, and Glider writes the game and goes
+ * on playing in that tick (traced: `savedGameProbe`).
+ */
+export const scriptedStandardFile: StandardFileHost = {
+	async getFile(request) {
+		await typedUntilReturn();
+		return request.files[0]?.name ?? null;
+	},
+	async putFile(request) {
+		const typed = await typedUntilReturn();
+		return typed === '' ? request.defaultName : typed;
+	},
+};
+
+async function typedUntilReturn(): Promise<string> {
+	const event = newEventRecord();
+	let typed = '';
+	for (;;) {
+		if (await GetNextEvent(keyDownMask | autoKeyMask, event)) {
+			const c = event.message & 0xff;
+			if (c === 13 || c === 3) {
+				return typed;
+			}
+			typed = c === 8 ? typed.slice(0, -1) : typed + macRomanChar(c);
+		}
+	}
 }
 
 /**
@@ -71,6 +106,7 @@ export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array
 	host.wakeOnInput = true;
 	host.time = tickTime(launchTick);
 	const machine = bootMachine({ kind, system: systemFork(), volume, application: 'Glider 4.05', host, startDateTime });
+	setStandardFileHost(scriptedStandardFile);
 	const rgba = new Uint8ClampedArray(machine.width * machine.height * 4);
 	const shot = (withCursor = false): Image => {
 		renderScreen(machine, rgba, withCursor);
@@ -84,7 +120,7 @@ export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array
 	};
 	const sound = new Map<number, { samples: Uint8Array; offset: number }>();
 	setSoundOutput((tick, samples, offset) => sound.set(tick, { samples: samples.slice(), offset }));
-	return { machine, host, shot, sound };
+	return { machine, volume, host, shot, sound };
 }
 
 /** Runs Glider until a tick; returns normally at that tick, or if the program quits. */

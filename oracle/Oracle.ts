@@ -232,19 +232,6 @@ export function systemFiles(): MacFile[] {
 	return names.map((n) => parseMacBinary(readFileSync(join(dir, n + '.bin'))));
 }
 
-/** A file from a disk the oracle ran, such as one the program saved (`path` in HFS form, ":System Folder:Game"). */
-export function readDiskFile(disk: string, path: string): MacFile {
-	return withHFS((hfs, tmp) => {
-		hfs('hmount', disk);
-		try {
-			hfs('hcopy', '-m', path, join(tmp, 'file.bin'));
-		} finally {
-			hfs('humount');
-		}
-		return parseMacBinary(readFileSync(join(tmp, 'file.bin')));
-	});
-}
-
 /**
  * Builds a boot disk with a System Folder holding the System, the Finder, and the given files,
  * which launches `startup` at boot instead of the Finder (and without MultiFinder).
@@ -290,8 +277,10 @@ export interface RunResult {
  * Runs a script on a machine booting from a copy of a disk; screenshots and RAM dumps go to `dir`.
  * The disk itself stays as it was: Glider writes to its disk (high scores into the house,
  * preferences), and a second run from a used disk once started with the first run's scores.
+ * Files the run leaves on the disk at `keep` (HFS paths, ":System Folder:Preferences") are copied to `dir`
+ * in MacBinary, by their names with ".bin".
  */
-export function run(m: Machine, script: Script, disk: string, dir: string): RunResult {
+export function run(m: Machine, script: Script, disk: string, dir: string, keep: string[] = []): RunResult {
 	rmSync(dir, { recursive: true, force: true });
 	mkdirSync(dir, { recursive: true });
 	writeFileSync(join(dir, 'script.txt'), script.text());
@@ -299,6 +288,18 @@ export function run(m: Machine, script: Script, disk: string, dir: string): RunR
 	writeFileSync(copy, readFileSync(disk));
 	// Trap traces print hundreds of megabytes at high speeds; the default limit is 1 MB.
 	const res = spawnSync(emulatorPath(m), [join(cacheDir, m.rom), 'script.txt', copy], { cwd: dir, encoding: 'utf8', maxBuffer: 2 ** 30 });
+	if (keep.length > 0) {
+		withHFS((hfs) => {
+			hfs('hmount', copy);
+			try {
+				for (const path of keep) {
+					hfs('hcopy', '-m', path, join(dir, path.slice(path.lastIndexOf(':') + 1) + '.bin'));
+				}
+			} finally {
+				hfs('humount');
+			}
+		});
+	}
 	rmSync(copy);
 	if (res.status !== 0 || res.stderr) {
 		throw new Error(`emulator failed (${res.status}): ${res.error?.message ?? res.stderr}`);

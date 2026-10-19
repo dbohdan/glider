@@ -6,12 +6,13 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, maskRooms, interfaceScript, mouseScript, playScript, repeatScript, roomStarts, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, maskRooms, interfaceScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 import { writePNG } from '../../oracle/Image.ts';
+import { parseMacBinary } from '../../src/mac/MacBinary.ts';
 import { cacheDir } from '../../oracle/Oracle.ts';
 import { differences, oracleOutput, oracleRunAvailable, oracleShot, writeComparison } from '../toolbox/machine.ts';
 import { bootGlider, oracleTrace, replay, runGlider, soundDifferences } from './harness.ts';
@@ -55,6 +56,7 @@ const cases: [MachineKind, Case][] = [
 	...roomStarts.flatMap((first) => both(`room${first}`, () => wanderScript(first), `a minute of random keys from room ${first} plays`, () => houseFrom(first))),
 	...Object.entries(maskRooms).flatMap(([name, objects]) => both(name, firstRoomScript, `a test room (${name}) looks`, () => houseWith(objects))),
 	...Object.entries(houseEnds).flatMap(([name, nextFile]) => both(name, houseEndScript, nextFile === '' ? 'the end of the last house plays' : 'going on to the next house file plays', () => houseOfOneRoom(nextFile))),
+	...both('savedGame', () => savedGameScript(), 'a game saved and opened again plays'),
 	...both('tour', tourScript, 'a long flight through the house plays'),
 	...both('repeats', repeatScript, 'keys held in the high-score dialog repeat'),
 	...both('ui', interfaceScript, "Glider's menus, dialogs, help and a paused game look"),
@@ -88,6 +90,15 @@ for (const [kind, { caseName, makeScript, what, house, known = 0 }] of cases) {
 			const first = Number(/^sound (\d+)$/m.exec(oracleOutput(caseName))![1]);
 			assert.ok(run.sound.size > 0);
 			assert.deepEqual(soundDifferences(run, readFileSync(recording), first).slice(0, 10), [], 'ticks whose sound differs');
+		}
+		// The files the program saved, where the oracle kept them (Oracle.run's `keep`).
+		const runDir = join(cacheDir, 'runs', caseName);
+		for (const bin of readdirSync(runDir).filter((f) => f.endsWith('.bin'))) {
+			const rom = parseMacBinary(readFileSync(join(runDir, bin)));
+			const ours = run.volume.get(rom.name);
+			assert.ok(ours !== undefined, `the port saved no "${rom.name}"`);
+			assert.deepEqual([ours.type, ours.creator], [rom.type, rom.creator]);
+			assert.deepEqual(ours.data, rom.data, `"${rom.name}"'s data`);
 		}
 	});
 }
