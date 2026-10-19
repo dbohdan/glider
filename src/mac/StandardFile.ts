@@ -9,7 +9,7 @@ import { type FInfo, getVolume, portVRefNum } from './Files.ts';
 import type { MacFile } from './MacBinary.ts';
 import { GetResource, type Handle } from './Resources.ts';
 import { s16 } from './Binary.ts';
-import { dBoxProc } from './Windows.ts';
+import { activateAfterModalDialog, dBoxProc } from './Windows.ts';
 import type { Integer, OSType, Point } from './Types.ts';
 
 /** Pascal `SFReply`. */
@@ -123,6 +123,7 @@ export async function SFPGetFile(
 		.filter((f) => fileFilter === null || !fileFilter(fileParam(f)))
 		.sort((a, b) => (a.name.toUpperCase() < b.name.toUpperCase() ? -1 : 1));
 	const name = await host.getFile({ title: await hookTitle(dlgHook, dlgID), files, where });
+	activateAfterModalDialog();
 	const file = name === null ? undefined : getVolume()?.get(name);
 	Object.assign(reply, newSFReply());
 	if (file !== undefined) {
@@ -141,6 +142,7 @@ export function SFGetFile(where: Point, prompt: string, fileFilter: FileFilterPr
 /** Pascal `SFPutFile`: asks for a name to save under. */
 export async function SFPutFile(where: Point, prompt: string, origName: string, _dlgHook: DlgHookProc | null, reply: SFReply): Promise<void> {
 	const name = await host.putFile({ prompt, defaultName: origName, where });
+	activateAfterModalDialog();
 	Object.assign(reply, newSFReply());
 	if (name !== null && name.length > 0) {
 		reply.good = true;

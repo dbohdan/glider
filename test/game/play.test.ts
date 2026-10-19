@@ -12,7 +12,10 @@ import { everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom,
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 import { writePNG } from '../../oracle/Image.ts';
+import { gameRec } from '../../src/glider/FileInNOut.ts';
+import { houseRecLayout } from '../../src/glider/Globals.ts';
 import { parseMacBinary } from '../../src/mac/MacBinary.ts';
+import { type Layout, readLayout } from '../../src/mac/PascalLayout.ts';
 import { cacheDir } from '../../oracle/Oracle.ts';
 import { differences, oracleOutput, oracleRunAvailable, oracleShot, writeComparison } from '../toolbox/machine.ts';
 import { bootGlider, oracleTrace, replay, runGlider, soundDifferences } from './harness.ts';
@@ -42,6 +45,9 @@ function both(name: string, makeScript: () => Script, what: string, house?: () =
  * only shrinks a drip's last frame from 14 rows to 13, which matches.
  */
 const knownDifferences: Record<string, number> = { stretchedColor: 55 };
+
+/** The records of files Glider saves, by file type. */
+const savedLayouts: Record<string, Layout> = { GLgm: gameRec, GLhs: houseRecLayout };
 
 /** Cases that still differ, being worked on: they run, but do not fail the tests. */
 const unfinished: Record<string, string> = {
@@ -91,14 +97,21 @@ for (const [kind, { caseName, makeScript, what, house, known = 0 }] of cases) {
 			assert.ok(run.sound.size > 0);
 			assert.deepEqual(soundDifferences(run, readFileSync(recording), first).slice(0, 10), [], 'ticks whose sound differs');
 		}
-		// The files the program saved, where the oracle kept them (Oracle.run's `keep`).
+		// The files the program saved, where the oracle kept them (Oracle.run's `keep`): their
+		// records field by field, since the original leaves whatever was on its stack in the bytes
+		// past a string's end and between fields, where the port writes zeros.
 		const runDir = join(cacheDir, 'runs', caseName);
 		for (const bin of readdirSync(runDir).filter((f) => f.endsWith('.bin'))) {
 			const rom = parseMacBinary(readFileSync(join(runDir, bin)));
 			const ours = run.volume.get(rom.name);
 			assert.ok(ours !== undefined, `the port saved no "${rom.name}"`);
-			assert.deepEqual([ours.type, ours.creator], [rom.type, rom.creator]);
-			assert.deepEqual(ours.data, rom.data, `"${rom.name}"'s data`);
+			assert.deepEqual([ours.type, ours.creator, ours.data.length], [rom.type, rom.creator, rom.data.length]);
+			const layout = savedLayouts[rom.type];
+			if (layout === undefined) {
+				assert.deepEqual(ours.data, rom.data, `"${rom.name}"'s data`);
+			} else {
+				assert.deepEqual(readLayout(layout, ours.data, 0), readLayout(layout, rom.data, 0), `"${rom.name}"'s record`);
+			}
 		}
 	});
 }

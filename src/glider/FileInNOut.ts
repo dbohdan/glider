@@ -389,7 +389,7 @@ const roomState = PRecord({
 	objectStates: PArray(1, 16, miniObject),
 });
 
-const gameRec = PRecord({
+export const gameRec = PRecord({
 	version: PInteger,
 	houseStamp: PLongInt,
 	roomIs: PInteger,
