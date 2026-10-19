@@ -35,6 +35,7 @@ resources: node_modules/.installed
 build: node_modules/.installed resources
 	$(BIN)/tsc -p tsconfig.build.json
 	cp -R web/. $(DIST)/
+	cp LICENSE $(DIST)/
 
 serve: build
 	$(NODE) tools/serve.ts $(DIST) $(PORT) $(ADDRESS)

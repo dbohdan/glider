@@ -61,7 +61,7 @@ The oracle's case `desktop` boots System 6.0.8 into the Finder (without MultiFin
 
 ![Glider selected on the Mac II](10-port-desktop-glider-selected-mac-ii.png)
 
-**11.** About the Desktop…, an alert with Glider's icon.
+**11.** About the Desktop…, an alert with Glider's icon and the notice the MIT License asks for; the license's whole text is served beside the page.
 
 ![About the Desktop](11-port-about-the-desktop-plus.png)
 

@@ -142,11 +142,12 @@ export function desktopFile(root: string): MacFile {
 		[136, [10, 72, 46, 308], text('The Room Editor has not been ported yet.')],
 		[160, [10, 20, 42, 52], word(gliderIconID)],
 	]));
-	// About the Desktop…: a note alert, OK.
-	put('ALRT', 129, [...word(70), ...word(76), ...word(196), ...word(436), ...word(129), 0x55, 0x55]);
+	// About the Desktop…: a note alert, OK, with the notice the MIT License asks for (the license's
+	// whole text is served beside the page, as LICENSE).
+	put('ALRT', 129, [...word(80), ...word(96), ...word(176), ...word(416), ...word(129), 0x55, 0x55]);
 	put('DITL', 129, ditl([
-		[4, [96, 278, 116, 348], text('OK')],
-		[136, [10, 72, 90, 348], text('Glider 4.0, by John Calhoun, \u00a9 1991 Casady & Greene, ported to run in a web browser. Its source code, and the port\u2019s, are at github.com/dbohdan/glider.')],
+		[4, [66, 238, 86, 308], text('OK')],
+		[136, [10, 72, 58, 308], text('Glider 4.0, by John Calhoun, \u00a9 2016 softdorothy. Distributed under the MIT License.')],
 		[160, [10, 20, 42, 52], word(gliderIconID)],
 	]));
 	return { name: desktopFileName, type: 'FNDR', creator: 'GLD4', finderFlags: 0x4000, created: 0, modified: 0, data: new Uint8Array(0), rsrc: writeResourceFork(rf) };
