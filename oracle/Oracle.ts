@@ -241,7 +241,7 @@ export function makeDisk(path: string, files: MacFile[], startup: string, megaby
 	mkdirSync(dirname(path), { recursive: true });
 	writeFileSync(path, new Uint8Array(megabytes * 1024 * 1024));
 	withHFS((hfs, tmp) => {
-		hfs('hformat', '-l', 'Oracle HD', path);
+		hfs('hformat', '-l', 'Glider', path);
 		hfs('hmkdir', ':System Folder');
 		[...system, ...files].forEach((f, i) => {
 			const bin = join(tmp, `${i}.bin`);
