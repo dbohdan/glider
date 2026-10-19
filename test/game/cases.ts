@@ -50,7 +50,7 @@ export const gameCases: [MachineKind, Case][] = [
 	['plus', { caseName: 'settings', makeScript: () => settingsScript('plus'), what: 'a game with changed settings plays' }],
 	['ii', { caseName: 'settingsColor', makeScript: () => settingsScript('ii'), what: 'a game with changed settings plays' }],
 	// Command held from the first tick, before Glider starts.
-	['ii', { caseName: 'blackAndWhiteColor', makeScript: blackAndWhiteScript, what: 'a Mac II switched to black and white plays', launchTick: 2 }],
+	['ii', { caseName: 'blackAndWhiteColor', makeScript: blackAndWhiteScript, what: 'a Mac II switched to black and white plays', launchTick: 30 }],
 	...both('tour', tourScript, 'a long flight through the house plays'),
 	...both('repeats', repeatScript, 'keys held in the high-score dialog repeat'),
 	...both('ui', interfaceScript, "Glider's menus, dialogs, help and a paused game look"),

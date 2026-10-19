@@ -219,7 +219,9 @@ do {
   - [x] Finishing a house: going on to the next file (`AdvanceAFile`), and the closing animation, game over and a high score at the end of the last (`houseEndScript`).
   - [x] Saving a game (Command-S) and opening it again (Load Game…), with the saved file compared field by field (`savedGameScript`).
   - [x] Changing the Sound and Configure settings, playing with them, and the preferences Glider writes at Quit (`settingsScript`).
-  - [ ] Not yet compared with the oracle: opening another house, a Mac II in black and white (Command held at launch) and one switched down from 256 colors (`CheckAndSwitch`).
+  - [x] A Mac II switched to black and white with Command held at launch (`blackAndWhiteScript`).
+  - [ ] Not yet compared with the oracle: opening another house.
+  - Not to be compared: a Mac II started at 256 colors, where Glider asks to switch (`CheckAndSwitch`). The port's Mac II starts at 16 colors, so no player meets that alert.
 - [ ] **10. Launcher page:** house library, settings, credits, manual.
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
@@ -481,3 +483,8 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 
 - Changing the settings matches on both machines (`settings`): in Sound Settings the volume up four steps, Music off and 4-Channel, in Configure Z and X for left and right and the button to fire bands; a game steered with Z and X, with its sound (four channels, no music), and Command-Q, after which Glider's 'Gprf' resource, which the run keeps, is compared byte for byte. The first version of the script turned the volume down from the oracle's 1 to 0, which turns Sound off; the port did the same, but a silent game tests less.
 - On the Mac II the port's Sound Settings opened on 4-Channel, the original's on 2-Channel. Glider never reads that preference (it writes it instead), so the setting is whatever its global starts as. The port's case had not started fresh: the Mac II case ran after the Mac Plus case in the same process, and Glider's globals (`G`, and module variables such as IdleUtils' idle-loop state) kept what the case before had left, here the Mac Plus case's 4-Channel. Every case had started from the one before's state since the game tests began. Each case now plays in a worker thread of its own, with fresh modules, as each oracle run boots a fresh Mac; all cases still match, so none had depended on what it inherited. Since the cases are independent, they also run side by side, and the tests take half the time.
+
+### 2026-10-19 (black and white on the Mac II)
+
+- A Mac II with Command held as Glider starts matches the original (`blackAndWhiteColor`): Glider switches the screen to one bit (ForceBlackAndWhite), and the alert, a game, game over and Sound Settings are drawn in black and white on the 640-by-480 screen.
+- The key must be down before Glider starts, and the port starts Glider at tick 0; the case starts it later (`launchTick`). Even then the port stayed in color: the harness started its clock at the launch tick, so input scheduled before it was delivered at the program's first wait, after Glider had read the keys. The harness now delivers it before the program starts (`catchUp`), as a Mac's keyboard would have.

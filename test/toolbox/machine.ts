@@ -64,6 +64,13 @@ export class ScriptHost implements Host {
 		await Promise.resolve();
 	}
 
+	/** Runs what was scheduled up to the clock's present: input that came before a program started. */
+	catchUp(): void {
+		while (this.events[0] !== undefined && this.events[0].at <= this.time) {
+			this.events.shift()!.run();
+		}
+	}
+
 	/** Runs `f` when the clock reaches a tick, which may be fractional; input may end a wait. */
 	at(tick: number, f: () => void, input = false): this {
 		this.events.push({ at: tickTime(tick), seq: this.seq++, run: f, input });

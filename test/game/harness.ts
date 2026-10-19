@@ -128,6 +128,8 @@ export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array
 /** Runs Glider until a tick; returns normally at that tick, or if the program quits. */
 export async function runGlider(run: GameRun, endTick: number): Promise<void> {
 	run.host.endTime = tickTime(endTick);
+	// Keys held before Glider started (launchTick) are down when it starts.
+	run.host.catchUp();
 	try {
 		await main();
 	} catch (e) {
