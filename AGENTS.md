@@ -34,6 +34,7 @@ How to work on this project: methods that have proven themselves, and traps that
 - Libraries the original links can be read too: SMS came as an MPW object file (`Glider_405/Sources/SMSCore.a.o`); parse its records (dictionary, module, contents, references) and disassemble the code with the names they give.
 - The emulator is not the specification where it says it approximates: Mini vMac scaled samples for the volume control and starts its Mac II sound chip with a kludge. Read its source where the oracle looks odd, and leave its approximations out of the port and out of the comparison.
 - RAM dumps can compare a drawing call's inputs: find the program's offscreen bitmaps in a dump by searching for a row of the port's, then compare them whole.
+- Recordings of real hardware are measurements too, even a microphone's: match each 'SMSD' sound against the audio (normalized cross-correlation) to time the program's sounds, and use those it times in frames (a drip, a ball) as clocks. SMS starts sounds on ticks, so true gaps are whole ticks.
 - Test cases can be made of game data: a house whose first room holds the objects in question (`houseWith`) measures the original's drawing at every alignment and size.
 
 ## Looking at pixels
