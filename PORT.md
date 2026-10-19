@@ -52,6 +52,9 @@ Do not relitigate these without discussing them first.
 12. **Commercial files** (other Glider releases, manuals, ROMs, System software) are never committed.
     The oracle setup fetches them.
 13. **What the browser keeps:** only the player's part of the game's files, Glider's preferences and each bundled house's high scores, so that the game's files stay ours to update; files the player makes (saved games, their own houses) are kept whole.
+14. **Menus and settings are a baseline, not a limit:** they are first made to match the original pixel for pixel, then may change where it serves the player, tastefully and authentically: in the original's own style, built from its own parts, and where possible after a Glider that did it (Glider for Windows).
+    The game itself (play, rooms, drawing, sound, timing) stays exact.
+    An addition's setting is kept apart from the original's preference record, so that 'Gprf' keeps its format.
 
 ## Translation conventions
 
@@ -215,6 +218,13 @@ do {
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
   - Switching between the game and the editor at Quit, through a page dialog like the house picker's.
+- [ ] **13. Additions** (decision 14), once the port is complete:
+  - Switching machines and palettes (Mac Plus, Mac II in color or black and white, the Windows palettes) from a submenu of the Options menu, built like Glider's own submenu.
+    A machine change restarts the program, as changing the Mac would; a palette change may not need to.
+  - Scaling (integer factors, and the largest that fits) from another Options submenu, in place of the page's own control.
+  - A "Bass Beat" checkbox in the Sound Settings dialog, as in Glider for Windows, whose dialog has "Object", "Music" and "Bass Beat" under "Sounds To Play".
+    On the Mac, Music covers both the jingle on entering a room and the bass during play; the checkbox would split off the bass.
+    Its default is open: on keeps the original's sound, while the Windows dialog in the screenshot has it off.
 
 ## Open questions
 
@@ -442,3 +452,4 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 - The browser keeps only the player's part of the game's files (settled decision 13): Glider's 'Gprf' resource and the high scores of bundled houses, put back into the bundled files at start. Before, it kept every changed file whole, so a stored copy of the application hid any later change to the port's resources. Old records are read for their player's part.
 - The page's icon is Glider's own: the application's 'icl8' 128 in the Mac's standard 8-bit colors, with the mask of its 'ICN#' (`tools/Favicon.ts`, written by the resource build).
 - The bass "duh-dum" during play is Glider's: with Music on it plays every (256 − frames in the room) ÷ 8 + 14 frames, from about a second and a half on entering a room to under half a second when the time bonus has run out (PlayActive). It checks Music, not Sound, so it plays with Sound off.
+- Glider for Windows has a "Bass Beat" setting of its own, beside "Music" and "Object" in its sound dialog (seen in a screenshot of it the person sent), which explains why the bass in the Mac version seemed more frequent than remembered: the screenshot has it off, likely as the person played. Recorded as a planned addition (roadmap 13).
