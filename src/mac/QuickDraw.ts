@@ -417,11 +417,28 @@ export function CloseCPort(port: CGrafPort): void {
 	ClosePort(port);
 }
 
+/** The old-style color nearest an RGB color: what RGBForeColor and RGBBackColor set in an old port. */
+function nearestOldColor(c: RGBColor): LongInt {
+	let best = blackColor;
+	let bestDist = Infinity;
+	for (const old of [blackColor, whiteColor, redColor, greenColor, blueColor, cyanColor, magentaColor, yellowColor]) {
+		const o = oldColorToRGB(old);
+		const dist = (o.red - c.red) ** 2 + (o.green - c.green) ** 2 + (o.blue - c.blue) ** 2;
+		if (dist < bestDist) {
+			bestDist = dist;
+			best = old;
+		}
+	}
+	return best;
+}
+
 export function RGBForeColor(c: RGBColor): void {
 	const port = thePort;
 	if (isColorPort(port)) {
 		port.rgbFgColor = { ...c };
 		port.fgColor = colorToIndex(port.portPixMap.pmTable, c);
+	} else if (hasColorQD) {
+		port.fgColor = nearestOldColor(c);
 	}
 }
 
@@ -430,6 +447,8 @@ export function RGBBackColor(c: RGBColor): void {
 	if (isColorPort(port)) {
 		port.rgbBkColor = { ...c };
 		port.bkColor = colorToIndex(port.portPixMap.pmTable, c);
+	} else if (hasColorQD) {
+		port.bkColor = nearestOldColor(c);
 	}
 }
 
@@ -761,7 +780,8 @@ function clipToPort(rgn: Region): Region {
 
 /**
  * Fills a clipped region with a pattern in a pattern transfer mode. Patterns are aligned with the
- * bitmap: pattern row 0 is at bounds.top, and every eighth row after it.
+ * port's own coordinates: pattern row 0 is at local v = 0, and every eighth row after it (measured
+ * in the oracle: Standard File's gray line, in a dialog at an odd position on the screen).
  */
 /**
  * Highlighting (low memory HiliteMode, its pHiliteBit cleared): the next inversion in a color port
@@ -815,10 +835,10 @@ function fillRegion(rgn: Region, pat: Pattern, mode: number, pixPat: PixPat | nu
 	const notPat = (mode & 4) !== 0;
 	for (const band of rgn.bands) {
 		for (let v = band.top; v < band.bottom; v++) {
-			const row = pat[(v - s.bounds.top) & 7]!;
+			const row = pat[v & 7]!;
 			for (let k = 0; k < band.xs.length; k += 2) {
 				for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
-					const p = (row >> (7 - ((h - s.bounds.left) & 7))) & 1;
+					const p = (row >> (7 - (h & 7))) & 1;
 					transferBit(s, h, v, notPat ? p ^ 1 : p, op, fg, bk);
 				}
 			}
@@ -884,7 +904,6 @@ function fillArithmetic(rgn: Region, pat: Pattern, mode: number, port: CGrafPort
 	// rows of a diagonal), and some other arithmetic modes (subOver, adMin) seem to move the
 	// pattern; not used by Glider, not pinned down.
 	const inverted = op === transparent && curved ? 1 : 0;
-	const origin = { v: s.bounds.top, h: s.bounds.left };
 	const combine = (src: number, dst: number, pin: number): number => {
 		switch (op) {
 			case blend:
@@ -907,10 +926,10 @@ function fillArithmetic(rgn: Region, pat: Pattern, mode: number, port: CGrafPort
 	};
 	for (const band of rgn.bands) {
 		for (let v = band.top; v < band.bottom; v++) {
-			const row = pat[(v - origin.v) & 7]!;
+			const row = pat[v & 7]!;
 			for (let k = 0; k < band.xs.length; k += 2) {
 				for (let h = band.xs[k]!; h < band.xs[k + 1]!; h++) {
-					const bit = ((row >> (7 - ((h - origin.h) & 7))) & 1) ^ inverted;
+					const bit = ((row >> (7 - (h & 7))) & 1) ^ inverted;
 					if (op === transparent) {
 						// Background-colored pattern pixels leave the destination alone.
 						if (bit) {
@@ -939,6 +958,13 @@ function fillArithmetic(rgn: Region, pat: Pattern, mode: number, port: CGrafPort
 function portColors(port: GrafPort, s: Surface): { fg: number; bk: number } {
 	if (isColorPort(port)) {
 		return { fg: port.fgColor, bk: port.bkColor };
+	}
+	// An old port on a color screen draws its old-style colors in the screen's nearest ones: seen in
+	// the oracle, Standard File's selected file is white on black on the Mac II (RGBForeColor and
+	// RGBBackColor in its dialog, an old port).
+	const table = s.depth > 1 && (port.fgColor !== blackColor || port.bkColor !== whiteColor) ? GetMainDevice()?.gdPMap.pmTable : undefined;
+	if (table !== undefined) {
+		return { fg: colorToIndex(table, oldColorToRGB(port.fgColor)), bk: colorToIndex(table, oldColorToRGB(port.bkColor)) };
 	}
 	return { fg: (1 << s.depth) - 1, bk: 0 };
 }

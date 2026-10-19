@@ -51,7 +51,7 @@ import {
 	TextWidth,
 	thePort,
 	GlobalToLocal,
-	notPatBic,
+	patBic,
 	OpenRgn,
 	CloseRgn,
 	SetClip,
@@ -197,7 +197,7 @@ export function SetCtlValue(theControl: ControlRecord, theValue: Integer): void 
 	const v = Math.min(Math.max(theValue, theControl.contrlMin), theControl.contrlMax);
 	if (v !== theControl.contrlValue) {
 		theControl.contrlValue = v;
-		drawControl(theControl, inCheckBox);
+		drawControl(theControl, theControl.procID >> 4 === scrollBarProc >> 4 ? inThumb : inCheckBox);
 	}
 }
 
@@ -359,6 +359,9 @@ function drawControl(c: ControlRecord, part: Integer): void {
 			switch (c.procID & 7) {
 				case pushButProc:
 					drawPushButton(c, colors);
+					if (c.contrlHilite >= 254) {
+						dim(r);
+					}
 					break;
 				case checkBoxProc:
 					drawCheckBox(c, part, colors, false);
@@ -367,12 +370,6 @@ function drawControl(c: ControlRecord, part: Integer): void {
 					drawCheckBox(c, part, colors, true);
 					break;
 			}
-		}
-		if (c.contrlHilite === 255 && c.procID >> 4 !== scrollBarProc >> 4) {
-			// An inactive control is dimmed.
-			PenPat(gray);
-			PenMode(notPatBic);
-			PaintRect(r);
 		}
 		port.txFont = saved.font;
 		port.txFace = saved.face;
@@ -449,7 +446,9 @@ function drawCheckBox(c: ControlRecord, part: Integer, colors: { frame: RGBColor
 	const box = { top, left: r.left + 2, bottom: top + 12, right: r.left + 14 };
 	EraseRect(box);
 	foreColor(colors.frame);
-	if (c.contrlHilite === inCheckBox) {
+	if (c.contrlHilite >= 254) {
+		dim(r);
+	} else if (c.contrlHilite === inCheckBox) {
 		PenSize(2, 2);
 	}
 	if (radio) {
@@ -470,6 +469,20 @@ function drawCheckBox(c: ControlRecord, part: Integer, colors: { frame: RGBColor
 			LineTo(box.left + 1, box.bottom - 2);
 		}
 	}
+}
+
+/**
+ * Grays an inactive control (CDEF 0's routine at $344): the gray pattern's pixels cleared (patBic)
+ * inside its rectangle less 3 pixels at the sides and 1 at the top and bottom, so a button's frame
+ * stays whole; a check box's box is framed after it, whole too.
+ */
+function dim(r: Rect): void {
+	const inner = { ...r };
+	InsetRect(inner, 3, 1);
+	PenPat(gray);
+	PenMode(patBic);
+	PaintRect(inner);
+	PenNormal();
 }
 
 /** Draws a title of one or more lines (separated by returns), centered vertically. */
@@ -529,6 +542,9 @@ export async function TrackControl(theControl: ControlRecord, startPt: Point, ac
 	if (part === 0) {
 		return 0;
 	}
+	if (part === inThumb && theControl.procID >> 4 === scrollBarProc >> 4) {
+		return trackThumb(theControl, startPt);
+	}
 	let inside = true;
 	HiliteControl(theControl, part);
 	for (;;) {
@@ -552,6 +568,31 @@ export async function TrackControl(theControl: ControlRecord, startPt: Point, ac
 	}
 	HiliteControl(theControl, 0);
 	return inside ? part : 0;
+}
+
+/**
+ * Port: a scroll bar's thumb, dragged. The ROM drags a gray outline of it along the track (not
+ * measured, and not drawn here); the value changes when the button comes up, in proportion to how
+ * far the mouse moved along the track.
+ */
+async function trackThumb(c: ControlRecord, startPt: Point): Promise<Integer> {
+	const pt = { ...startPt };
+	while (mouse.button) {
+		await getHost().sleep(tickTime(TickCount() + 1));
+	}
+	const save = thePort;
+	SetPort(c.contrlOwner);
+	Object.assign(pt, mouse.where);
+	GlobalToLocal(pt);
+	SetPort(save);
+	const { vertical, thickness } = barShape(c.contrlRect);
+	const r = c.contrlRect;
+	const travel = (vertical ? r.bottom - r.top : r.right - r.left) - 3 * thickness;
+	const moved = vertical ? pt.v - startPt.v : pt.h - startPt.h;
+	if (travel > 0) {
+		SetCtlValue(c, c.contrlValue + Math.round((moved * (c.contrlMax - c.contrlMin)) / travel));
+	}
+	return inThumb;
 }
 
 // ---------------------------------------------------------------------------------------------
