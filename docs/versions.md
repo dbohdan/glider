@@ -231,6 +231,7 @@ The archive.org page's own screenshots are cropped 639×412 JPEGs and are not us
 | [`room-05-youre-invited.png`](images/windows/room-05-youre-invited.png) | Room 5: window with lightning, balloon, floating score |
 | [`high-scores.png`](images/windows/high-scores.png) | High score table |
 | [`high-score-name-entry.png`](images/windows/high-score-name-entry.png) | Name entry for a new high score |
+| [`sound-settings.png`](images/windows/sound-settings.png) | Sound Settings, with "Object", "Music" and "Bass Beat" (captured by the person on 2026-10-19; Bass Beat is off by default, see Sound) |
 
 Findings:
 
