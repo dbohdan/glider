@@ -43,6 +43,7 @@ Do not relitigate these without discussing them first.
    Deployed when the person launches the game and is ready for feedback, not before.
 8. **Fonts:** the system font in the emulated screen is "Ozma", Apple's Chicago 12 bitmap glyphs re-encoded in our own format.
    Rasterized ChicagoFLF is the fallback if Ozma is ever challenged.
+   The application font, which the desktop names its icons in, is "Glinda": Geneva 9's glyphs, taken the same way (both from Executor's MIT-licensed System file, compared glyph by glyph with System 6.0.8's).
    Ozma's character 0x14, Chicago's Apple logo, is a black diamond, and the color Apple logo of the Apple menu is a diamond in the logo's six stripes; tests put the original logo back to compare screens with the oracle's (`test/toolbox/appleLogo.ts`).
    Glider's own bitmap fonts come from its resources.
    HTML pages use vector ChicagoFLF.
