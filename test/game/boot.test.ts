@@ -8,16 +8,14 @@ import { join } from 'node:path';
 import { writePNG } from '../../oracle/Image.ts';
 import { cacheDir } from '../../oracle/Oracle.ts';
 import { differences, oracleRunAvailable, oracleShot, writeComparison } from '../toolbox/machine.ts';
-import { bootGlider, runGlider } from './harness.ts';
+import { screenAt } from './harness.ts';
 
 for (const [kind, caseName, shot, tick] of [
 	['plus', 'boot', 'alert', 900],
 	['ii', 'bootColor', 't1800', 1800],
 ] as const) {
 	test(`Glider starts up as the original does on a ${kind === 'plus' ? 'Mac Plus' : 'Mac II'}`, { skip: oracleRunAvailable(caseName) ? false : `the oracle has not run "${caseName}"` }, async () => {
-		const run = bootGlider(kind);
-		await runGlider(run, tick);
-		const ours = run.shot(true);
+		const ours = await screenAt(kind, tick, true);
 		const rom = oracleShot(caseName, shot);
 		const d = differences(ours, rom, [[0, 0, ours.width, ours.height]]);
 		if (d.length > 0) {

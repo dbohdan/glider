@@ -6,13 +6,11 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { writePNG } from '../../oracle/Image.ts';
 import { cacheDir } from '../../oracle/Oracle.ts';
-import { bootGlider, runGlider } from './harness.ts';
+import { screenAt } from './harness.ts';
 
 for (const kind of ['plus', 'ii'] as const) {
 	test(`Glider runs for 30 seconds on a ${kind === 'plus' ? 'Mac Plus' : 'Mac II'}`, async () => {
-		const run = bootGlider(kind);
-		await runGlider(run, 1800);
-		const img = run.shot();
+		const img = await screenAt(kind, 1800, false);
 		const dir = join(cacheDir, 'game');
 		mkdirSync(dir, { recursive: true });
 		writeFileSync(join(dir, `smoke-${kind}.png`), writePNG(img));

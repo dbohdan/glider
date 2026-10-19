@@ -152,8 +152,17 @@ export interface CaseRun {
  * globals that a case before it left.
  */
 export function playCase(index: number): Promise<CaseRun> {
+	return inWorker({ index });
+}
+
+/** Boots Glider and runs it to a tick, in a worker thread of its own (see playCase); returns the screen. */
+export function screenAt(kind: MachineKind, tick: number, withCursor: boolean): Promise<Image> {
+	return inWorker({ kind, tick, withCursor });
+}
+
+function inWorker<T>(job: object): Promise<T> {
 	return new Promise((resolve, reject) => {
-		const worker = new Worker(new URL('./caseWorker.ts', import.meta.url), { workerData: { index } });
+		const worker = new Worker(new URL('./caseWorker.ts', import.meta.url), { workerData: job });
 		worker.once('message', resolve);
 		worker.once('error', reject);
 		worker.once('exit', (code) => {
