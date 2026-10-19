@@ -9,6 +9,7 @@ import { bdfToFontResource, readBdf } from './Bdf.ts';
 import type { VolumeManifest } from '../src/mac/Volume.ts';
 import { parseDeRez } from './DeRez.ts';
 import { applicationIcon } from './Favicon.ts';
+import { putStandardFileResources } from './SystemResources.ts';
 
 const root = new URL('..', import.meta.url).pathname;
 
@@ -66,6 +67,7 @@ export function systemFork(): ResourceFork {
 	const ppat = new Uint8Array(28);
 	ppat.set(gray, 20);
 	rf.put({ type: 'ppat', id: 16, name: null, attrs: 0, data: ppat });
+	putStandardFileResources(rf);
 	return rf;
 }
 

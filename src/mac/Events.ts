@@ -99,6 +99,11 @@ export function setKeyRepeat(thresh: Integer, repeat: Integer): void {
 	keyRepThresh = repeat;
 }
 
+/** Port: low memory KeyThresh, which Standard File's type-select reads. */
+export function keyThreshold(): Integer {
+	return keyThresh;
+}
+
 /** The last key pressed, for auto-key events. */
 let lastKey: { message: LongInt; code: number; next: number } | null = null;
 

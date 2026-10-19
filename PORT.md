@@ -195,7 +195,7 @@ do {
 - **User interface managers:** the Window, Menu, Control, Dialog, and TextEdit managers draw into the screen through QuickDraw as System 6 does, with geometry measured from the oracle.
   The desktop and window frames are drawn in the Window Manager's port; menus save and restore the pixels they cover.
   Toolbox tests (`test/toolbox/`) boot a simulated Mac with the System and Glider resources from the oracle, run scripted input on a virtual clock, and compare the screen with the oracle's screenshots.
-- **Standard File:** the program's file filter and dialog hook run; choosing the file is the browser page's (`setStandardFileHost`).
+- **Standard File:** System 6.0.8's PACK 3, read from its code: its dialogs, its own list of files (not the List Manager's), its pop-up and keys, drawn by the port's Toolbox from resources of our own (`tools/SystemResources.ts`).
 - **Cursor:** the program sets the cursor's image and visibility (`src/mac/Cursors.ts`); the platform layer draws it.
 
 ## Roadmap
@@ -215,7 +215,7 @@ do {
   - [x] Color ports, 4-bit pixel maps, the standard color table, RGB fore and back colors, pattern and text modes in color, transparent mode, version 2 pictures with pixel maps, `CopyBits` between depths and color tables.
   - [ ] Pixel patterns (`ppat`), color icons (`cicn`), color cursors, the Palette Manager, the inverse table for arithmetic modes.
 - [ ] **5. Platform:** display, scaling, input, time, cursors.
-  - [x] The browser page: the screen with its cursor at integer scales, keys (arrow keys by key, for remote desktops), the mouse with Pointer Lock, the clock, sound, storage of the player's files, Standard File as page dialogs.
+  - [x] The browser page: the screen with its cursor at integer scales, keys (arrow keys by key, for remote desktops), the mouse with Pointer Lock, the clock, sound, storage of the player's files.
   - [ ] Choosing the machine other than by the URL (`?machine=plus`); deploying to GitHub Pages at launch (decision 7).
 - [ ] **6. Toolbox user interface (System 6):** Window, Menu, Control, Dialog, TextEdit, and Alert managers.
   - [x] Every Toolbox routine Glider calls exists with its Inside Macintosh name (`src/mac/Toolbox.ts`).
@@ -239,7 +239,7 @@ do {
   - [x] Opening another house (Load House…), here one that is not the first of its chain (`loadHouseScript`).
   - Not to be compared: a Mac II started at 256 colors, where Glider asks to switch (`CheckAndSwitch`). The port's Mac II starts at 16 colors, so no player meets that alert.
 - [ ] **10. Standard File and the launcher** (decisions 2 and 16).
-  - [ ] Standard File's dialogs on the Mac's screen, after System 6.0.8's (DLOG and DITL -3999 and -4000, measured in the oracle, with resources of our own), checked against the oracle during the saved-game and house cases.
+  - [x] Standard File's dialogs on the Mac's screen, after System 6.0.8's (DLOG and DITL -3999 and -4000, measured in the oracle, with resources of our own), checked against the oracle during the saved-game and house cases.
   - [ ] The launcher, after MiniFinder (measured from a System 6 disk that has it), with `startup` and Quit.
   - [ ] The README: what the port is and is not, credits and licenses, and the precedent below.
 - [ ] **11. Windows look:** palettes, then art.
@@ -514,3 +514,12 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 - Standard File's dialogs start at the disk's root, where the oracle's disks have only the System Folder: the script presses Return to open it, the down arrow, and Return. The harness's Standard File follows the keys through a small model of that (`scriptedStandardFile`): folders and files by name, the folder it was last in, and files saved where the dialog is.
 - Mini vMac's Mac Plus gives the arrow keys the Extended Keyboard's codes ($7D for down), where a real Mac Plus keyboard gives $48 (Inside Macintosh IV; Mini vMac's own source has "0x48" in a comment beside 0x7D). The port keeps the real codes; the harness now reads the oracle's key traces by the emulator's.
 - Behind the original's alert was a blank rectangle where Standard File's dialog had been: closing a window erases what was under it and leaves it to be updated, and Glider handles the update only after the alert. The port's Standard File now does what closing the original's dialog would (`modalDialogClosed`), with the dialog's frame from its DLOG and a dBoxProc window's 8-pixel frame (System 6.0.8's own dialogs, -3999 and -4000, are 304 by 184 and 348 by 200), along with the activate event found with saved games.
+
+### 2026-10-19 (Standard File)
+
+- Standard File's dialogs are drawn on the Mac's screen and match the oracle pixel for pixel on both machines: saving a game (the name typed, the files dimmed), opening it, and choosing a house with the arrow keys (`savedGame`, `loadHouse`). The page's dialogs, the harness's model of the original's (`scriptedStandardFile`) and the stand-in for closing them (`modalDialogClosed`) are gone: the Window Manager now does what closing the real dialog does.
+- How: PACK 3 disassembled (capstone, with a trap-name table) and written up as a specification before any code: placement, the order of drawing, the list's geometry and sort, the filter's keys, the button dimming, the alerts. It has its own list, not the List Manager's, with its seven small icons inside it, and calls the dialog hook after every ModalDialog, null events included. The DLOGs, DITLs and ALRTs are written by our build, checked byte for byte against System 6.0.8's; the icons are copied from PACK 3.
+- The oracle's disks were changed to match the port's volume: Glider and its files at the root with the system's files invisible (`rootDisk`), and the boot disk fixed, so Eject is dimmed as no disk of the port's can be ejected (a patch to Mini vMac's disk driver, `DiskInPlace` 8). The harness's volume holds the oracle disk's files: the port bundles more houses.
+- Two errors had cancelled out. The port aligned patterns with the screen and dimmed inactive buttons with gray in `notPatBic` over the whole button; on Glider's dialogs, at odd positions, the two together drew the same pixels as the ROM. Standard File's gray line (a FillRect in gray) was a pixel off, and its dimmed buttons lost their frames. System 6.0.8's CDEF 0 dims with gray in `patBic` inside the button less 3 and 1 pixels, leaving its frame whole, and the ROM aligns patterns with the port's own coordinates: the line matches with both, on both machines, and every earlier case still does.
+- On the Mac II, Standard File draws the selected file with RGBBackColor black and RGBForeColor white in its dialog, an old port. The port ignored colors set in old ports; the ROM keeps the nearest old-style color, and draws it in the screen's nearest color. Both are in now.
+- Not measured, from the code only: the pop-up menu open (the port's volume has no folders, so it holds the disk alone), an active scroll bar (more files than fit; the thumb's drag is the port's own, without the ROM's gray outline), truncated names, type-select, and the alerts PACK 3 positions (12 pixels inside the dialog's lower left).

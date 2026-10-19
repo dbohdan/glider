@@ -5,14 +5,13 @@ import { Worker } from 'node:worker_threads';
 import { type Image } from '../../oracle/Image.ts';
 import { keyCodes, type Script } from '../../oracle/Script.ts';
 import { main } from '../../src/glider/GameBody.ts';
-import { autoKeyMask, GetNextEvent, hostKeyDown, hostKeyUp, keyDownMask, newEventRecord } from '../../src/mac/Events.ts';
+import { hostKeyDown, hostKeyUp } from '../../src/mac/Events.ts';
 import { samplesPerTick, setSoundOutput, SMSUpdate } from '../../src/mac/SMS.ts';
-import { macRomanChar, macRomanCode } from '../../src/mac/MacRoman.ts';
+import { macRomanCode } from '../../src/mac/MacRoman.ts';
 import { mouseMoved } from '../../src/mac/Cursors.ts';
 import { keysDown, mouse, postOSEvent, tickTime } from '../../src/mac/OS.ts';
 import type { MacFile } from '../../src/mac/MacBinary.ts';
 import { Volume } from '../../src/mac/Volume.ts';
-import { setStandardFileHost, type StandardFileHost } from '../../src/mac/StandardFile.ts';
 import { bootMachine, type Machine, type MachineKind } from '../../src/platform/Machine.ts';
 import { renderScreen } from '../../src/platform/Screen.ts';
 import { bundledFiles, systemFork } from '../../tools/build-resources.ts';
@@ -63,87 +62,25 @@ export interface GameRun {
 }
 
 /**
- * Standard File as the oracle's scripts use it, in place of the page's dialogs. The original's
- * dialogs start at the disk's root, where the oracle's disks have only the System Folder, which
- * holds Glider and its files, and they stay in the folder they were last in; a file saved goes
- * where the dialog is. To open, the arrow keys move the selection in the list (folders and files,
- * by name) and Return opens the selected folder or file; to save, the keys typed make the name and
- * Return saves. The keys come from the event queue, as the original dialog takes them, with any
- * left there before it opened, and the dialog answers in the tick Return arrives: in the oracle,
- * SFPutFile closes on Return without flashing the Save button, and Glider writes the game and goes
- * on playing in that tick (traced: `savedGameProbe`).
+ * The files on the oracle's disks (gameFiles in oracle/cases.ts), which Standard File's dialogs
+ * list: the port bundles more houses than the original did.
  */
-export const scriptedStandardFile: StandardFileHost = {
-	async getFile(request) {
-		const listed = (): string[] => {
-			const names = request.files.map((f) => f.name).filter((n) => savedAtRoot.has(n) !== inSystemFolder);
-			return (inSystemFolder ? names : [...names, 'System Folder']).sort((a, b) => (a.toUpperCase() < b.toUpperCase() ? -1 : 1));
-		};
-		let list = listed();
-		let selected = 0;
-		const event = newEventRecord();
-		for (;;) {
-			if (await GetNextEvent(keyDownMask | autoKeyMask, event)) {
-				const c = event.message & 0xff;
-				if (c === 31) {
-					selected = Math.min(selected + 1, list.length - 1);
-				} else if (c === 30) {
-					selected = Math.max(selected - 1, 0);
-				} else if (c === 13 || c === 3) {
-					if (!inSystemFolder && list[selected] === 'System Folder') {
-						inSystemFolder = true;
-						list = listed();
-						selected = 0;
-					} else {
-						return list[selected] ?? null;
-					}
-				}
-			}
-		}
-	},
-	async putFile(request) {
-		const typed = await typedUntilReturn();
-		const name = typed === '' ? request.defaultName : typed;
-		if (!inSystemFolder) {
-			savedAtRoot.add(name);
-		}
-		return name;
-	},
-};
-
-/** Where scriptedStandardFile's dialogs are, and the files saved at the disk's root. */
-let inSystemFolder = false;
-const savedAtRoot = new Set<string>();
-
-async function typedUntilReturn(): Promise<string> {
-	const event = newEventRecord();
-	let typed = '';
-	for (;;) {
-		if (await GetNextEvent(keyDownMask | autoKeyMask, event)) {
-			const c = event.message & 0xff;
-			if (c === 13 || c === 3) {
-				return typed;
-			}
-			typed = c === 8 ? typed.slice(0, -1) : typed + macRomanChar(c);
-		}
-	}
-}
+const oracleDiskFiles = new Set(['Glider 4.05', 'Color Art', 'B&W Art', 'The House', 'The House 2']);
 
 /**
- * Boots a machine with Glider on its volume; schedule input and screenshots on the host before
- * running. `launchTick` is when Glider starts, as on a Mac that took that long to start up; `house`
- * replaces The House.
+ * Boots a machine with Glider on its volume, which holds the oracle's files; schedule input and
+ * screenshots on the host before running. `launchTick` is when Glider starts, as on a Mac that took
+ * that long to start up; `house` replaces The House.
  */
 export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array): GameRun {
 	const volume = new Volume('Glider');
-	for (const f of bundledFiles()) {
+	for (const f of bundledFiles().filter((f) => oracleDiskFiles.has(f.name))) {
 		volume.put(f.name === 'The House' && house !== undefined ? { ...f, data: house } : f);
 	}
 	const host = new GameHost();
 	host.wakeOnInput = true;
 	host.time = tickTime(launchTick);
 	const machine = bootMachine({ kind, system: systemFork(), volume, application: 'Glider 4.05', host, startDateTime });
-	setStandardFileHost(scriptedStandardFile);
 	const rgba = new Uint8ClampedArray(machine.width * machine.height * 4);
 	const shot = (withCursor = false): Image => {
 		renderScreen(machine, rgba, withCursor);

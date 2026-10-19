@@ -34,12 +34,7 @@ function both(name: string, makeScript: () => Script, what: string, house?: () =
 export const knownDifferences: Record<string, number> = { stretchedColor: 55 };
 
 /** Cases that still differ, being worked on: they run, but do not fail the tests. */
-export const unfinished: Record<string, string> = {
-	savedGame: "Standard File's dialogs, drawn on the Mac's screen",
-	savedGameColor: "Standard File's dialogs, drawn on the Mac's screen",
-	loadHouse: "Standard File's dialogs, drawn on the Mac's screen",
-	loadHouseColor: "Standard File's dialogs, drawn on the Mac's screen",
-};
+export const unfinished: Record<string, string> = {};
 
 export const gameCases: [MachineKind, Case][] = [
 	...both('play', playScript, 'a game plays'),

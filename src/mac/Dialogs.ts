@@ -510,7 +510,9 @@ async function handleEvent(d: DialogRecord, ev: EventRecord, modal: boolean): Pr
 		}
 		case keyDown:
 		case autoKey: {
-			if (ev.modifiers & cmdKey) {
+			// ModalDialog gives Command keys to the edit text too: in the oracle, the "s" of Command-S
+			// was typed into Standard File's name (its filter passes the key on).
+			if (!modal && ev.modifiers & cmdKey) {
 				return 0;
 			}
 			if (d.editField >= 0 && d.textH !== null) {

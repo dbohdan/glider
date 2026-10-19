@@ -68,7 +68,7 @@ The port matched both on the first try. These are the original's screens.
 
 ## Saving a game
 
-The test saves a game with Command-S in Standard File's dialog, plays on, ends the game, and opens the saved game again. The port shows Standard File as page dialogs, so the tests answer it the way the script's keys answer the original's.
+The test saves a game with Command-S in Standard File's dialog, plays on, ends the game, and opens the saved game again. The port then showed Standard File as page dialogs, so the tests answered it the way the script's keys answer the original's (since replaced by the Mac's own dialogs: [`2026-10-19-standard-file/`](../2026-10-19-standard-file/)).
 
 **12.** A first try, the original 300 ticks after Command-E: its game over was still going. The script's next step, choosing Load Game… from the menu, came during it and was lost (13), so the script now waits longer.
 

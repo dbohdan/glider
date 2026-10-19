@@ -26,6 +26,10 @@ Each gallery says how its pictures are laid out.
 
 [![The closing animation on the Mac II](2026-10-19-sound-endings-and-saved-games/11-ending-farm-mac-ii.png)](2026-10-19-sound-endings-and-saved-games/)
 
+**[Standard File on the Mac's screen](2026-10-19-standard-file/)**, 19 October 2026: System 6's file dialogs, read from its code and drawn by the port, and two errors in drawing gray that had cancelled out.
+
+[![The open dialog on the Mac II](2026-10-19-standard-file/06-open-dialog-second-house-selected-mac-ii.png)](2026-10-19-standard-file/)
+
 **[Glider for Windows](windows/)**: the 1994 Windows release, for the port's planned Windows look.
 
 [![The House, room 5, in Glider for Windows](windows/room-05-youre-invited.png)](windows/)

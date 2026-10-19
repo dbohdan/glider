@@ -3,14 +3,13 @@
 
 import { main as glider } from '../../glider/GameBody.ts';
 import { wantsMouseCapture } from '../../glider/Globals.ts';
-import { ExitToShellSignal, setBeeper, setStandardFileHost } from '../../mac/Toolbox.ts';
+import { ExitToShellSignal, setBeeper } from '../../mac/Toolbox.ts';
 import { parseResourceFork } from '../../mac/ResourceFork.ts';
 import { loadVolume, type VolumeManifest } from '../../mac/Volume.ts';
 import { bootMachine, type MachineKind } from '../Machine.ts';
 import { renderScreen } from '../Screen.ts';
 import { beep } from './Beep.ts';
 import { BrowserHost } from './Clock.ts';
-import { browserFilePicker } from './FilePicker.ts';
 import { attachInput } from './Input.ts';
 import { BrowserSound } from './Sound.ts';
 import { FileStore } from './Storage.ts';
@@ -47,7 +46,6 @@ async function start(): Promise<void> {
 	const host = new BrowserHost();
 	const machine = bootMachine({ kind, system, volume, application: 'Glider 4.05', host, fileChanged: (f, deleted) => store.save(f, deleted), extendedKeyboard: true });
 	setBeeper(beep);
-	setStandardFileHost(browserFilePicker);
 	const sound = new BrowserSound();
 
 	const canvas = document.createElement('canvas');

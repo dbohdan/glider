@@ -1123,27 +1123,6 @@ function updateEvent(): EventRecord | null {
 	return null;
 }
 
-/**
- * Port: what the Window Manager leaves behind when a modal dialog in front of the windows goes
- * away, for dialogs the page shows in its place (Standard File's), whose frame was `frame`: the
- * windows under it erased there and left to be updated, as CloseWindow leaves them, and an activate
- * event for the front window (the dialog's own event loop took the deactivate event its coming
- * made). Seen in the oracle: the area stays blank until Glider handles the update, which can come
- * after an alert of its own; and Glider's window gets the activate event at its next GetNextEvent,
- * even after a game in between, since the game reads no events and FlushEvents does not remove it.
- */
-export function modalDialogClosed(frame: Rect): void {
-	const save = thePort;
-	SetPort(drawingPort());
-	SetClip(grayRgn);
-	const clobbered = rectRegion(frame);
-	PaintBehind(windowList, clobbered);
-	CalcVisBehind(windowList, clobbered);
-	SetPort(save);
-	curDeactive = null;
-	curActivate = FrontWindow();
-}
-
 /** The next activate or deactivate event, for the Event Manager: deactivation comes first. */
 function activateEvent(remove: boolean): EventRecord | null {
 	const w = curDeactive ?? curActivate;
