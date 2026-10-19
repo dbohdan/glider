@@ -47,6 +47,7 @@ How to work on this project: methods that have proven themselves, and traps that
 
 ## Debugging
 
+- A test that boots the port must start from fresh modules, as each oracle run starts from a fresh Mac: Glider's globals live in modules, and a second boot in the same process inherits the first's. The game cases each run in a worker thread (`playCase`) for that reason.
 - Trace the port's state at the ticks in question (`host.at(tick, ...)` in a scratch script) rather than reasoning about what it should be.
 - A `pgrep -f` or `pkill -f` pattern typed on the command line matches your own shell: the agent's shell is `bash -c "<the whole command>"`, and the pattern is in that string.
   A wait loop on `pgrep -f` never ends, and `pkill -f` kills the shell itself (exit 144).

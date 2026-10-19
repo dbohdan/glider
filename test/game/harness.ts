@@ -1,6 +1,7 @@
 // Runs the ported Glider headless: the platform's machine with the bundled volume and the port's
 // System, on a virtual clock that plays scripted input, until a given tick.
 
+import { Worker } from 'node:worker_threads';
 import { type Image } from '../../oracle/Image.ts';
 import { keyCodes, type Script } from '../../oracle/Script.ts';
 import { main } from '../../src/glider/GameBody.ts';
@@ -9,6 +10,7 @@ import { samplesPerTick, setSoundOutput, SMSUpdate } from '../../src/mac/SMS.ts'
 import { macRomanChar, macRomanCode } from '../../src/mac/MacRoman.ts';
 import { mouseMoved } from '../../src/mac/Cursors.ts';
 import { keysDown, mouse, postOSEvent, tickTime } from '../../src/mac/OS.ts';
+import type { MacFile } from '../../src/mac/MacBinary.ts';
 import { Volume } from '../../src/mac/Volume.ts';
 import { setStandardFileHost, type StandardFileHost } from '../../src/mac/StandardFile.ts';
 import { bootMachine, type Machine, type MachineKind } from '../../src/platform/Machine.ts';
@@ -136,6 +138,32 @@ export async function runGlider(run: GameRun, endTick: number): Promise<void> {
 	SMSUpdate();
 }
 
+/** What a game case's play gives the test: its screenshots, how many the script takes, its sound, and the volume's files. */
+export interface CaseRun {
+	shots: [string, Image][];
+	expected: number;
+	sound: GameRun['sound'];
+	files: MacFile[];
+}
+
+/**
+ * Plays a game case (cases.ts, by its index) in a worker thread of its own, so that it starts from
+ * fresh modules: from a freshly booted machine and program, as the oracle's runs do, not from the
+ * globals that a case before it left.
+ */
+export function playCase(index: number): Promise<CaseRun> {
+	return new Promise((resolve, reject) => {
+		const worker = new Worker(new URL('./caseWorker.ts', import.meta.url), { workerData: { index } });
+		worker.once('message', resolve);
+		worker.once('error', reject);
+		worker.once('exit', (code) => {
+			if (code !== 0) {
+				reject(new Error(`the case's worker exited with code ${code}`));
+			}
+		});
+	});
+}
+
 /**
  * The ticks whose sound differs from the oracle's recording (`Script.sound`; `first` is its first
  * tick), among those SMS played. On a Mac II, the tick after SMS writes its samples plays them
@@ -147,14 +175,14 @@ export async function runGlider(run: GameRun, endTick: number): Promise<void> {
  * dry, so after SMSInit it is silent for up to a second; a Mac II tick of silence is not counted
  * (the Mac Plus's sound shows whether the port plays sound the original does not).
  */
-export function soundDifferences(run: GameRun, recording: Uint8Array, first: number): number[] {
-	const ii = run.machine.kind === 'ii';
+export function soundDifferences(kind: MachineKind, sound: GameRun['sound'], recording: Uint8Array, first: number): number[] {
+	const ii = kind === 'ii';
 	const n = samplesPerTick;
 	const heard = (t: number) => recording.subarray((t - first) * n, (t - first + 1) * n);
 	const bad: number[] = [];
-	for (const [t, { samples, offset }] of run.sound) {
+	for (const [t, { samples, offset }] of sound) {
 		const out = heard(ii ? t + 1 : t);
-		const before = run.sound.get(t - 1);
+		const before = sound.get(t - 1);
 		if (out.length < n || (!ii && (before === undefined || t <= first))) {
 			continue;
 		}

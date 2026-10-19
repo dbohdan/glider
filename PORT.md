@@ -218,7 +218,8 @@ do {
   - [x] Play with input: items, rooms, deaths, game over, high-score entry, the menus, dialogs, help and pause; mouse control (`test/game/`).
   - [x] Finishing a house: going on to the next file (`AdvanceAFile`), and the closing animation, game over and a high score at the end of the last (`houseEndScript`).
   - [x] Saving a game (Command-S) and opening it again (Load Game…), with the saved file compared field by field (`savedGameScript`).
-  - [ ] Not yet compared with the oracle: opening another house, changing the Configure and Sound settings, a Mac II in black and white (Command held at launch) and one switched down from 256 colors (`CheckAndSwitch`).
+  - [x] Changing the Sound and Configure settings, playing with them, and the preferences Glider writes at Quit (`settingsScript`).
+  - [ ] Not yet compared with the oracle: opening another house, a Mac II in black and white (Command held at launch) and one switched down from 256 colors (`CheckAndSwitch`).
 - [ ] **10. Launcher page:** house library, settings, credits, manual.
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
@@ -236,7 +237,7 @@ do {
 - The exact oval rule (see the journal): the original QuickDraw source (Computer History Museum, 2010) is under a non-commercial license, so it could only be read for the algorithm, not copied; not consulted so far.
 - Exact Color QuickDraw behavior for: inverse table matching, arithmetic modes other than transparent on regions that are not rectangles.
 - Effective device color table after the Palette Manager applies `pltt` 128.
-- Initial values of uninitialized Pascal globals (affects the `is4Channel` preference bug); `Globals.ts` starts them at zero.
+- Initial values of uninitialized Pascal globals; `Globals.ts` starts them at zero. The one that shows, `is4Channel` (the preference Glider writes instead of reading), is zero in the oracle on both machines: Sound Settings opens on 2-Channel at first.
 - Whether the Palette Manager changes the Mac II's color table for `pltt` 128, whose colors differ from `clut` 4 in their low bytes (tolerance 0). The oracle's CLUT dump (`c`) can tell.
 - What a dialog's edit field does with text longer than it: in the oracle, a period key held into Glider's high-score name scrolls the field sideways (the periods' 4-pixel pattern hides it) and, at about 80 characters, the field starts over with one character. The port wraps and scrolls a line up instead.
 - Where System 6 puts a submenu in general: the oracle shows it 4 pixels inside the parent's right edge and 7 pixels below the parent item's top, for Glider's one submenu.
@@ -475,3 +476,8 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 - The title screen after the game's end was a tick off: its little gliders moved on odd ticks in the port and even ones in the original. Tracing the original's traps found its first WaitNextEvent after the game returning an event at once, though Coordinate had just flushed the queue; System 6's WaitNextEvent without MultiFinder (read from a RAM dump at `$AF42`) loops SystemTask and GetNextEvent until an event comes or a null event's time reaches the entry Ticks plus the sleep. The event was an activate event, which lives outside the queue: closing the save dialog had left Glider's window one, and the game reads no events, so it waited through the whole game. The port's Standard File now leaves the same activate event when its page dialog returns (`activateAfterModalDialog`).
 - The saved file's bytes differ where the original wrote whatever was on its stack: past each house name's end and in the byte after each object's on-off flag. The port writes zeros there (`WriteGame` starts from a zeroed record), and the test compares the records' fields.
 - Key-up events no longer go into the port's queue: the system event mask leaves them out on a Mac, so they never took a place there, and a full queue loses its oldest event.
+
+### 2026-10-19 (settings)
+
+- Changing the settings matches on both machines (`settings`): in Sound Settings the volume up four steps, Music off and 4-Channel, in Configure Z and X for left and right and the button to fire bands; a game steered with Z and X, with its sound (four channels, no music), and Command-Q, after which Glider's 'Gprf' resource, which the run keeps, is compared byte for byte. The first version of the script turned the volume down from the oracle's 1 to 0, which turns Sound off; the port did the same, but a silent game tests less.
+- On the Mac II the port's Sound Settings opened on 4-Channel, the original's on 2-Channel. Glider never reads that preference (it writes it instead), so the setting is whatever its global starts as. The port's case had not started fresh: the Mac II case ran after the Mac Plus case in the same process, and Glider's globals (`G`, and module variables such as IdleUtils' idle-loop state) kept what the case before had left, here the Mac Plus case's 4-Channel. Every case had started from the one before's state since the game tests began. Each case now plays in a worker thread of its own, with fresh modules, as each oracle run boots a fresh Mac; all cases still match, so none had depended on what it inherited. Since the cases are independent, they also run side by side, and the tests take half the time.

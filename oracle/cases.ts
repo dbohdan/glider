@@ -504,8 +504,8 @@ for (const [name, nextFile] of Object.entries(houseEnds)) {
 }
 
 /**
- * Changes Glider's settings and plays with them: in Sound Settings, the volume down three steps,
- * Music off, and 4-Channel; in Configure, Z and X for left and right, and the button to fire bands;
+ * Changes Glider's settings and plays with them: in Sound Settings, the volume up four steps (from
+ * 1, the oracle's), Music off, and 4-Channel; in Configure, Z and X for left and right, and the button to fire bands;
  * then a game steered with Z and X, its sound recorded; then Command-Q, after which Glider has
  * written its preferences into its own file, which the run keeps. The dialogs are centered on the
  * screen, so their items are at other places on each machine.
@@ -527,8 +527,8 @@ export function settingsScript(kind: 'plus' | 'ii'): Script {
 	s.until(900).press('return').wait(60);
 	s.mouse(120, 10).wait(5).button(true).wait(15).mouse(120, 44).wait(15).button(false).wait(60); // Options > Sound…
 	s.shot('sound');
-	for (let i = 0; i < 3; i++) {
-		click(at(131, 134, 94)); // the volume's "<"
+	for (let i = 0; i < 4; i++) {
+		click(at(131, 158, 94)); // the volume's ">", from 1 to 5
 	}
 	s.shot('volume');
 	click(at(131, 60, 77)); // Music On
