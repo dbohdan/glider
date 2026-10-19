@@ -582,16 +582,15 @@ export function blackAndWhiteScript(): Script {
 }
 
 /**
- * Opens another house from the Game menu (Load House…): Standard File's dialog starts at the disk's
- * root, so Return opens the System Folder, the down arrow selects "The House 2", and Return opens
- * it. It is not the first house of its chain, so Glider says so and starts The House instead.
+ * Opens another house from the Game menu (Load House…): Standard File's dialog lists the houses at
+ * the disk's root, the down arrow selects "The House 2", and Return opens it. It is not the first house of its chain, so Glider says so and starts The House instead.
  */
 export function loadHouseScript(): Script {
 	const s = new Script();
 	s.speed(8).traceKeys();
 	s.until(900).press('return').wait(60);
 	s.mouse(60, 10).wait(5).button(true).wait(15).mouse(60, 44).wait(15).button(false).wait(60); // Game > Load House…
-	s.shot('root').press('return').wait(30).shot('systemFolder').press('down').wait(30).shot('selected').press('return').wait(60).shot('notFirst');
+	s.shot('houses').press('down').wait(30).shot('selected').press('return').wait(60).shot('notFirst');
 	s.press('return');
 	for (let t = 0; t < 20; t++) {
 		s.wait(30).shot(`game${t}`);
@@ -602,12 +601,12 @@ export function loadHouseScript(): Script {
 /** Another house opened, on a Mac Plus and on a Mac II. */
 cases.loadHouse = (dir) => {
 	const disk = dir + '.dsk';
-	makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
+	rootDisk(disk, true);
 	return run(macPlus, loadHouseScript(), disk, dir);
 };
 cases.loadHouseColor = (dir) => {
 	const disk = dir + '.dsk';
-	makeDisk(disk, gameFiles(), 'Glider 4.06');
+	rootDisk(disk, false);
 	return run(macII, loadHouseScript(), disk, dir);
 };
 
@@ -630,20 +629,30 @@ cases.settingsColor = (dir) => {
 	return run(macII, settingsScript('ii'), disk, dir, [':System Folder:Glider 4.06']);
 };
 
+/**
+ * Glider's files at the disk's root, as the port's volume has them, for the cases that show
+ * Standard File's dialogs (which start at the root); Glider is named as the port's copy is, since
+ * the save dialog lists it.
+ */
+function rootDisk(disk: string, plus: boolean): void {
+	const files = gameFiles().map((f) => (f.name === 'Glider 4.06' ? { ...f, name: 'Glider 4.05' } : f));
+	makeDisk(disk, plus ? [...files, alternateScreenFile()] : files, 'Glider 4.05', 8, 'root');
+}
+
 /** A game saved and opened again, on a Mac Plus and on a Mac II. */
 cases.savedGame = (dir) => {
 	const disk = dir + '.dsk';
-	makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
+	rootDisk(disk, true);
 	return run(macPlus, savedGameScript(), disk, dir, [':.sGame']);
 };
 cases.savedGameColor = (dir) => {
 	const disk = dir + '.dsk';
-	makeDisk(disk, gameFiles(), 'Glider 4.06');
+	rootDisk(disk, false);
 	return run(macII, savedGameScript(), disk, dir, [':.sGame']);
 };
 cases.savedGameProbe = (dir) => {
 	const disk = dir + '.dsk';
-	makeDisk(disk, [...gameFiles(), alternateScreenFile()], 'Glider 4.06');
+	rootDisk(disk, true);
 	return run(macPlus, savedGameScript(true), disk, dir, [':.sGame']);
 };
 

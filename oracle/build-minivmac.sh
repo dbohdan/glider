@@ -42,5 +42,10 @@ test "$(grep -c 'oracle: no volume scaling' src/SNDEMDEV.c src/ASCEMDEV.c | awk 
 sed -i -e '1i extern void ADBKeyTalked(int evt);' \
 	-e 's|^\(\t*\)ADB_DatBuf\[\([01]\)\] = NextADBkeyevt;|&\n\1ADBKeyTalked(NextADBkeyevt);|' src/ADBSHARE.h
 test "$(grep -c 'ADBKeyTalked(NextADBkeyevt)' src/ADBSHARE.h)" = 2
+# The boot disk is a fixed disk, as the port's volume is: Standard File dims its Eject button
+# (drive-queue byte DiskInPlace 8, non-ejectable, where Mini vMac's floppy driver says 1).
+sed -i -e 's|put_vm_byte(dvl + kDiskInPlace, 0x01); /\* Drive Disk Inserted \*/|put_vm_byte(dvl + kDiskInPlace, 0x08); /* oracle: a fixed disk */|' \
+	-e 's|if (DiskInPlaceV != 0x02) {|if ((DiskInPlaceV != 0x02) \&\& (DiskInPlaceV != 0x08)) {|' src/SONYEMDV.c
+test "$(grep -c 'oracle: a fixed disk\|DiskInPlaceV != 0x08' src/SONYEMDV.c)" = 2
 sed -i -e 's|-L/usr/X11R6/lib -lX11||' -e '/^\tstrip /d' Makefile
 make -s > make.log 2>&1 || { cat make.log; exit 1; }

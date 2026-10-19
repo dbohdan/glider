@@ -233,22 +233,36 @@ export function systemFiles(): MacFile[] {
 }
 
 /**
- * Builds a boot disk with a System Folder holding the System, the Finder, and the given files,
- * which launches `startup` at boot instead of the Finder (and without MultiFinder).
+ * Where a disk keeps its files: in a System Folder, as a Mac's hard disk would, or all at the root
+ * with the system's files invisible, as the port's volume shows them (for Standard File's dialogs,
+ * which start at the root).
  */
-export function makeDisk(path: string, files: MacFile[], startup: string, megabytes = 8): void {
+export type DiskLayout = 'systemFolder' | 'root';
+
+/**
+ * Builds a boot disk holding the System, the Finder, and the given files (in a System Folder, or at
+ * the root: `layout`), which launches `startup` at boot instead of the Finder (and without
+ * MultiFinder).
+ */
+export function makeDisk(path: string, files: MacFile[], startup: string, megabytes = 8, layout: DiskLayout = 'systemFolder'): void {
 	const system = systemFiles();
 	mkdirSync(dirname(path), { recursive: true });
 	writeFileSync(path, new Uint8Array(megabytes * 1024 * 1024));
 	withHFS((hfs, tmp) => {
 		hfs('hformat', '-l', 'Glider', path);
-		hfs('hmkdir', ':System Folder');
+		const folder = layout === 'root' ? ':' : ':System Folder:';
+		if (layout !== 'root') {
+			hfs('hmkdir', ':System Folder');
+		}
 		[...system, ...files].forEach((f, i) => {
 			const bin = join(tmp, `${i}.bin`);
 			writeFileSync(bin, writeMacBinary(f));
-			hfs('hcopy', '-m', bin, `:System Folder:${f.name}`);
+			hfs('hcopy', '-m', bin, folder + f.name);
+			if (layout === 'root' && (system.includes(f) || f.type === 'dbgr')) {
+				hfs('hattrib', '+i', folder + f.name);
+			}
 		});
-		hfs('hattrib', '-b', ':System Folder');
+		hfs('hattrib', '-b', layout === 'root' ? ':' : ':System Folder');
 		hfs('humount');
 	});
 	// The boot blocks name the startup application (bbHelloName at offset 0x5A, a Str15).
