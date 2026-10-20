@@ -433,9 +433,9 @@ async function importFiles(): Promise<void> {
 	const { added, rejected } = result;
 	const parts: string[] = [];
 	if (added.length === 1) {
-		parts.push(`\u201c${added[0]}\u201d is on the disk now.`);
+		parts.push(`\u201c${added[0]}\u201d imported.`);
 	} else if (added.length > 1) {
-		parts.push(`${added.length} files are on the disk now.`);
+		parts.push(`${added.length} files imported.`);
 	}
 	if (rejected.length === 1) {
 		parts.push(`\u201c${rejected[0]}\u201d is not a Mac file Glider can use.`);
