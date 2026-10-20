@@ -101,12 +101,13 @@ export function playerPart(bundled: Map<string, MacFile>, file: MacFile): MacFil
 /**
  * What an imported file becomes on the volume: a file of the player's own, whole; for the
  * application, its preferences in the game's copy; for a bundled house, its scores in the game's
- * copy; null for the game's other files, which are ours.
+ * copy; null for the game's other files, which are ours, and for other applications, which the port
+ * cannot run (an archive of Glider 4.04 holds its own Glider).
  */
 export function importedFile(bundled: Map<string, MacFile>, current: MacFile | undefined, file: MacFile): MacFile | null {
 	const game = bundled.get(file.name);
 	if (game === undefined) {
-		return file;
+		return isApplication(file) ? null : file;
 	}
 	if (isApplication(game)) {
 		const prefs = prefsOf(file);

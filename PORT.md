@@ -51,7 +51,7 @@ Do not relitigate these without discussing them first.
    Where the page must show something of its own (no JavaScript, a phone without a keyboard), it is minimal black and white, after mi.css (public domain); never generic framework styling.
 10. **Houses:** the default "The House" is the "Fan Fun!" revision shipped in every release from 4.02 to 4.10.
     The repo's unlocked working copy ships as "The House (July 1991)".
-    Fan-made houses from the web are not bundled; an importer for archives (BinHex, MacBinary, StuffIt) comes later.
+    Fan-made houses from the web are not bundled; the desktop's Import Files… reads them from their archives (MacBinary, StuffIt, ZIP).
 11. **Third-party binary libraries** (Buckland's SMS sound code, Jon Wind's About… library) are reimplemented from their interfaces and observed behavior, not translated.
     Their code may be read (SMS's was disassembled) to learn exactly what they do.
 12. **Commercial files** (other Glider releases, manuals, ROMs, System software) are never committed.
@@ -549,3 +549,9 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 - Export saves the player's part of the volume, the files they made and the bundled files whose preferences or scores changed, as a ZIP archive of MacBinary files (`src/platform/Zip.ts`, which the oracle's archive reader now shares), and Import reads it back (`test/platform/transfer.test.ts`).
 - A failing desktop test seemed to hang for most of a minute: its screen comparison listed every differing pixel, and `assert.deepEqual` spent the time diffing 170,000 strings. It now reports how many differ and where the first are.
 
+### 2026-10-20 (StuffIt)
+
+- Import Files… reads StuffIt archives (`src/platform/StuffIt.ts`), plain or in MacBinary, as fan-made houses come from the Macintosh Garden: the classic container (`SIT!`) and StuffIt 5's, with the methods these archives use, 13 (LZSS with Huffman codes) and 15 (Arsenic: an adaptive arithmetic coder, move-to-front, the Burrows-Wheeler transform, and run lengths).
+- The Unarchiver (`unar`, `lsar`) is the reference: four archives, fetched by the oracle's setup from a mirror of the Macintosh Garden's (`oracle/cache/stuffit/`), unpack to its forks byte for byte (`test/platform/stuffit.test.ts`): La Villa Strangiato and ImagineArt (Arsenic), and Glider 4.02 (StuffIt 5) and 4.04 (method 13 in folders). Not read: method 13's built-in code tables (two files in those releases, a Gravis settings file and MacsBug), StuffIt's older methods 1 (RLE) and 2 (LZW), and randomized Arsenic blocks, none of which a Glider archive at hand uses. Such a file is reported only if Glider would use it.
+- From an archive, Import takes only what Glider uses: houses, art, saved games, and Glider (for its preferences). Archives hold read-me files and other programs. An application other than the port's own is not kept (Glider 4.04's archive brings its Glider™): the port cannot run it.
+- Importing an older release's archive brings its copies of The House and The House 2, and so, as with any import of a bundled house, their high scores: Glider 4.04's The House has twenty, mostly Lena's.

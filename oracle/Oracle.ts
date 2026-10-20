@@ -1,7 +1,8 @@
 // The oracle: the original Glider running in a headless, deterministic Mac emulator.
 //
 // Inputs are fetched into oracle/cache/ (never committed) and verified by SHA-256:
-// ROMs, a System 6.0.8 disk, and Glider 4.06 from the Infinite Mac project, and the Mini vMac source.
+// ROMs, a System 6.0.8 disk, and Glider 4.06 from the Infinite Mac project, the Mini vMac source,
+// and StuffIt archives of houses and older releases from the Macintosh Garden (through a mirror).
 
 import { createHash } from 'node:crypto';
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -19,6 +20,8 @@ export const oracleDir = new URL('.', import.meta.url).pathname;
 export const cacheDir = join(oracleDir, 'cache');
 
 const infiniteMac = 'https://raw.githubusercontent.com/mihaip/infinite-mac/a56fff18e1b7e6e6c80d307a35ed30b7fd94d36a/';
+// Fan-made and older Glider releases in StuffIt archives, for testing Import Files… (never bundled).
+const archives = 'https://paste.dbohdan.com/1nd6t9v-q4n6c/';
 const miniVMacRepo = 'https://github.com/mihaip/minivmac';
 const miniVMacCommit = '0bcab1d51ce240489b98b21b744ddfcddf01659e';
 
@@ -43,6 +46,22 @@ const inputs: Record<string, Input> = {
 	'Glider.zip': {
 		url: infiniteMac + 'Library/Games/Glider.zip',
 		sha256: '0433c953d985775b7ce0fe3c859305bdcfe55270de1490eec872dfc81cd33c8d',
+	},
+	'stuffit/lavillastrangiato.sit': {
+		url: archives + 'lavillastrangiato.sit',
+		sha256: '9bf9527d53643e1267bb1efd7d93613aaadcf42c2bda9595ecc78cf0d32ce0c6',
+	},
+	'stuffit/imagineart_1.sit': {
+		url: archives + 'imagineart_1.sit',
+		sha256: '6b08e84376c6bbe189c42bb90b8cd9f3ccf73620cf94d2f26f705b665dcb2c34',
+	},
+	'stuffit/glider_4.04.sit': {
+		url: archives + 'glider_4.04.sit',
+		sha256: '2dc24f846dd485b486be94f85ea8269a76280d0594ec5de377945ea0693b7cfd',
+	},
+	'stuffit/glider4.02.sit': {
+		url: archives + 'glider4.02.sit',
+		sha256: '23b7203eb64ee97a99c75ccebc59a699c16c67aa9daadb1f1035980a70909718',
 	},
 };
 
@@ -81,6 +100,7 @@ export async function fetchInputs(): Promise<void> {
 		if (hash !== input.sha256) {
 			throw new Error(`${name}: SHA-256 is ${hash}, expected ${input.sha256}`);
 		}
+		mkdirSync(dirname(path), { recursive: true });
 		writeFileSync(path, bytes);
 	}
 }

@@ -1,14 +1,16 @@
 // Port: the files the player brings to the port and takes away (the desktop's Import Files… and
-// Export Files…, PORT.md decision 16). What comes in may be MacBinary files, AppleSingle files, ZIP
-// archives of them (a macOS ZIP keeps each file's resource fork and Finder information in an
-// AppleDouble file under __MACOSX), or a bare house or saved game, known by its size. What goes out
-// is a ZIP archive of MacBinary files, which Import Files… reads back.
+// Export Files…, PORT.md decision 16). What comes in may be MacBinary files, AppleSingle files,
+// StuffIt archives (src/platform/StuffIt.ts), ZIP archives (a macOS ZIP keeps each file's resource
+// fork and Finder information in an AppleDouble file under __MACOSX), or a bare house or saved game,
+// known by its size; from an archive, only what Glider uses is taken. What goes out is a ZIP
+// archive of MacBinary files, which Import Files… reads back.
 
 import { gameRec } from '../glider/FileInNOut.ts';
 import { houseRecLayout } from '../glider/Globals.ts';
 import { isMacBinary, type MacFile, parseAppleDouble, parseMacBinary, writeMacBinary } from '../mac/MacBinary.ts';
 import { encodeMacRoman } from '../mac/MacRoman.ts';
 import { sizeOf } from '../mac/PascalLayout.ts';
+import { isStuffIt, readStuffIt } from './StuffIt.ts';
 import { isZip, writeZip, zipMembers } from './Zip.ts';
 
 /** Inflates a deflated ZIP member. */
@@ -67,20 +69,53 @@ function macFile(name: string, bytes: Uint8Array, appleDouble: Uint8Array | null
 	return null;
 }
 
+/**
+ * Whether Glider uses a file: houses, their art, saved games, and Glider itself (whose preferences
+ * the store keeps). Archives often hold read-me files and the like, which are left out.
+ */
+function usedByGlider(f: MacFile): boolean {
+	return f.type === 'GLhs' || f.type === 'GLbk' || f.type === 'GLgm' || (f.type === 'APPL' && f.creator === 'GLID');
+}
+
 /** Reads what the player chose to import. */
 export async function readUploads(uploads: Upload[], inflate: Inflate): Promise<Imported> {
 	const out: Imported = { files: [], rejected: [] };
-	for (const u of uploads) {
-		if (!isZip(u.bytes)) {
-			const f = macFile(u.name, u.bytes, null);
-			if (f === null) {
-				out.rejected.push(u.name);
-			} else {
-				out.files.push(f);
-			}
-			continue;
+	const add = (f: MacFile, fromArchive: boolean): void => {
+		if (!fromArchive || usedByGlider(f)) {
+			out.files.push(f);
 		}
-		const members = zipMembers(u.bytes).filter((m) => !m.name.endsWith('/'));
+	};
+	const take = async (name: string, bytes: Uint8Array, companion: Uint8Array | null, fromArchive: boolean): Promise<void> => {
+		if (isZip(bytes)) {
+			await takeZip(bytes);
+			return;
+		}
+		if (isStuffIt(bytes)) {
+			const { files, failed } = readStuffIt(bytes);
+			for (const f of files) {
+				add({ ...f, name: macName(f.name) }, true);
+			}
+			for (const f of failed) {
+				if (usedByGlider({ name: f.name, type: f.type, creator: f.creator, finderFlags: 0, created: 0, modified: 0, data: new Uint8Array(0), rsrc: new Uint8Array(0) })) {
+					out.rejected.push(f.name);
+				}
+			}
+			return;
+		}
+		const f = macFile(name, bytes, companion);
+		if (f === null) {
+			if (!fromArchive) {
+				out.rejected.push(name);
+			}
+		} else if (isStuffIt(f.data)) {
+			// A StuffIt archive in MacBinary (.sit.bin) or with its Finder information.
+			await take(f.name, f.data, null, true);
+		} else {
+			add(f, fromArchive);
+		}
+	};
+	const takeZip = async (zip: Uint8Array): Promise<void> => {
+		const members = zipMembers(zip).filter((m) => !m.name.endsWith('/'));
 		const contents = new Map<string, Uint8Array>();
 		for (const m of members) {
 			contents.set(m.name, m.method === 0 ? m.raw.slice() : await inflate(m.raw));
@@ -98,14 +133,11 @@ export async function readUploads(uploads: Upload[], inflate: Inflate): Promise<
 			if (path.startsWith('__MACOSX/') || baseName(path).startsWith('._')) {
 				continue;
 			}
-			const name = baseName(path);
-			const f = macFile(name, bytes, companions.get(path) ?? null);
-			if (f === null) {
-				out.rejected.push(name);
-			} else {
-				out.files.push(f);
-			}
+			await take(baseName(path), bytes, companions.get(path) ?? null, true);
 		}
+	};
+	for (const u of uploads) {
+		await take(u.name, u.bytes, null, false);
 	}
 	return out;
 }

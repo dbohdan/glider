@@ -88,3 +88,11 @@ The desktop's menus hold what a Mac's disks did: File > Import Files… and Expo
 **16.** The imported house in Glider's Load House…, in a page loaded afterwards: the browser keeps it.
 
 ![The imported house in Load House](16-imported-house-in-load-house-plus.png)
+
+**17.** Import Files… after choosing `LaVillaStrangiato.sit`, a fan-made house from the Macintosh Garden in a StuffIt archive. The archive also holds two read-me files; from an archive, Import takes only what Glider uses (houses, art, saved games).
+
+![A house imported from a StuffIt archive](17-port-import-stuffit-house-plus.png)
+
+**18.** La Villa Strangiato's first room, opened with Load House… in a page loaded afterwards.
+
+![La Villa Strangiato's first room](18-la-villa-strangiato-first-room-plus.png)

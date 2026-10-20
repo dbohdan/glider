@@ -8,6 +8,8 @@ The oracle runs the original Glider in an emulated Mac so that the port can be c
 - **Machines:** a Mac Plus (512×342, black and white) and a Mac II (640×480, up to 16 colors).
 - **Software:** the ROMs, System 6.0.8, and Glider 4.06 from [Infinite Mac](https://github.com/mihaip/infinite-mac), pinned to a commit and checked by SHA-256.
   Glider 4.06 is the closest available build to the 4.05 source; see [`docs/versions.md`](../docs/versions.md).
+- **Archives:** StuffIt archives of fan-made houses and of Glider 4.02 and 4.04, from a mirror of the Macintosh Garden's, checked by SHA-256 too.
+  The port's StuffIt reader is tested against them (`test/platform/stuffit.test.ts`); the emulator does not use them.
 - **Boot disk:** a fresh HFS volume for each run, holding only the System, the Finder, Glider and its files, and any test houses.
   The emulator boots a copy, so a case's disk (`runs/CASE.dsk`) stays as built: Glider writes high scores and preferences to its disk.
   The boot blocks launch Glider at startup without MultiFinder.
@@ -18,6 +20,7 @@ Everything fetched or built goes into `oracle/cache/`, which is never committed.
 ## Use
 
 The oracle needs Node.js 24, gcc, make, git, and hfsutils (`apt install hfsutils`).
+Behind an HTTPS proxy, Node's `fetch` uses it only with `NODE_USE_ENV_PROXY=1` (and `NODE_EXTRA_CA_CERTS` for its certificate).
 
 ```sh
 make oracle          # fetch the inputs and build the emulators
