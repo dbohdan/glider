@@ -255,6 +255,7 @@ do {
   - Scaling (integer factors, and the largest that fits) from another Options submenu, in place of the page's own control.
   - Switching art from an Options submenu: the art files on the volume (the game's, and imported ones such as More Glider's Improved Art), color and black and white in one menu, those of the other kind dimmed.
     Glider 4.05 opens its art by name ("Color Art" or "B&W Art"), so imported art waits beside the game's until then.
+  - Phones, as a second tier: a virtual mouse on the touch screen is little code, but making it pleasant to steer with is a sidequest of its own.
   - A "Bass Beat" checkbox in the Sound Settings dialog, as in Glider for Windows, whose dialog has "Object", "Music" and "Bass Beat" under "Sounds To Play".
     On the Mac, Music covers both the jingle on entering a room and the bass during play; the checkbox would split off the bass.
     It is on by default, as the Mac plays it; Glider for Windows had it off by default (`docs/versions.md`).

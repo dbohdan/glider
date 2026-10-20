@@ -23,3 +23,14 @@ body {
 	bottom: 1em;
 	font: 14px monospace;
 }
+
+/* Without JavaScript, a line of plain text (PORT.md, decision 9). */
+.noscript {
+	max-width: 32em;
+	margin: 1em;
+	font: 16px/1.5 system-ui, sans-serif;
+}
+
+.noscript a {
+	color: inherit;
+}
