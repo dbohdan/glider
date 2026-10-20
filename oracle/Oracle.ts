@@ -164,6 +164,16 @@ export function glider406(): Map<string, MacFile> {
 	return out;
 }
 
+/** The Room Editor 1.04 as distributed beside Glider 4.06, the release nearest the 1.03 source, named "Room Editor". */
+export function roomEditor104(): MacFile {
+	const zip = readZip(readFileSync(join(cacheDir, 'Glider.zip')));
+	const files = new Map(zip.map((e) => [e.name, e.data]));
+	const name = 'Room Editor 1.04';
+	const finf = files.get(`.finf/${name}`)!;
+	// Named as the boot blocks can start it (15 characters at most).
+	return { name: 'Room Editor', type: fourCCAt(finf, 0), creator: fourCCAt(finf, 4), finderFlags: u16(finf, 8), created: 0, modified: 0, data: files.get(name) ?? new Uint8Array(0), rsrc: files.get(`.rsrc/${name}`)! };
+}
+
 /**
  * A stand-in for the "MacsBug" file that Glider 4.05 and later ship for compact Macs:
  * C. Holmén's Mission Screen INIT disguised as a debugger, so that the system loads it at startup

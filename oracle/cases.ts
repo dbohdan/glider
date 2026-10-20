@@ -8,7 +8,7 @@ import { houseRecLayout } from '../src/glider/Globals.ts';
 import { readLayout, writeLayout } from '../src/mac/PascalLayout.ts';
 import { bundledFiles } from '../tools/build-resources.ts';
 import { parseDeRez } from '../tools/DeRez.ts';
-import { alternateScreenFile, editResources, glider406, macII, macPlus, makeDisk, oracleDir, type RunResult, run } from './Oracle.ts';
+import { alternateScreenFile, editResources, glider406, macII, macPlus, makeDisk, oracleDir, roomEditor104, type RunResult, run } from './Oracle.ts';
 import { Script } from './Script.ts';
 
 export const cases: Record<string, (dir: string) => RunResult> = {
@@ -23,6 +23,20 @@ export const cases: Record<string, (dir: string) => RunResult> = {
 			s.wait(30).shot(`game${t}`);
 		}
 		return run(macPlus, s, disk, dir);
+	},
+
+	/** Start the Room Editor 1.04 on a Mac Plus, beside Glider's files. */
+	editorBoot(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...glider406().values(), roomEditor104()], 'Room Editor');
+		return run(macPlus, editorBootScript(), disk, dir);
+	},
+
+	/** Start the Room Editor 1.04 on a Mac II. */
+	editorBootColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...glider406().values(), roomEditor104()], 'Room Editor');
+		return run(macII, editorBootScript(), disk, dir);
 	},
 
 	/** Pull down Glider's menus on a Mac Plus, without choosing anything. */
@@ -1023,3 +1037,12 @@ cases.shutDown = (dir) => {
 	s.mouse(250, 300).wait(10).shot('shutDown');
 	return run(macPlus, s, disk, dir);
 };
+
+/** The Room Editor as it starts: a screenshot every second. */
+function editorBootScript(): Script {
+	const s = new Script();
+	for (let t = 1; t <= 20; t++) {
+		s.until(t * 60).shot(`t${t * 60}`);
+	}
+	return s;
+}
