@@ -58,7 +58,6 @@ Do not relitigate these without discussing them first.
     The oracle setup fetches them.
 13. **What the browser keeps:** only the player's part of the game's files, Glider's preferences and each bundled house's high scores, so that the game's files stay ours to update; files the player makes (saved games, their own houses) are kept whole.
     Glider's preferences are kept for each Mac (the Mac Plus, and the Mac II in all its displays), as each Mac had its own copy of Glider: the keys Glider saves belong to a keyboard, and switching Macs with one copy reset them each time (Glider's "New keyboard" alert). An exported Glider carries both copies, the Mac II's in 'Gprf' and 'Wprf' 128, where Glider reads them, and the Mac Plus's in 129.
-
 14. **Menus and settings are a baseline, not a limit:** they are first made to match the original pixel for pixel, then may change where it serves the player, tastefully and authentically: in the original's own style, built from its own parts, and where possible after a Glider that did it (Glider for Windows).
     The game itself (play, rooms, drawing, sound, timing) stays exact.
     An addition's setting is kept apart from the original's preference record, so that 'Gprf' keeps its format.
