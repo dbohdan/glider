@@ -70,7 +70,7 @@ async function start(): Promise<void> {
 	const manifest = (await (await fetch('data/volume.json')).json()) as VolumeManifest;
 	const volume = await loadVolume(manifest, (p) => fetchBytes(`data/${p}`));
 	const store = await FileStore.open();
-	await store.restore(volume);
+	await store.restore(volume, kind);
 	const system = parseResourceFork(await fetchBytes('data/System.rsrc'));
 	const host = new BrowserHost();
 	const machine = bootMachine({ kind, system, volume, application: onDesktop ? 'Desktop' : 'Glider 4.05', host, fileChanged: (f, deleted) => store.save(f, deleted), extendedKeyboard: true, blackAndWhite: display === 'ii-bw' });

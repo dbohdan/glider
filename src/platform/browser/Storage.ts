@@ -4,6 +4,11 @@
 // the player makes, such as saved games and houses of their own, are kept whole, as MacBinary.
 // A deleted file is kept as a tombstone so that a bundled file stays deleted.
 //
+// Glider's preferences are kept for each Mac, as each Mac had its own copy of Glider (PORT.md,
+// decision 13): the keys Glider saves belong to a keyboard, and the Mac Plus's is not the Mac II's.
+// Houses and saved games are the same for both. An exported Glider carries both: the Mac II's in
+// its 'Gprf' and 'Wprf' 128, which Glider reads, and the Mac Plus's in 129, which it does not.
+//
 // Earlier versions kept changed bundled files whole; such records are read for their player's part.
 
 import { houseRecLayout } from '../../glider/Globals.ts';
@@ -33,6 +38,8 @@ interface Stored {
 	prefs?: Uint8Array;
 	/** The port's additions' preferences resource in the application ('Wprf' 128), once it has one. */
 	webPrefs?: Uint8Array;
+	/** The Mac Plus's copy of both; the two above are the Mac II's. */
+	plus?: MacPrefs;
 	/** A bundled house's high scores. */
 	scores?: Scores;
 }
@@ -48,17 +55,51 @@ function openDB(): Promise<IDBDatabase> {
 	});
 }
 
+/** The Macs the page runs, each with its own copy of Glider's preferences. */
+export type Mac = 'plus' | 'ii';
+
+/** One Mac's copy of Glider's preferences, and of the additions'. */
+export interface MacPrefs {
+	prefs: Uint8Array;
+	webPrefs?: Uint8Array;
+}
+
+/** Where each Mac's preferences are in an exported Glider: the Mac II's where Glider reads them. */
+export const prefsID: Record<Mac, number> = { ii: 128, plus: 129 };
+
 const isApplication = (f: MacFile) => f.type === 'APPL';
 const isHouse = (f: MacFile) => f.type === 'GLhs';
 
-/** The application's preferences resource ('Gprf' 128), if it has one. */
-export function prefsOf(app: MacFile): Uint8Array | null {
-	return parseResourceFork(app.rsrc).resources.find((r) => r.type === 'Gprf' && r.id === 128)?.data ?? null;
+/** The application's preferences resource ('Gprf' 128, or another Mac's copy), if it has one. */
+export function prefsOf(app: MacFile, id = 128): Uint8Array | null {
+	return parseResourceFork(app.rsrc).resources.find((r) => r.type === 'Gprf' && r.id === id)?.data ?? null;
 }
 
 /** The port's additions' preferences resource ('Wprf' 128, src/glider/Additions.ts), if the application has one. */
-export function webPrefsOf(app: MacFile): Uint8Array | null {
-	return parseResourceFork(app.rsrc).resources.find((r) => r.type === 'Wprf' && r.id === 128)?.data ?? null;
+export function webPrefsOf(app: MacFile, id = 128): Uint8Array | null {
+	return parseResourceFork(app.rsrc).resources.find((r) => r.type === 'Wprf' && r.id === id)?.data ?? null;
+}
+
+/** A Mac's copy of the preferences in an application, if it has one. */
+export function macPrefsOf(app: MacFile, mac: Mac): MacPrefs | null {
+	const prefs = prefsOf(app, prefsID[mac]);
+	const webPrefs = webPrefsOf(app, prefsID[mac]);
+	return prefs === null ? null : { prefs, ...(webPrefs === null ? {} : { webPrefs }) };
+}
+
+/** The game's application with each Mac's copy of the preferences it has, for Export Files…. */
+export function withAllPrefs(app: MacFile, copies: Partial<Record<Mac, MacPrefs>>): MacFile {
+	const fork = parseResourceFork(app.rsrc);
+	for (const mac of ['ii', 'plus'] as const) {
+		const copy = copies[mac];
+		if (copy !== undefined) {
+			fork.put({ type: 'Gprf', id: prefsID[mac], name: null, attrs: 0, data: copy.prefs });
+			if (copy.webPrefs !== undefined) {
+				fork.put({ type: 'Wprf', id: prefsID[mac], name: null, attrs: 0, data: copy.webPrefs });
+			}
+		}
+	}
+	return { ...app, rsrc: writeResourceFork(fork) };
 }
 
 /** The application with these preferences, and the additions' if given. */
@@ -159,6 +200,10 @@ export class FileStore {
 	private db: IDBDatabase | null = null;
 	/** The files that came with the game, by name, as they came. */
 	private bundled = new Map<string, MacFile>();
+	/** The Mac the page runs, whose copy of Glider's preferences is on the volume. */
+	private mac: Mac = 'ii';
+	/** Each Mac's copy of Glider's preferences, once the player has changed it. */
+	private copies: Partial<Record<Mac, MacPrefs>> = {};
 
 	static async open(): Promise<FileStore> {
 		const s = new FileStore();
@@ -170,9 +215,10 @@ export class FileStore {
 		return s;
 	}
 
-	/** Applies what the player keeps to a volume holding the game's files. */
-	async restore(volume: Volume): Promise<void> {
+	/** Applies what the player keeps to a volume holding the game's files, on a Mac. */
+	async restore(volume: Volume, mac: Mac = 'ii'): Promise<void> {
 		this.bundled = new Map(volume.list().map((f) => [f.name, f]));
+		this.mac = mac;
 		if (this.db === null) {
 			return;
 		}
@@ -188,7 +234,14 @@ export class FileStore {
 			} else if (game !== undefined && isApplication(game)) {
 				const prefs = s.prefs ?? (s.macBinary !== null ? prefsOf(parseMacBinary(s.macBinary)) : null);
 				if (prefs !== null) {
-					volume.put(withPrefs(game, prefs, s.webPrefs ?? null));
+					this.copies.ii = { prefs, ...(s.webPrefs === undefined ? {} : { webPrefs: s.webPrefs }) };
+				}
+				if (s.plus !== undefined) {
+					this.copies.plus = s.plus;
+				}
+				const copy = this.copies[mac];
+				if (copy !== undefined) {
+					volume.put(withPrefs(game, copy.prefs, copy.webPrefs ?? null));
 				}
 			} else if (game !== undefined && isHouse(game)) {
 				const scores = s.scores ?? (s.macBinary !== null ? scoresOf(parseMacBinary(s.macBinary)) : null);
@@ -201,16 +254,40 @@ export class FileStore {
 		}
 	}
 
-	/** The player's part of the volume's files (playerPart), for Export Files…. */
+	/** The player's part of the volume's files (playerPart), for Export Files…; Glider with each Mac's preferences. */
 	playerFiles(volume: Volume): MacFile[] {
 		return volume
 			.list()
-			.map((f) => playerPart(this.bundled, f))
+			.map((f) => {
+				const game = this.bundled.get(f.name);
+				if (game !== undefined && isApplication(game)) {
+					return Object.keys(this.copies).length === 0 ? null : withAllPrefs(game, this.copies);
+				}
+				return playerPart(this.bundled, f);
+			})
 			.filter((f) => f !== null);
 	}
 
 	/** Puts an imported file on the volume and keeps it; false if it is one of the game's own files. */
 	import(volume: Volume, file: MacFile): boolean {
+		const game = this.bundled.get(file.name);
+		if (game !== undefined && isApplication(game) && isApplication(file)) {
+			// Each Mac's copy it carries (an older export has only the one Glider reads, the Mac II's).
+			let any = false;
+			for (const mac of ['ii', 'plus'] as const) {
+				const copy = macPrefsOf(file, mac);
+				if (copy !== null) {
+					this.copies[mac] = copy;
+					any = true;
+				}
+			}
+			const copy = this.copies[this.mac];
+			if (copy !== undefined) {
+				volume.put(withPrefs(volume.get(file.name) ?? game, copy.prefs, copy.webPrefs ?? null));
+			}
+			this.keepCopies(file.name);
+			return any;
+		}
 		if (file.type === 'GLbk') {
 			const name = artName(volume, file);
 			if (name === null) {
@@ -227,8 +304,9 @@ export class FileStore {
 		return true;
 	}
 
-	/** Puts back the game's preferences and the bundled houses' high scores. */
+	/** Puts back the game's preferences, each Mac's, and the bundled houses' high scores. */
 	async reset(volume: Volume): Promise<void> {
+		this.copies = {};
 		for (const game of this.bundled.values()) {
 			if (isApplication(game) || isHouse(game)) {
 				volume.put(game);
@@ -251,20 +329,23 @@ export class FileStore {
 
 	/** Keeps the player's part of a changed file, or that it was deleted. */
 	save(file: MacFile, deleted: boolean): void {
+		const game = this.bundled.get(file.name);
+		if (!deleted && game !== undefined && isApplication(game)) {
+			// This Mac's copy, kept for the session even where the browser keeps nothing.
+			const prefs = prefsOf(file);
+			if (prefs !== null) {
+				const webPrefs = webPrefsOf(file);
+				this.copies[this.mac] = { prefs, ...(webPrefs === null ? {} : { webPrefs }) };
+				this.keepCopies(file.name);
+			}
+			return;
+		}
 		if (this.db === null) {
 			return;
 		}
-		const game = this.bundled.get(file.name);
 		let record: Stored;
 		if (deleted) {
 			record = { name: file.name, deleted: true, macBinary: null };
-		} else if (game !== undefined && isApplication(game)) {
-			const prefs = prefsOf(file);
-			if (prefs === null) {
-				return;
-			}
-			const webPrefs = webPrefsOf(file);
-			record = { name: file.name, deleted: false, macBinary: null, prefs, ...(webPrefs === null ? {} : { webPrefs }) };
 		} else if (game !== undefined && isHouse(game)) {
 			record = { name: file.name, deleted: false, macBinary: null, scores: scoresOf(file) };
 		} else if (game !== undefined) {
@@ -272,6 +353,22 @@ export class FileStore {
 		} else {
 			record = { name: file.name, deleted: false, macBinary: writeMacBinary(file) };
 		}
+		this.db.transaction(storeName, 'readwrite').objectStore(storeName).put(record);
+	}
+
+	/** Keeps each Mac's copy of Glider's preferences, in Glider's record. */
+	private keepCopies(name: string): void {
+		if (this.db === null) {
+			return;
+		}
+		const { ii, plus } = this.copies;
+		const record: Stored = {
+			name,
+			deleted: false,
+			macBinary: null,
+			...(ii === undefined ? {} : { prefs: ii.prefs, ...(ii.webPrefs === undefined ? {} : { webPrefs: ii.webPrefs }) }),
+			...(plus === undefined ? {} : { plus }),
+		};
 		this.db.transaction(storeName, 'readwrite').objectStore(storeName).put(record);
 	}
 }

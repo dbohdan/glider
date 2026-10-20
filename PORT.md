@@ -57,6 +57,8 @@ Do not relitigate these without discussing them first.
 12. **Commercial files** (other Glider releases, manuals, ROMs, System software) are never committed.
     The oracle setup fetches them.
 13. **What the browser keeps:** only the player's part of the game's files, Glider's preferences and each bundled house's high scores, so that the game's files stay ours to update; files the player makes (saved games, their own houses) are kept whole.
+    Glider's preferences are kept for each Mac (the Mac Plus, and the Mac II in all its displays), as each Mac had its own copy of Glider: the keys Glider saves belong to a keyboard, and switching Macs with one copy reset them each time (Glider's "New keyboard" alert). An exported Glider carries both copies, the Mac II's in 'Gprf' and 'Wprf' 128, where Glider reads them, and the Mac Plus's in 129.
+
 14. **Menus and settings are a baseline, not a limit:** they are first made to match the original pixel for pixel, then may change where it serves the player, tastefully and authentically: in the original's own style, built from its own parts, and where possible after a Glider that did it (Glider for Windows).
     The game itself (play, rooms, drawing, sound, timing) stays exact.
     An addition's setting is kept apart from the original's preference record, so that 'Gprf' keeps its format.
@@ -583,4 +585,9 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 - Scale: the largest whole number of device pixels per Mac pixel that fits, or a smaller one, named as a percentage of the page's size; kept by the browser, `?scale=` winning.
 - Art: the art files on the disk, the other kind dimmed by their 'deep' resource as Glider's own check reads it. Glider keeps the art's name in its preferences (`resName`) and opens it as it starts, so a choice sets the name and restarts Glider. More Glider's Improved Art plays: the first room's Mac and clock are its.
 - Bass Beat: `DoTheBass` also asks the addition. The checkbox goes under Music On; Sound Settings is changed as GetNewDialog makes it (items moved, window grown, a control added), not in its resources, which Glider's file would keep. The setting is kept in a resource of the port's in Glider's file, 'Wprf' 128, written only once it differs from the default; the browser keeps and exports it with Glider's own preferences.
+
+### 2026-10-20 (preferences per Mac, and Glider/WIN's sprites)
+
+- Switching between the Mac Plus and the Mac II left Glider with comma and period on both. Glider saves the keyboard's type with its keys and, finding another keyboard as it starts, says "New keyboard" and goes back to its own keys; with one copy of the preferences, every switch did that. On a 1991 desk each Mac had its own copy of Glider, its preferences inside it, so the browser now keeps one for each Mac (decision 13): a Mac Plus starting for the first time gets the alert once, and the Mac II keeps its arrow keys. Houses and saved games are shared. The Mac II's displays share its copy, as one Mac II with the Monitors control panel set otherwise would; so color art is still forgotten in black and white, as Glider forgets it there.
+- Glider/WIN's object sheet (`GLIDER.EXE`'s bitmap 27, its mask 1) is the Mac's color sheet of 4.02 and 4.04, before 4.05 moved its graphics to word boundaries, compared pixel by pixel through the color substitution: every Mac sprite is drawn the same. New are the planes' banners and the flight recorder's buttons; the crumpled glider, the "G" of Game Over, and one column of sprites moved; the Game Over letters went from purple to blue. docs/versions.md had the crumpled glider as new; it is the Mac's own.
 

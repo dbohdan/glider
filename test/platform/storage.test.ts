@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { houseRecLayout } from '../../src/glider/Globals.ts';
 import { readLayout, writeLayout } from '../../src/mac/PascalLayout.ts';
 import { parseResourceFork, writeResourceFork } from '../../src/mac/ResourceFork.ts';
-import { importedFile, playerPart, prefsOf, scoresOf, webPrefsOf, withPrefs, withScores } from '../../src/platform/browser/Storage.ts';
+import { FileStore, importedFile, playerPart, prefsOf, scoresOf, webPrefsOf, withPrefs, withScores } from '../../src/platform/browser/Storage.ts';
+import { Volume } from '../../src/mac/Volume.ts';
 import { bundledFiles } from '../../tools/build-resources.ts';
 
 const files = bundledFiles();
@@ -51,4 +52,35 @@ test("the additions' preferences go with Glider's, and only once there are some"
 	// Importing an application without them keeps the ones on the volume.
 	assert.deepEqual(webPrefsOf(importedFile(bundled, withWeb, app)!), web);
 	assert.deepEqual(webPrefsOf(importedFile(bundled, undefined, withWeb)!), web);
+});
+
+test('each Mac keeps its own copy of Glider\'s preferences, and an export carries both', async () => {
+	const fresh = () => {
+		const v = new Volume('Glider');
+		for (const f of files) {
+			v.put(f);
+		}
+		return v;
+	};
+	const played = (byte: number) => {
+		const fork = parseResourceFork(app.rsrc);
+		const res = fork.resources.find((r) => r.type === 'Gprf' && r.id === 128)!;
+		res.data = res.data.map((v, i) => (i === 0 ? byte : v));
+		return { ...app, rsrc: writeResourceFork(fork) };
+	};
+	// No IndexedDB here: the store keeps what it is given for the session, as in private browsing.
+	const store = await FileStore.open();
+	await store.restore(fresh(), 'ii');
+	store.save(played(0x11), false);
+	await store.restore(fresh(), 'plus');
+	store.save(played(0x22), false);
+	const exported = store.playerFiles(fresh()).find((f) => f.name === app.name)!;
+	assert.equal(prefsOf(exported)![0], 0x11);
+	assert.equal(prefsOf(exported, 129)![0], 0x22);
+	// Imported on a Mac Plus, Glider on the disk gets the Mac Plus's copy, where it reads it.
+	const other = await FileStore.open();
+	const volume = fresh();
+	await other.restore(volume, 'plus');
+	assert.equal(other.import(volume, exported), true);
+	assert.equal(prefsOf(volume.get(app.name)!)![0], 0x22);
 });
