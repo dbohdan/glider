@@ -61,6 +61,7 @@ Do not relitigate these without discussing them first.
     The game itself (play, rooms, drawing, sound, timing) stays exact.
     An addition's setting is kept apart from the original's preference record, so that 'Gprf' keeps its format.
 15. **Names:** the game is "Glider 4.0" in readable text, as on its About box and in Casady & Greene's materials (its releases are 4.0 to 4.10).
+    The port is "Glider 4.0 Unofficial Web Edition", without a colon, as editions were named: on its page, in the README, wherever it is told from the Mac original. "Unofficial" keeps apart what the MIT License allows anyone and what Calhoun and Casady & Greene made; Glider's own text on the Mac's screen stays as it was.
     The page's `startup` parameter names a program, after the Finder's Set Startup…: `?startup=glider4` and `?startup=room-editor` (Glider 4.0 is the only Glider with a separate Room Editor), and `?startup=desktop` for the desktop (decision 16); a bare URL starts Glider.
     The repository is `dbohdan/glider`, with room for earlier Glider versions should their sources appear.
 16. **The desktop:** an application of our own on the port's Toolbox plays the Finder's part, as System 6.0.8's Finder desktop with only our three icons and a small Finder-style menu bar (no disks, no Trash, no windows of folders): Quit goes to it.
