@@ -142,12 +142,12 @@ export function desktopFile(root: string): MacFile {
 		[136, [10, 72, 46, 308], text('The Room Editor has not been ported yet.')],
 		[160, [10, 20, 42, 52], word(gliderIconID)],
 	]));
-	// About the Desktop…: a note alert, OK, with the notice the MIT License asks for (the license's
+	// About the Desktop…: a note alert, OK, with the port's name and the notice the MIT License asks for (the license's
 	// whole text is served beside the page, as LICENSE).
-	put('ALRT', 129, [...word(80), ...word(96), ...word(176), ...word(416), ...word(129), 0x55, 0x55]);
+	put('ALRT', 129, [...word(80), ...word(96), ...word(192), ...word(416), ...word(129), 0x55, 0x55]);
 	put('DITL', 129, ditl([
-		[4, [66, 238, 86, 308], text('OK')],
-		[136, [10, 72, 58, 308], text('Glider 4.0, by John Calhoun, \u00a9 2016 softdorothy. Distributed under the MIT License.')],
+		[4, [82, 238, 102, 308], text('OK')],
+		[136, [10, 72, 74, 308], text('Glider 4.0 Unofficial Web Edition, a port of Glider 4.0 by John Calhoun, \u00a9 2016 softdorothy. Distributed under the MIT License.')],
 		[160, [10, 20, 42, 52], word(gliderIconID)],
 	]));
 	// A message from the desktop (^0): a note alert, OK.

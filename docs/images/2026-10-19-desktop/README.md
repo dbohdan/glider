@@ -108,3 +108,9 @@ The desktop's menus hold what a Mac's disks did: File > Import Files… and Expo
 **21.** The same in black and white, where the improved sheet also carries "john calhoun 92" and "OZMA" in a part of the sheet the game never draws from.
 
 ![Improved B&W Art beside the game's](21-improved-bw-art-beside-the-games.png)
+
+## A name for the port
+
+**22.** About the Desktop… after the port was named Glider 4.0 Unofficial Web Edition, which tells it from the Mac original wherever the two could be confused; the alert grew a line for the name.
+
+![About the Desktop, with the port's name](22-port-about-unofficial-web-edition-plus.png)
