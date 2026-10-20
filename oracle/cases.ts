@@ -28,15 +28,29 @@ export const cases: Record<string, (dir: string) => RunResult> = {
 	/** Start the Room Editor 1.04 on a Mac Plus, beside Glider's files. */
 	editorBoot(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, [...glider406().values(), roomEditor104()], 'Room Editor');
+		makeDisk(disk, [...glider406().values(), roomEditor104()], 'Room Editor', 8, 'root');
 		return run(macPlus, editorBootScript(), disk, dir);
 	},
 
 	/** Start the Room Editor 1.04 on a Mac II. */
 	editorBootColor(dir) {
 		const disk = dir + '.dsk';
-		makeDisk(disk, [...glider406().values(), roomEditor104()], 'Room Editor');
+		makeDisk(disk, [...glider406().values(), roomEditor104()], 'Room Editor', 8, 'root');
 		return run(macII, editorBootScript(), disk, dir);
+	},
+
+	/** The Room Editor on a Mac Plus: a new house's first room, from the Open House dialog. */
+	editorNewHouse(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...glider406().values(), roomEditor104()], 'Room Editor', 8, 'root');
+		return run(macPlus, editorNewHouseScript('plus'), disk, dir);
+	},
+
+	/** The Room Editor on a Mac II: a new house's first room. */
+	editorNewHouseColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...glider406().values(), roomEditor104()], 'Room Editor', 8, 'root');
+		return run(macII, editorNewHouseScript('ii'), disk, dir);
 	},
 
 	/** Pull down Glider's menus on a Mac Plus, without choosing anything. */
@@ -1044,5 +1058,15 @@ function editorBootScript(): Script {
 	for (let t = 1; t <= 20; t++) {
 		s.until(t * 60).shot(`t${t * 60}`);
 	}
+	return s;
+}
+
+/** The Room Editor's Open House dialog, its New House button, Room Background Info's Okay, and the first room. */
+export function editorNewHouseScript(kind: 'plus' | 'ii'): Script {
+	const s = new Script().speed(8);
+	const [newHouse, okay] = kind === 'plus' ? [[380, 221], [333, 221]] : [[445, 290], [398, 291]];
+	s.until(900).shot('open');
+	s.click(newHouse[0]!, newHouse[1]!).wait(120).shot('background');
+	s.click(okay[0]!, okay[1]!).wait(120).shot('room');
 	return s;
 }

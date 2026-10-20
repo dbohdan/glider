@@ -4,7 +4,8 @@
 import { Worker } from 'node:worker_threads';
 import { type Image } from '../../oracle/Image.ts';
 import { keyCodes, type Script } from '../../oracle/Script.ts';
-import { main } from '../../src/glider/GameBody.ts';
+import { main as editorMain } from '../../src/editor/GameBody.ts';
+import { main as gliderMain } from '../../src/glider/GameBody.ts';
 import { hostKeyDown, hostKeyUp } from '../../src/mac/Events.ts';
 import { samplesPerTick, setSoundOutput, SMSUpdate } from '../../src/mac/SMS.ts';
 import { macRomanCode } from '../../src/mac/MacRoman.ts';
@@ -65,6 +66,8 @@ export interface GameRun {
 	shot(withCursor?: boolean): Image;
 	/** Each tick's sound from SMS, and where SMS wrote it in the Mac Plus sound buffer. */
 	sound: Map<number, { samples: Uint8Array; offset: number }>;
+	/** The program it runs. */
+	program: Program;
 }
 
 /**
@@ -73,20 +76,28 @@ export interface GameRun {
  */
 const oracleDiskFiles = new Set(['Glider 4.05', 'Color Art', 'B&W Art', 'The House', 'The House 2']);
 
+/** The programs a case runs: Glider, or the Room Editor, beside the same files. */
+export type Program = 'glider' | 'editor';
+
+const programs: Record<Program, { application: string; main: () => Promise<void>; files: Set<string> }> = {
+	glider: { application: 'Glider 4.05', main: gliderMain, files: oracleDiskFiles },
+	editor: { application: 'Room Editor 1.03', main: editorMain, files: new Set([...oracleDiskFiles, 'Room Editor 1.03']) },
+};
+
 /**
  * Boots a machine with Glider on its volume, which holds the oracle's files; schedule input and
  * screenshots on the host before running. `launchTick` is when Glider starts, as on a Mac that took
  * that long to start up; `house` replaces The House.
  */
-export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array): GameRun {
+export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array, program: Program = 'glider'): GameRun {
 	const volume = new Volume('Glider');
-	for (const f of bundledFiles().filter((f) => oracleDiskFiles.has(f.name))) {
+	for (const f of bundledFiles().filter((f) => programs[program].files.has(f.name))) {
 		volume.put(f.name === 'The House' && house !== undefined ? { ...f, data: house } : f);
 	}
 	const host = new GameHost();
 	host.wakeOnInput = true;
 	host.time = tickTime(launchTick);
-	const machine = bootMachine({ kind, system: systemFork(), volume, application: 'Glider 4.05', host, startDateTime });
+	const machine = bootMachine({ kind, system: systemFork(), volume, application: programs[program].application, host, startDateTime });
 	const rgba = new Uint8ClampedArray(machine.width * machine.height * 4);
 	const shot = (withCursor = false): Image => {
 		renderScreen(machine, rgba, withCursor);
@@ -100,16 +111,16 @@ export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array
 	};
 	const sound = new Map<number, { samples: Uint8Array; offset: number }>();
 	setSoundOutput((tick, samples, offset) => sound.set(tick, { samples: samples.slice(), offset }));
-	return { machine, volume, host, shot, sound };
+	return { machine, volume, host, shot, sound, program };
 }
 
-/** Runs Glider until a tick; returns normally at that tick, or if the program quits. */
+/** Runs the program until a tick; returns normally at that tick, or if the program quits. */
 export async function runGlider(run: GameRun, endTick: number): Promise<void> {
 	run.host.endTime = tickTime(endTick);
 	// Keys held before Glider started (launchTick) are down when it starts.
 	run.host.catchUp();
 	try {
-		await main();
+		await programs[run.program].main();
 	} catch (e) {
 		if (!(e instanceof EndOfRun)) {
 			throw e;

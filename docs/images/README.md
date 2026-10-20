@@ -42,6 +42,10 @@ Each gallery says how its pictures are laid out.
 
 [![The Machine submenu](2026-10-20-additions/01-machine-submenu-mac-ii.png)](2026-10-20-additions/)
 
+**[The Room Editor starts](2026-10-20-room-editor/)**, 20 October 2026: the editor translated, its tool window's own window definition, and its first room matched on both Macs.
+
+[![The Room Editor's first room](2026-10-20-room-editor/02-port-first-room-mac-ii.png)](2026-10-20-room-editor/)
+
 **[Glider for Windows](windows/)**: the 1994 Windows release, for the port's planned Windows look.
 
 [![The House, room 5, in Glider for Windows](windows/room-05-youre-invited.png)](windows/)

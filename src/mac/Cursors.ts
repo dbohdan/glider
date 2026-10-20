@@ -11,6 +11,12 @@ import type { Integer, Point, Rect } from './Types.ts';
 
 export type { Cursor } from './ToolUtils.ts';
 
+/** The IDs of the standard cursors ('CURS' resources). */
+export const iBeamCursor = 1;
+export const crossCursor = 2;
+export const plusCursor = 3;
+export const watchCursor = 4;
+
 /** The standard arrow (QuickDraw's global `arrow`). */
 export const arrow: Cursor = {
 	data: [0x0000, 0x4000, 0x6000, 0x7000, 0x7800, 0x7c00, 0x7e00, 0x7f00, 0x7f80, 0x7c00, 0x6c00, 0x4600, 0x0600, 0x0300, 0x0300, 0x0000],

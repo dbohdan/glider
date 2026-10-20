@@ -10,7 +10,7 @@ import { bootGlider, type CaseRun, oracleTrace, replay, runGlider } from './harn
 const job = workerData as { index: number } | { kind: MachineKind; tick: number; withCursor: boolean };
 if ('index' in job) {
 	const [kind, c] = gameCases[job.index]!;
-	const run = bootGlider(kind, c.launchTick ?? 0, c.house?.());
+	const run = bootGlider(kind, c.launchTick ?? 0, c.house?.(), c.program);
 	const script = c.makeScript();
 	const { shots, end } = replay(run, script, oracleTrace(oracleOutput(c.caseName), script, kind));
 	await runGlider(run, end + 1);

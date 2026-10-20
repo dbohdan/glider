@@ -1,12 +1,13 @@
 // Port: the browser page's entry point: loads the volume and the System, boots the machine, shows
 // its screen at an integer scale, and runs the program `?startup=` names: Glider (`glider4`, or no
-// parameter) or the desktop (`desktop`). Each program runs in a page load of its own (PORT.md,
+// parameter), the Room Editor (`room-editor`), or the desktop (`desktop`). Each program runs in a page load of its own (PORT.md,
 // decision 16): quitting Glider loads the desktop's page, and opening Glider on the desktop loads
 // Glider's. Glider has the port's additions (src/glider/Additions.ts): the page runs the Mac and
 // screen they choose, at their scale, and starts Glider again on another Mac.
 
 import { main as desktop, setDesktopHost } from '../../desktop/Desktop.ts';
 import { type AdditionsHost, type Display, RefreshScales, setAdditionsHost } from '../../glider/Additions.ts';
+import { main as editor } from '../../editor/GameBody.ts';
 import { main as glider } from '../../glider/GameBody.ts';
 import { wantsMouseCapture } from '../../glider/Globals.ts';
 import { ExitToShellSignal, setBeeper, setBrushes } from '../../mac/Toolbox.ts';
@@ -71,6 +72,7 @@ function startupURL(program: string): string {
 async function start(): Promise<void> {
 	const params = new URLSearchParams(location.search);
 	const onDesktop = params.get('startup') === 'desktop';
+	const onEditor = params.get('startup') === 'room-editor';
 	let display = chosenDisplay(params);
 	let scaleChoice = chosenScale(params);
 	let substitute = substituteFor(display);
@@ -82,7 +84,7 @@ async function start(): Promise<void> {
 	await store.restore(volume, kind);
 	const system = parseResourceFork(await fetchBytes('data/System.rsrc'));
 	const host = new BrowserHost();
-	const machine = bootMachine({ kind, system, volume, application: onDesktop ? 'Desktop' : 'Glider 4.05', host, fileChanged: (f, deleted) => store.save(f, deleted), extendedKeyboard: true, blackAndWhite: display === 'ii-bw' });
+	const machine = bootMachine({ kind, system, volume, application: onDesktop ? 'Desktop' : onEditor ? 'Room Editor 1.03' : 'Glider 4.05', host, fileChanged: (f, deleted) => store.save(f, deleted), extendedKeyboard: true, blackAndWhite: display === 'ii-bw' });
 	setBeeper(beep);
 	const sound = new BrowserSound();
 
@@ -145,6 +147,18 @@ async function start(): Promise<void> {
 			resetPlayerData: () => store.reset(volume),
 		});
 		await desktop();
+		return;
+	}
+	if (onEditor) {
+		try {
+			await editor();
+		} catch (e) {
+			if (!(e instanceof ExitToShellSignal)) {
+				showMessage(`The Room Editor stopped: ${e instanceof Error ? e.message : String(e)}`);
+				throw e;
+			}
+		}
+		location.assign(startupURL('desktop'));
 		return;
 	}
 	let restartOn: Display | null = null;

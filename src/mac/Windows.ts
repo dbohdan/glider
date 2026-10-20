@@ -43,7 +43,10 @@ import {
 	PenPat,
 	PenSize,
 	type PixPat,
+	PtInRect,
 	PtInRgn,
+	FrameRgn,
+	patXor,
 	patCopy,
 	type RGBColor,
 	RGBBackColor,
@@ -72,7 +75,7 @@ import { rectRegion, Region } from './Region.ts';
 import { GetResource } from './Resources.ts';
 import { parseColorTable } from './Color.ts';
 import { s16, s32 } from './Binary.ts';
-import { currentModifiers, mouse, TickCount } from './OS.ts';
+import { currentModifiers, getHost, mouse, TickCount, tickTime } from './OS.ts';
 import { pascalString } from './MacRoman.ts';
 import type { ControlRecord } from './Controls.ts';
 import type { Integer, LongInt, Point, Rect, Ref } from './Types.ts';
@@ -131,6 +134,22 @@ export const inFront = -1;
 
 /** A window definition function (WDEF). */
 export type WindowDefProc = (varCode: Integer, w: WindowRecord, message: Integer, param: LongInt) => LongInt;
+
+/**
+ * Port: window definitions that programs bring in their own 'WDEF' resources, by resource ID. The
+ * port runs no 68000 code, so a program registers its definition's translation before making a
+ * window with it (the Room Editor's tool window, WDEF 10); others are the System's (WDEF 0).
+ */
+const windowDefs = new Map<Integer, WindowDefProc>();
+
+/** Port: makes a translated 'WDEF' the one GetNewWindow and NewWindow find for its resource ID. */
+export function setWindowDef(id: Integer, proc: WindowDefProc | null): void {
+	if (proc === null) {
+		windowDefs.delete(id);
+	} else {
+		windowDefs.set(id, proc);
+	}
+}
 
 /**
  * Pascal `WindowRecord` (and `CWindowRecord`): a port with a frame. WindowPtr, WindowPeek, and
@@ -493,7 +512,7 @@ export function newWindow(
 	w.strucRgn = new Region();
 	w.contRgn = new Region();
 	w.updateRgn = new Region();
-	w.windowDefProc = standardWindowDef;
+	w.windowDefProc = windowDefs.get(procID >> 4) ?? standardWindowDef;
 	w.varCode = procID & 15;
 	w.awCTable = null;
 	w.titleHandle = title;
@@ -1189,6 +1208,12 @@ export function FindWindow(thePt: Point, whichWindow: Ref<WindowRecord | null>):
 // The standard window definition (WDEF 0)
 
 function callWindowDef(w: WindowRecord, message: Integer, param: LongInt): LongInt {
+	if (message === wDraw) {
+		// Port: a definition draws with the pen as the Window Manager's port has it, normal: the
+		// Room Editor's tool window (WDEF 10) frames its parts without setting the pen (seen in
+		// the oracle). The port's own drawing in that port leaves the pen otherwise.
+		PenNormal();
+	}
 	return w.windowDefProc(w.varCode, w, message, param);
 }
 
@@ -1207,8 +1232,8 @@ function outset(r: Rect, d: number): Rect {
 /**
  * The System's standard window definition for document windows and dialog boxes.
  * Port: dialog boxes are drawn as the oracle shows them on both machines; document windows follow
- * Executor's geometry and have not been checked against the oracle (Glider has none; the Room
- * Editor will need them).
+ * Executor's geometry but for the shadow, checked against the oracle on the Room Editor's window
+ * (noGrowDocProc) inactive and active; its title bar's stripes and close box are not yet.
  */
 export function standardWindowDef(varCode: Integer, w: WindowRecord, message: Integer, param: LongInt): LongInt {
 	const isDocument = varCode === documentProc || varCode === noGrowDocProc || (varCode & 8) !== 0;
@@ -1217,10 +1242,7 @@ export function standardWindowDef(varCode: Integer, w: WindowRecord, message: In
 			const c = globalContent(w);
 			RectRgn(w.contRgn, c);
 			if (isDocument) {
-				const s = new Region();
-				RectRgn(s, { top: c.top - 19, left: c.left - 1, bottom: c.bottom + 1, right: c.right + 1 });
-				UnionRgn(s, rectRegion({ top: c.top - 18, left: c.left, bottom: c.bottom + 2, right: c.right + 2 }), s);
-				CopyRgn(s, w.strucRgn);
+				RectRgn(w.strucRgn, { top: c.top - 19, left: c.left - 1, bottom: c.bottom + 2, right: c.right + 2 });
 			} else if (varCode === dBoxProc || varCode === movableDBoxProc) {
 				RectRgn(w.strucRgn, outset(c, 8));
 			} else if (varCode === altDBoxProc) {
@@ -1304,9 +1326,11 @@ function drawDocumentFrame(w: WindowRecord, c: Rect, colors: RGBColor[]): void {
 	FrameRect({ ...titleBar, bottom: c.bottom + 1 });
 	MoveTo(c.left, c.top - 1);
 	LineTo(c.right, c.top - 1);
-	MoveTo(c.left, c.bottom + 1);
+	// The shadow: the frame one pixel wider and taller, from its top row and its left column (seen
+	// in the oracle on the Room Editor's window).
+	MoveTo(c.left - 1, c.bottom + 1);
 	LineTo(c.right + 1, c.bottom + 1);
-	MoveTo(c.right + 1, c.top - 18);
+	MoveTo(c.right + 1, c.top - 19);
 	LineTo(c.right + 1, c.bottom);
 	if (w.hilited) {
 		for (let v = c.top - 15; v <= c.top - 5; v += 2) {
@@ -1355,6 +1379,134 @@ export function drawInScreenPort(draw: () => void): void {
 		draw();
 		SetClip(clip);
 	});
+}
+
+// ---------------------------------------------------------------------------------------------
+// Dragging and the close box
+
+/** Command-key bit in an event's or the keyboard's modifiers. */
+const cmdKeyBit = 0x0100;
+
+/** Whether the pointer is the same as another. */
+const samePoint = (a: Point, b: Point): boolean => a.v === b.v && a.h === b.h;
+
+/** Pins a point into a rectangle, as PinRect does (the bottom and right edges are outside it). */
+function pinned(pt: Point, r: Rect): Point {
+	return { v: Math.min(Math.max(pt.v, r.top), r.bottom - 1), h: Math.min(Math.max(pt.h, r.left), r.right - 1) };
+}
+
+/**
+ * Pascal `DragGrayRgn`: drags a gray outline of a region (in global coordinates) in the Window
+ * Manager's port while the button is down. The mouse is pinned into limitRect; outside slopRect the
+ * outline goes away. Returns how far the mouse moved, the vertical distance in the high word, or
+ * $80008000 if it ended outside slopRect.
+ * Port: drawn as Inside Macintosh I describes it (the frame of the region in the gray DragPattern,
+ * pattern mode XOR, clipped to the gray region); the outline's pixels are not yet measured.
+ */
+export async function DragGrayRgn(theRgn: Region, startPt: Point, limitRect: Rect, slopRect: Rect, axis: Integer, actionProc: (() => void) | null): Promise<LongInt> {
+	const outline = copyOf(theRgn);
+	let shown: Point | null = null;
+	const toggle = (at: Point): void => {
+		withDrawingPort(() => {
+			const clip = copyOf(thePort.clipRgn);
+			SetClip(GetGrayRgn());
+			PenNormal();
+			PenPat(gray);
+			PenMode(patXor);
+			OffsetRgn(outline, at.h - startPt.h, at.v - startPt.v);
+			FrameRgn(outline);
+			OffsetRgn(outline, startPt.h - at.h, startPt.v - at.v);
+			PenNormal();
+			SetClip(clip);
+		});
+	};
+	const place = (where: Point): Point | null => {
+		if (!PtInRect(where, slopRect)) {
+			return null;
+		}
+		const p = pinned(where, limitRect);
+		// axis 1 (hAxisOnly) and 2 (vAxisOnly) hold one coordinate still.
+		return { v: axis === 1 ? startPt.v : p.v, h: axis === 2 ? startPt.h : p.h };
+	};
+	shown = place(startPt);
+	if (shown !== null) {
+		toggle(shown);
+	}
+	while (mouse.button) {
+		await getHost().sleep(tickTime(TickCount() + 1));
+		const now = place(mouse.where);
+		if (now === null ? shown !== null : shown === null || !samePoint(now, shown)) {
+			if (shown !== null) {
+				toggle(shown);
+			}
+			shown = now;
+			if (shown !== null) {
+				toggle(shown);
+			}
+		}
+		actionProc?.();
+	}
+	if (shown !== null) {
+		toggle(shown);
+	}
+	if (shown === null) {
+		return 0x80008000 | 0;
+	}
+	return (((shown.v - startPt.v) & 0xffff) << 16) | ((shown.h - startPt.h) & 0xffff);
+}
+
+/**
+ * Pascal `DragWindow`: drags a window's outline (DragGrayRgn) and moves the window where the button
+ * comes up, within boundsRect. A window that is not active becomes active, unless the Command key
+ * was down.
+ * Port: the order of the move and the activation is Inside Macintosh's, not measured.
+ */
+export async function DragWindow(w: WindowRecord, startPt: Point, boundsRect: Rect): Promise<void> {
+	const commandDown = (currentModifiers() & cmdKeyBit) !== 0;
+	const moved = await DragGrayRgn(w.strucRgn, startPt, boundsRect, boundsRect, 0, null);
+	if (moved !== (0x80008000 | 0) && moved !== 0) {
+		const dv = moved >> 16;
+		const dh = (moved << 16) >> 16;
+		const content = w.contRgn.rgnBBox;
+		MoveWindow(w, content.left + dh, content.top + dv, false);
+	}
+	if (!commandDown && w !== FrontWindow()) {
+		SelectWindow(w);
+	}
+}
+
+/**
+ * Pascal `TrackGoAway`: follows the mouse after a press in a window's close box until the button
+ * comes up, highlighting the box while the mouse is in it; true if it came up there.
+ * Port: the close box's highlighting is the window definition's (wDraw with wInGoAway).
+ */
+export async function TrackGoAway(w: WindowRecord, thePt: Point): Promise<boolean> {
+	const inBox = (pt: Point): boolean => callWindowDef(w, wHit, ((pt.v & 0xffff) << 16) | (pt.h & 0xffff)) === wInGoAway;
+	let inside = inBox(thePt);
+	const hilite = (): void => {
+		withDrawingPort(() => {
+			const clip = copyOf(thePort.clipRgn);
+			SetClip(w.strucRgn);
+			clipAbove(w);
+			callWindowDef(w, wDraw, wInGoAway);
+			SetClip(clip);
+		});
+	};
+	if (inside) {
+		hilite();
+	}
+	while (mouse.button) {
+		await getHost().sleep(tickTime(TickCount() + 1));
+		const now = inBox(mouse.where);
+		if (now !== inside) {
+			hilite();
+			inside = now;
+		}
+	}
+	if (inside) {
+		hilite();
+	}
+	return inside;
 }
 
 /** Port: the line under the menu bar. */

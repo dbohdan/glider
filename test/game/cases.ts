@@ -1,9 +1,10 @@
 // The game cases: the oracle's scripts (oracle/cases.ts) that the port replays, on each machine, with
 // the houses they play.
 
-import { blackAndWhiteScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { blackAndWhiteScript, editorNewHouseScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
+import type { Program } from './harness.ts';
 
 export interface Case {
 	caseName: string;
@@ -15,6 +16,8 @@ export interface Case {
 	known?: number;
 	/** When Glider starts, for a case whose input must come before (bootGlider); 0 by default. */
 	launchTick?: number;
+	/** The program the case runs; Glider by default. */
+	program?: Program;
 }
 
 /** A case on both machines: `name` on the Mac Plus, `nameColor` on the Mac II. */
@@ -56,4 +59,7 @@ export const gameCases: [MachineKind, Case][] = [
 	...both('longName', longNameScript, 'a name longer than the high-score field scrolls', () => houseOfOneRoom('')),
 	...both('ui', interfaceScript, "Glider's menus, dialogs, help and a paused game look"),
 	...both('everyTick', everyTickScript, 'every tick of the alert going away and a game starting looks'),
+	// The Room Editor (roadmap 12).
+	['plus', { caseName: 'editorNewHouse', makeScript: () => editorNewHouseScript('plus'), what: "the Room Editor's first room of a new house looks", program: 'editor' }],
+	['ii', { caseName: 'editorNewHouseColor', makeScript: () => editorNewHouseScript('ii'), what: "the Room Editor's first room of a new house looks", program: 'editor' }],
 ];

@@ -553,6 +553,30 @@ export function PenPat(pat: Pattern): void {
 	}
 }
 
+/** Pascal `PenState`: the pen's location, size, mode, and pattern. */
+export interface PenState {
+	pnLoc: Point;
+	pnSize: Point;
+	pnMode: Integer;
+	pnPat: Pattern;
+}
+
+export function GetPenState(pnState: PenState): void {
+	const port = thePort;
+	pnState.pnLoc = { ...port.pnLoc };
+	pnState.pnSize = { ...port.pnSize };
+	pnState.pnMode = port.pnMode;
+	pnState.pnPat = [...port.pnPat];
+}
+
+export function SetPenState(pnState: PenState): void {
+	const port = thePort;
+	port.pnLoc = { ...pnState.pnLoc };
+	port.pnSize = { ...pnState.pnSize };
+	port.pnMode = pnState.pnMode;
+	PenPat(pnState.pnPat);
+}
+
 export function PenNormal(): void {
 	thePort.pnSize = { h: 1, v: 1 };
 	thePort.pnMode = patCopy;
