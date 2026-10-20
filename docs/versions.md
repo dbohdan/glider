@@ -210,9 +210,12 @@ The repo's high-score table for The House also contains many "Ozma" entries, the
     Most pages keep the Mac content with reflowed or slightly reworded text; the pages about menus are redrawn to show Windows-style menus with underlined access keys.
   - The stairs: recolored or redrawn (77–87% consistent with the Mac art).
   - The About artwork.
-  - The object sheet and its mask, which are re-laid out.
-    New sprites include banner-towing paper planes reading "C&G Forever…", "Good Flying Ace!!", and "Gliding Away…"; a cassette with a glider (the flight recorder); and a crumpled glider in the wastebasket.
-    The "Game Over" letters and the glider fade masks moved.
+  - The object sheet (bitmap 27) and its mask (bitmap 1) are the Mac's color sheet of 4.02 and 4.04 (the two are identical), from before 4.05 word-aligned its graphics: not 4.05's sheet, and not More Glider's Improved Art (the guitar, the basketball, and the plain balloons are the standard ones).
+    Compared through the color substitution above, every Mac sprite is drawn the same, but:
+    - New: the banners the paper planes tow, "C&G Forever…", "Good Flying Ace!!" and "Gliding Away…", with two pieces of banner tail; and the flight recorder's two buttons, a cassette to a glider and a glider to a cassette.
+    - Moved: the column of the dart, the fed-o-matic, the books and the guitar, one pixel left; the crumpled glider, from the sheet's top right to beside the wastebasket; the "G" of "Game Over", out of the column of letters to beside the flight recorder's buttons. The glider fade masks moved too.
+    - Recolored: the "Game Over" letters, purple to blue.
+    (Compared in 2026 with the bitmaps from `GLIDER.EXE` and the "Art 16" files of the 4.02 and 4.04 archives; crops in [`images/windows/`](images/windows/).)
 - The layout is the same as the Mac color version on a 640×480 screen: a menu bar, then the 512×342 play area centered between the two 64-pixel side panels.
 - Shapes the Mac draws in code (tables, shelves, cabinets, window frames, shadows) are drawn with dithered brushes.
   For example, a table top is a 1:1 checkerboard of olive and dark red standing in for the Mac's brown.
