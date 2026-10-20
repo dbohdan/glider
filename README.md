@@ -109,7 +109,12 @@ Still to come: the Room Editor, then additions such as choosing the machine, the
 
 - **Glider 4.0** by John Calhoun, published by Casady & Greene. Calhoun's softdorothy released the source under the MIT License ([`LICENSE`](LICENSE)), which covers this repository except where noted below.
 - **The More Glider houses**: Mad House by John Calhoun; the others by Jeff Carter, Brian Eaton, Tony Korlath and Steve Sullivan.
-- **Fonts:** Ozma and Glinda, the bitmaps of Chicago 12 and Geneva 9, come from the System file of [Executor 2000](https://github.com/autc04/executor) (MIT License).
+- **Fonts:** Ozma and Glinda are Apple's bitmap fonts Chicago 12 and Geneva 9, copied pixel for pixel on purpose and renamed. We copied them from the System file of [Executor 2000](https://github.com/autc04/executor), whose MIT License covers Executor's code and grants nothing in Apple's glyphs. We use the glyphs because we believe they are in the public domain, for different reasons in different places:
+  - **United States:** typeface designs are not copyrightable (37 CFR 202.1(e); *Eltra Corp. v. Ringer*, 1978). The Copyright Office treats a bitmap font as a representation of a typeface, not as a program. Outline fonts were protected in *Adobe Systems v. Southern Software* (1998) as software in which the choice of points was creative; a bitmap font is neither.
+  - **United Kingdom:** copying a typeface is free 25 years after it was first marketed (Copyright, Designs and Patents Act 1988, s. 55). Chicago and Geneva date from 1984.
+  - **European Union:** design rights, and Germany's protection of typefaces, end after 25 years at most.
+
+  This is our reading of the law, not legal advice.
 - **The Source Code icon** holds the branch mark of [Jason Long's Git logo](https://git-scm.com/downloads/logos) ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)).
 - **Earlier work:** [kodogo/Glider](https://github.com/kodogo/Glider) ported Glider 4.0's source to JavaScript before this port, which was made independently of it.
 - **The oracle** runs [Mini vMac](https://www.gryphel.com/c/minivmac/), from [Infinite Mac](https://github.com/mihaip/infinite-mac)'s fork, on the ROMs and System software Infinite Mac hosts.
