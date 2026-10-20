@@ -67,8 +67,8 @@ export interface AdditionsHost {
 	setDisplay(display: Display): void;
 	/** Once the program quits, starts it again on a display; null to go to the desktop, as Quit does. */
 	restartOn(display: Display | null): void;
-	/** The scales that fit the page: whole device pixels to a Mac pixel, and their names. */
-	scales(): { factor: number; name: string }[];
+	/** The scales the page offers, whole device pixels to a Mac pixel: their names, and whether they fit the window now. */
+	scales(): { factor: number; name: string; fits: boolean }[];
 	/** The chosen scale's factor; 0 for the largest that fits. */
 	readonly scale: number;
 	setScale(factor: number): void;
@@ -205,6 +205,12 @@ export function RefreshScales(): void {
 	if (scales.length > 0) {
 		AppendMenu(menu, scales.map((s) => s.name).join(';'));
 	}
+	// Those that do not fit the window are dimmed, as art of the other kind is.
+	scales.forEach((s, k) => {
+		if (!s.fits) {
+			DisableItem(menu, k + 3);
+		}
+	});
 	colorItems(menu);
 	checkChoices();
 }

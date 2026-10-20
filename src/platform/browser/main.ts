@@ -158,9 +158,11 @@ async function start(): Promise<void> {
 			restartOn = d;
 		},
 		scales: () => {
+			// Up to 400% of the page's own size, or further if more fits; the larger ones may not fit.
 			const ratio = window.devicePixelRatio || 1;
 			const fit = fitFactor(machine.width, machine.height);
-			return Array.from({ length: fit }, (_, k) => ({ factor: k + 1, name: `${Math.round(((k + 1) / ratio) * 100)}%` }));
+			const most = Math.max(fit, Math.round(4 * ratio));
+			return Array.from({ length: most }, (_, k) => ({ factor: k + 1, name: `${Math.round(((k + 1) / ratio) * 100)}%`, fits: k + 1 <= fit }));
 		},
 		get scale() {
 			return scaleChoice;

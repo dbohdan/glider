@@ -249,14 +249,15 @@ do {
   - [x] The desktop, after System 6.0.8's Finder (measured in the oracle), with `startup` and Quit.
   - [x] The browser's operations in the desktop's menus: importing houses, exporting the player's files, resetting preferences and scores.
   - [x] The README: what the port is and is not, credits and licenses, and the precedent below.
-- [ ] **11. Windows look:** palettes, then art.
+- [x] **11. Windows look:** palettes.
   - [x] Glider for Windows' colors on the Mac II's screen, with a 16-color driver and in 256 colors (`src/platform/WindowsColors.ts`), from the Machine submenu.
+  - Out of scope: Glider/WIN's art, its own behaviors (the planes' banners, flight recording, relinking houses), and its Windows 3.1 interface. Its art is the Mac's 4.04 sheet with new sprites for those behaviors (docs/versions.md), so without them it brings little the colors do not, and they would be new code from a release with no source, with a second user interface around them.
 - [ ] **12. Room Editor.**
   - Started from the desktop, or with `?startup=room-editor`.
 - [ ] **13. Additions** (decision 14), once the port is complete:
   - [x] Switching machines and palettes (Mac Plus, Mac II in color or black and white, the Windows palettes) from a submenu of the Options menu, built like Glider's own submenu.
     A machine change restarts the program, as changing the Mac would; a palette change does not.
-  - [x] Scaling (integer factors, and the largest that fits) from another Options submenu.
+  - [x] Scaling (integer factors, and the largest that fits) from another Options submenu; up to 400% of the page's size, those that do not fit the window dimmed, as the Art submenu dims art of the other kind.
   - [x] Switching art from an Options submenu: the art files on the volume (the game's, and imported ones such as More Glider's Improved Art), color and black and white in one menu, those of the other kind dimmed.
     Glider 4.05 opens its art by the name in its preferences, so a change restarts it.
   - Phones, as a second tier: a virtual mouse on the touch screen is little code, but making it pleasant to steer with is a sidequest of its own.

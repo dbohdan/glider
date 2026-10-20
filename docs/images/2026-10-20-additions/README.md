@@ -8,7 +8,7 @@ All pictures are of the port on a Mac II, at the Mac's own pixels.
 
 ![The Machine submenu](01-machine-submenu-mac-ii.png)
 
-**02.** Options > Scale: the largest whole number of screen pixels per Mac pixel that fits the window, or a smaller one, named as a percentage of the page's size.
+**02.** Options > Scale: the largest whole number of screen pixels per Mac pixel that fits the window, or another, named as a percentage of the page's size, up to 400%; those that do not fit the window now are dimmed, as the Art submenu dims art of the other kind.
 
 ![The Scale submenu](02-scale-submenu-mac-ii.png)
 
