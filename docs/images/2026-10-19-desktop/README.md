@@ -96,3 +96,15 @@ The desktop's menus hold what a Mac's disks did: File > Import Files… and Expo
 **18.** La Villa Strangiato's first room, opened with Load House… in a page loaded afterwards.
 
 ![La Villa Strangiato's first room](18-la-villa-strangiato-first-room-plus.png)
+
+**19.** Import Files… after choosing `more_glider.img_.bin`, Casady & Greene's More Glider floppy (1992) as a DiskCopy image: its 16 house files, and the two art files inside the Compact Pro archive on it, which extracts itself on a Mac. The houses are the ones the port already has; the art is new, and goes beside the game's as "Color Art 2" and "B&W Art 2". A second import adds nothing.
+
+![The More Glider floppy imported](19-port-import-more-glider-floppy-plus.png)
+
+**20.** The floppy's Improved Color Art 1.20 (left) beside the game's (right): the object sheet, the one picture that differs. A blue flying-V guitar for the red one, a soccer ball for the basketball, balloons with faces, other books, a red Game Over and a gray Mac screen. Neither 4.05 nor 4.06 shipped it.
+
+![Improved Color Art beside the game's](20-improved-color-art-beside-the-games.png)
+
+**21.** The same in black and white, where the improved sheet also carries "john calhoun 92" and "OZMA" in a part of the sheet the game never draws from.
+
+![Improved B&W Art beside the game's](21-improved-bw-art-beside-the-games.png)

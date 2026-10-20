@@ -8,6 +8,7 @@
 
 import { houseRecLayout } from '../../glider/Globals.ts';
 import { type MacFile, parseMacBinary, writeMacBinary } from '../../mac/MacBinary.ts';
+import { encodeMacRoman } from '../../mac/MacRoman.ts';
 import { readLayout, writeLayout } from '../../mac/PascalLayout.ts';
 import { parseResourceFork, writeResourceFork } from '../../mac/ResourceFork.ts';
 import type { Volume } from '../../mac/Volume.ts';
@@ -119,6 +120,29 @@ export function importedFile(bundled: Map<string, MacFile>, current: MacFile | u
 	return null;
 }
 
+const sameBytes = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((v, i) => v === b[i]);
+
+/**
+ * Where imported art goes: beside the art already on the volume, never over it (the game's own art
+ * stays, and other art waits for a way to choose it); under its own name if that is free, else
+ * numbered ("Color Art 2"). Null if the same art is on the volume already, under any name.
+ */
+export function artName(volume: Volume, art: MacFile): string | null {
+	const same = (f: MacFile) => f.type === art.type && sameBytes(f.data, art.data) && sameBytes(f.rsrc, art.rsrc);
+	if (volume.list().some(same)) {
+		return null;
+	}
+	let name = art.name;
+	for (let n = 2; volume.get(name) !== undefined; n++) {
+		let base = art.name;
+		while (encodeMacRoman(`${base} ${n}`).length > 31) {
+			base = base.slice(0, -1);
+		}
+		name = `${base} ${n}`;
+	}
+	return name;
+}
+
 export class FileStore {
 	private db: IDBDatabase | null = null;
 	/** The files that came with the game, by name, as they came. */
@@ -175,6 +199,13 @@ export class FileStore {
 
 	/** Puts an imported file on the volume and keeps it; false if it is one of the game's own files. */
 	import(volume: Volume, file: MacFile): boolean {
+		if (file.type === 'GLbk') {
+			const name = artName(volume, file);
+			if (name === null) {
+				return true;
+			}
+			file = { ...file, name };
+		}
 		const f = importedFile(this.bundled, volume.get(file.name), file);
 		if (f === null) {
 			return false;

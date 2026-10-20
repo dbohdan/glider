@@ -51,7 +51,7 @@ Do not relitigate these without discussing them first.
    Where the page must show something of its own (no JavaScript, a phone without a keyboard), it is minimal black and white, after mi.css (public domain); never generic framework styling.
 10. **Houses:** the default "The House" is the "Fan Fun!" revision shipped in every release from 4.02 to 4.10.
     The repo's unlocked working copy ships as "The House (July 1991)".
-    Fan-made houses from the web are not bundled; the desktop's Import Files… reads them from their archives (MacBinary, StuffIt, ZIP).
+    Fan-made houses from the web are not bundled; the desktop's Import Files… reads them from their archives (MacBinary, StuffIt, Compact Pro, ZIP) and disk images.
 11. **Third-party binary libraries** (Buckland's SMS sound code, Jon Wind's About… library) are reimplemented from their interfaces and observed behavior, not translated.
     Their code may be read (SMS's was disassembled) to learn exactly what they do.
 12. **Commercial files** (other Glider releases, manuals, ROMs, System software) are never committed.
@@ -253,6 +253,8 @@ do {
   - Switching machines and palettes (Mac Plus, Mac II in color or black and white, the Windows palettes) from a submenu of the Options menu, built like Glider's own submenu.
     A machine change restarts the program, as changing the Mac would; a palette change may not need to.
   - Scaling (integer factors, and the largest that fits) from another Options submenu, in place of the page's own control.
+  - Switching art from an Options submenu: the art files on the volume (the game's, and imported ones such as More Glider's Improved Art), color and black and white in one menu, those of the other kind dimmed.
+    Glider 4.05 opens its art by name ("Color Art" or "B&W Art"), so imported art waits beside the game's until then.
   - A "Bass Beat" checkbox in the Sound Settings dialog, as in Glider for Windows, whose dialog has "Object", "Music" and "Bass Beat" under "Sounds To Play".
     On the Mac, Music covers both the jingle on entering a room and the bass during play; the checkbox would split off the bass.
     It is on by default, as the Mac plays it; Glider for Windows had it off by default (`docs/versions.md`).
@@ -555,3 +557,11 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 - The Unarchiver (`unar`, `lsar`) is the reference: four archives, fetched by the oracle's setup from a mirror of the Macintosh Garden's (`oracle/cache/stuffit/`), unpack to its forks byte for byte (`test/platform/stuffit.test.ts`): La Villa Strangiato and ImagineArt (Arsenic), and Glider 4.02 (StuffIt 5) and 4.04 (method 13 in folders). Not read: method 13's built-in code tables (two files in those releases, a Gravis settings file and MacsBug), StuffIt's older methods 1 (RLE) and 2 (LZW), and randomized Arsenic blocks, none of which a Glider archive at hand uses. Such a file is reported only if Glider would use it.
 - From an archive, Import takes only what Glider uses: houses, art, saved games, and Glider (for its preferences). Archives hold read-me files and other programs. An application other than the port's own is not kept (Glider 4.04's archive brings its Glider™): the port cannot run it.
 - Importing an older release's archive brings its copies of The House and The House 2, and so, as with any import of a bundled house, their high scores: Glider 4.04's The House has twenty, mostly Lena's.
+
+### 2026-10-20 (what is on the ground: More Glider)
+
+- Glider 4.0's houses are rarer than Glider PRO's: what survives is mostly the releases themselves. Casady & Greene's More Glider floppy (1992), from a mirror of the Macintosh Garden's, is a DiskCopy 4.2 image in MacBinary. Its eight houses (Mad House, by John Calhoun, and seven by Jeff Carter, Brian Eaton, Tony Korlath and Steve Sullivan) are the ones the port bundles from 4.05's source, byte for byte but for House Full of Stuff 2's time stamp.
+- What the port lacked is its Improved Art 1.20, in a Compact Pro self-extracting archive: Color Art and B&W Art whose object sheet and masks (PICT 128 and 129) differ from both 4.05's and 4.06's, where every other picture is the same. Drawn with the port's QuickDraw: a blue flying-V guitar for the red one (the read-me's example), a soccer ball for the basketball, balloons with faces, other book spines, a red Game Over, a gray Mac screen; in black and white also "john calhoun 92" and "OZMA" where the game never draws from. Neither release adopted it.
+- Import Files… reads disk images (`src/platform/DiskImage.ts`: DiskCopy 4.2 and bare HFS volumes, through the catalog B-tree, with the extents B-tree for forks of more than three extents) and Compact Pro archives (`src/platform/CompactPro.ts`: run lengths, and LZH before them), and archives inside archives' files, such as a self-extracting archive on a disk. The StuffIt reader's bit streams and prefix codes moved to `src/platform/Archive.ts` for both.
+- The floppy reads as hfsutils reads it, and the art archive as The Unarchiver unpacks it (`test/platform/archives.test.ts`). The floppy has no file of more than three extents, so a test fills a volume with hfsutils, deletes every other file and writes a big one into the holes. Its first run failed: the catalog itself had spilled into the extents B-tree, and the reader had taken its extents from the master directory block alone.
+- Imported art goes beside the game's, never over it: under its own name if that is free, else numbered ("Color Art 2"), and not at all if the same art is on the volume under any name, so importing the floppy twice adds nothing the second time (`artName`). Glider opens its art by name, so choosing it waits for an Options submenu (roadmap 13).

@@ -6,18 +6,8 @@
 // documented, and checked byte for byte against The Unarchiver's extraction of real Glider
 // archives (test/platform/stuffit.test.ts).
 
-import type { MacFile } from '../mac/MacBinary.ts';
 import { decodeMacRoman } from '../mac/MacRoman.ts';
-
-export class StuffItError extends Error {}
-
-function fail(message: string): never {
-	throw new StuffItError(message);
-}
-
-const u16 = (b: Uint8Array, o: number) => (b[o]! << 8) | b[o + 1]!;
-const u32 = (b: Uint8Array, o: number) => ((b[o]! << 24) | (b[o + 1]! << 16) | (b[o + 2]! << 8) | b[o + 3]!) >>> 0;
-const fourCC = (b: Uint8Array, o: number) => String.fromCharCode(b[o]!, b[o + 1]!, b[o + 2]!, b[o + 3]!);
+import { type ArchiveContents, BitReaderBE, BitReaderLE, fail, fourCC, member, PrefixCode, u16, u32 } from './Archive.ts';
 
 /** Whether bytes are a StuffIt archive, classic or StuffIt 5's. */
 export function isStuffIt(b: Uint8Array): boolean {
@@ -26,90 +16,6 @@ export function isStuffIt(b: Uint8Array): boolean {
 
 // ---------------------------------------------------------------------------------------------
 // Method 13: LZSS with Huffman codes, read least significant bit first
-
-class BitReaderLE {
-	private pos = 0;
-	private bitPos = 0;
-	private readonly b: Uint8Array;
-	constructor(b: Uint8Array) {
-		this.b = b;
-	}
-
-	bit(): number {
-		if (this.pos >= this.b.length) {
-			fail('compressed data ends early');
-		}
-		const v = (this.b[this.pos]! >> this.bitPos) & 1;
-		if (++this.bitPos === 8) {
-			this.bitPos = 0;
-			this.pos++;
-		}
-		return v;
-	}
-
-	bits(n: number): number {
-		let v = 0;
-		for (let i = 0; i < n; i++) {
-			v |= this.bit() << i;
-		}
-		return v;
-	}
-}
-
-/** A prefix code as a binary tree: node k has children tree[2k] (bit 0) and tree[2k + 1]; leaves are -1 - symbol. */
-class PrefixCode {
-	private tree: number[] = [0, 0];
-
-	/** Adds a code of `length` bits, given most significant bit first. */
-	add(code: number, length: number, symbol: number): void {
-		let node = 0;
-		for (let i = length - 1; i >= 0; i--) {
-			const b = (code >> i) & 1;
-			if (i === 0) {
-				this.tree[node * 2 + b] = -1 - symbol;
-			} else {
-				let next = this.tree[node * 2 + b]!;
-				if (next <= 0) {
-					next = this.tree.length / 2;
-					this.tree[node * 2 + b] = next;
-					this.tree.push(0, 0);
-				}
-				node = next;
-			}
-		}
-	}
-
-	/** The canonical code for these lengths: shorter codes first, then by symbol (as Deflate's). */
-	static canonical(lengths: number[]): PrefixCode {
-		const code = new PrefixCode();
-		let next = 0;
-		const max = Math.max(0, ...lengths);
-		for (let len = 1; len <= max; len++) {
-			for (let s = 0; s < lengths.length; s++) {
-				if (lengths[s] === len) {
-					code.add(next, len, s);
-					next++;
-				}
-			}
-			next <<= 1;
-		}
-		return code;
-	}
-
-	read(r: BitReaderLE): number {
-		let node = 0;
-		for (;;) {
-			const next = this.tree[node * 2 + r.bit()]!;
-			if (next < 0) {
-				return -1 - next;
-			}
-			if (next === 0) {
-				fail('invalid prefix code');
-			}
-			node = next;
-		}
-	}
-}
 
 /**
  * The code that codes method 13's code lengths: 37 symbols, given here as codes and lengths (the
@@ -214,33 +120,6 @@ function method13(src: Uint8Array, size: number): Uint8Array {
 // ---------------------------------------------------------------------------------------------
 // Method 15: Arsenic
 
-class BitReaderBE {
-	private pos = 0;
-	private bitPos = 0;
-	private readonly b: Uint8Array;
-	constructor(b: Uint8Array) {
-		this.b = b;
-	}
-
-	/** Past the end the stream reads as zeros, as the arithmetic coder looks ahead. */
-	bit(): number {
-		const v = this.pos < this.b.length ? (this.b[this.pos]! >> (7 - this.bitPos)) & 1 : 0;
-		if (++this.bitPos === 8) {
-			this.bitPos = 0;
-			this.pos++;
-		}
-		return v;
-	}
-
-	bits(n: number): number {
-		let v = 0;
-		for (let i = 0; i < n; i++) {
-			v = (v << 1) | this.bit();
-		}
-		return v;
-	}
-}
-
 /** An adaptive model of symbols first..last: each count grows by `increment`, halved past `limit`. */
 class Model {
 	readonly freq: number[];
@@ -322,7 +201,7 @@ class ArithmeticDecoder {
 }
 
 function method15(src: Uint8Array, size: number): Uint8Array {
-	const d = new ArithmeticDecoder(new BitReaderBE(src));
+	const d = new ArithmeticDecoder(new BitReaderBE(src, true));
 	const initial = new Model(0, 1, 1, 256);
 	const selector = new Model(0, 10, 8, 1024);
 	const mtfModels = [new Model(2, 3, 8, 1024), new Model(4, 7, 4, 1024), new Model(8, 15, 4, 1024), new Model(16, 31, 4, 1024), new Model(32, 63, 2, 1024), new Model(64, 127, 2, 1024), new Model(128, 255, 1, 1024)];
@@ -448,25 +327,8 @@ function expand(method: number, src: Uint8Array, size: number): Uint8Array {
 // ---------------------------------------------------------------------------------------------
 // The containers
 
-export interface StuffItContents {
-	files: MacFile[];
-	/** Files that could not be expanded: their names, Finder types, and why. */
-	failed: { name: string; type: string; creator: string; why: string }[];
-}
-
-function member(name: string, type: string, creator: string, finderFlags: number, created: number, modified: number, data: () => Uint8Array, rsrc: () => Uint8Array, out: StuffItContents): void {
-	try {
-		out.files.push({ name, type, creator, finderFlags, created, modified, data: data(), rsrc: rsrc() });
-	} catch (e) {
-		if (!(e instanceof StuffItError)) {
-			throw e;
-		}
-		out.failed.push({ name, type, creator, why: e.message });
-	}
-}
-
 /** A classic archive: a 22-byte header and entries of 112-byte headers, folders bracketed by methods 32 and 33. */
-function readClassic(b: Uint8Array, out: StuffItContents): void {
+function readClassic(b: Uint8Array, out: ArchiveContents): void {
 	let p = 22;
 	while (p + 112 <= b.length) {
 		const rMethod = b[p]!;
@@ -502,7 +364,7 @@ function readClassic(b: Uint8Array, out: StuffItContents): void {
 }
 
 /** StuffIt 5's archive: entries of variable headers, a folder's members following it. */
-function readStuffIt5(b: Uint8Array, out: StuffItContents): void {
+function readStuffIt5(b: Uint8Array, out: ArchiveContents): void {
 	const entry = (p: number): number => {
 		if (u32(b, p) !== 0xa5a5a5a5) {
 			fail('bad StuffIt 5 entry');
@@ -576,8 +438,8 @@ function readStuffIt5(b: Uint8Array, out: StuffItContents): void {
 }
 
 /** The files in a StuffIt archive, without its folders. */
-export function readStuffIt(b: Uint8Array): StuffItContents {
-	const out: StuffItContents = { files: [], failed: [] };
+export function readStuffIt(b: Uint8Array): ArchiveContents {
+	const out: ArchiveContents = { files: [], failed: [] };
 	if (fourCC(b, 0) === 'SIT!') {
 		readClassic(b, out);
 	} else {
