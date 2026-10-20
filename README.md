@@ -8,22 +8,36 @@ John Calhoun's 1991 Macintosh game, ported line by line from its Pascal source t
 
 ## What it is
 
-The port is Glider 4.05 translated unit by unit, keeping the original's procedures, variables and control flow.
-Under it runs a reimplementation of the parts of System 6 that Glider uses: QuickDraw and Color QuickDraw, the Window, Menu, Control and Dialog Managers, TextEdit, Standard File, and the SMS sound engine Glider links.
-It is checked against the original running on emulated Macs, a Mac Plus and a Mac II, with the same keys pressed at the same moments: the two agree pixel for pixel, tick for tick, and sample for sample.
+It is the original game, Glider 4.05, with its houses, art and sounds, playing in the browser as it played on a Mac in 1991: the same rooms, the same timing, the same bugs.
+
+Two things run in the page, both written in TypeScript.
+One is Glider itself, translated from Calhoun's Pascal source unit by unit, keeping its procedures, variables and control flow.
+The other is the part of the Mac's system software that Glider calls, the Toolbox of System 6 (QuickDraw and Color QuickDraw for drawing, the Window, Menu, Control and Dialog Managers, TextEdit, Standard File, and the SMS sound engine Glider links), written anew from what the real one does.
 
 What it is not:
 
-- **An emulator.** No ROM or System software runs or ships with it. (The emulator is the test oracle, and its inputs are fetched, never committed.)
+- **An emulator.** No Mac ROM or System software runs in the page or ships with it. An emulator is used only in testing, as the [oracle](#the-oracle).
 - **A remake.** Glider's timing and its bugs are kept on purpose.
 - **Glider PRO.** That is Calhoun's later game.
-- **Official.** It is not made or endorsed by John Calhoun, Casady & Greene, or softdorothy; the MIT License under which Calhoun released the source allows it.
+- **Official.** It is not made or endorsed by John Calhoun or Casady & Greene. Calhoun's company, softdorothy, released the source in 2016 under the MIT License, which allows ports like this one.
 
 ## Playing
 
-The page starts on a Mac II in 16 colors. Add `?machine=plus` for a black-and-white Mac Plus, and `?startup=desktop` to start on the desktop instead of in Glider.
-Glider's own Help screens (the Options menu) explain the game, and Configure… sets the keys.
-The mouse works too: while Glider steers by the mouse, a click on the screen captures the pointer, and Escape releases it.
+You need a keyboard, or a mouse; phones and tablets are not supported yet.
+The page starts on a Mac II in 16 colors. Add `?machine=plus` to the end of the address for a black-and-white Mac Plus, and `?startup=desktop` to start on the desktop instead of in Glider.
+
+The keys Glider comes with (⌘ is Command on a Mac and Control elsewhere):
+
+| Key | Does |
+|---|---|
+| ← and → | fly left and right |
+| ↓ | battery boost, when you have a battery |
+| ↑ | fire a rubber band, when you have bands |
+| Tab | pause; Tab again resumes |
+| ⌘S, ⌘E, ⌘Q | save the game, end it, quit |
+
+Configure… in the Options menu changes the keys or switches to the mouse, and Glider's own Help screens (also in the Options menu) explain the rest.
+While Glider steers by the mouse, a click on the screen captures the pointer, and Escape releases it.
 
 Quitting Glider goes to the desktop, a System 6 Finder with three icons: Glider, the Room Editor (not ported yet), and the source code.
 Its menus are where the browser's own operations live:
@@ -35,6 +49,22 @@ Its menus are where the browser's own operations live:
 What you change is kept in the browser's storage, so Export Files… is your backup.
 
 ![The desktop on the Mac Plus](docs/images/2026-10-19-desktop/09-port-desktop-plus.png)
+
+## The oracle
+
+The oracle is the original Glider running on an emulated Mac, kept beside the port to answer one question: what does the real thing do?
+In testing, an oracle is anything that gives the right answer for whatever input you put to it, so that a new implementation can be compared with it rather than with expected results written by hand (programmers may know the idea as differential or golden-master testing).
+The idea came to this project from [porting Starlark to Python](https://dbohdan.com/starlark-python), where a corpus of conformance tests played the part.
+Glider came with no tests, and the Mac's system software has no specification exact to the pixel, but the original program still runs, so it is its own specification.
+
+The oracle is Glider 4.06 (the release nearest the 4.05 source that is at hand as an application, with 4.05's code put back where the two differ) on [Mini vMac](https://www.gryphel.com/c/minivmac/), an emulator of the Mac Plus and the Mac II, changed to run without a window and to repeat a run exactly.
+It runs only on a developer's computer, from ROMs and System software it downloads there; none of it is in this repository or in the page.
+
+A test case is a script of keys, mouse moves and clicks at given ticks (a tick is a sixtieth of a second, the Mac's clock).
+The oracle plays the script on the original and records the screen and the sound; the port plays the same script, and the two must match: every pixel of every screenshot, and the sound tick by tick.
+When they differ, the original is measured before the port is changed, with traces of when the Mac saw each key, which Toolbox routines the program called, and what was in memory.
+No constant is tuned just to make a test pass: each behavior the port has beyond Calhoun's source says in a comment how it was measured in the oracle.
+This is also how a kept bug is told from a new one: if the original does it, the port must too.
 
 ## Building
 
@@ -51,7 +81,7 @@ Most of the game and Toolbox tests compare the port with oracle runs, and skip t
 [`AGENTS.md`](AGENTS.md) is how to work on the port, and [`PORT.md`](PORT.md) holds its decisions, its roadmap, and a journal of how it was made.
 The [galleries](docs/images/README.md) tell the same story in screenshots.
 
-Every push to `master` is checked and deployed to GitHub Pages ([`.github/workflows/pages.yml`](.github/workflows/pages.yml)).
+Every push to `master` is checked, without the oracle, and deployed to GitHub Pages ([`.github/workflows/pages.yml`](.github/workflows/pages.yml)).
 
 ## The repository
 
@@ -77,9 +107,9 @@ Still to come: the Room Editor, then additions such as choosing the machine, the
 
 ## Credits and licenses
 
-- **Glider 4.0** by John Calhoun, published by Casady & Greene. The source was released by softdorothy under the MIT License ([`LICENSE`](LICENSE)), which covers this repository.
+- **Glider 4.0** by John Calhoun, published by Casady & Greene. Calhoun's softdorothy released the source under the MIT License ([`LICENSE`](LICENSE)), which covers this repository except where noted below.
 - **The More Glider houses**: Mad House by John Calhoun; the others by Jeff Carter, Brian Eaton, Tony Korlath and Steve Sullivan.
-- **Fonts:** Ozma and Glinda, the bitmaps of Chicago 12 and Geneva 9, come from the System file of [Executor](https://github.com/ctm/executor) (MIT License).
+- **Fonts:** Ozma and Glinda, the bitmaps of Chicago 12 and Geneva 9, come from the System file of [Executor 2000](https://github.com/autc04/executor) (MIT License).
 - **The Source Code icon** holds the branch mark of [Jason Long's Git logo](https://git-scm.com/downloads/logos) ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)).
 - **Earlier work:** [kodogo/Glider](https://github.com/kodogo/Glider) ported Glider 4.0's source to JavaScript before this port, which was made independently of it.
 - **The oracle** runs [Mini vMac](https://www.gryphel.com/c/minivmac/), from [Infinite Mac](https://github.com/mihaip/infinite-mac)'s fork, on the ROMs and System software Infinite Mac hosts.
