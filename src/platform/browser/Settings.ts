@@ -5,7 +5,7 @@
 
 import type { Display } from '../../glider/Additions.ts';
 
-const displays: Display[] = ['plus', 'ii', 'ii-bw', 'win16', 'win256'];
+const displays: Display[] = ['plus', 'ii', 'ii-bw', 'win-16', 'win-256'];
 const displayKey = 'glider4.display';
 const scaleKey = 'glider4.scale';
 

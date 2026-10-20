@@ -56,7 +56,7 @@ import { parseResourceFork } from '../mac/ResourceFork.ts';
 import { G, iControls, iHoldKeyboard, mControls, mOption, moveOptionItems } from './Globals.ts';
 
 /** The machine and screen the page runs: the Mac II's screen may show Glider for Windows' colors. */
-export type Display = 'plus' | 'ii' | 'ii-bw' | 'win16' | 'win256';
+export type Display = 'plus' | 'ii' | 'ii-bw' | 'win-16' | 'win-256';
 
 /** What the page does for the additions. */
 export interface AdditionsHost {
@@ -95,8 +95,8 @@ const displays: [Display | null, string][] = [
 	['ii', 'Mac II, 16 Colors'],
 	['ii-bw', 'Mac II, Black & White'],
 	[null, '(-'],
-	['win16', 'Windows, 16 Colors'],
-	['win256', 'Windows, 256 Colors'],
+	['win-16', 'Windows, 16 Colors'],
+	['win-256', 'Windows, 256 Colors'],
 ];
 
 /** The art files in the Art submenu, in its order. */

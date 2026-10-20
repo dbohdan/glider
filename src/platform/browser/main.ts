@@ -40,7 +40,7 @@ function fitFactor(width: number, height: number): number {
 
 /** The colors a display shows the Mac II's 16 as, if not its own. */
 function substituteFor(display: Display): RGB8[] | null {
-	return display === 'win16' ? windowsColors(16) : display === 'win256' ? windowsColors(256) : null;
+	return display === 'win-16' ? windowsColors(16) : display === 'win-256' ? windowsColors(256) : null;
 }
 
 /** The Mac a display runs on, and its screen's depth: palettes on the same Mac change at once. */
