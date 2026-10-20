@@ -27,8 +27,8 @@ export class EndOfRun extends Error {
 /** A ScriptHost that ends the run at a given tick. */
 export class GameHost extends ScriptHost {
 	endTime = Infinity;
-	/** The ticks in which, in the oracle, a key's repeat came before the program read the clock. */
-	repeatsFirst = new Set<number>();
+	/** The ticks in which, in the oracle, a key typed or repeated came before the program read the clock. */
+	keysFirst = new Set<number>();
 	/** Reads of the clock since time last passed: a program that spins without waiting reads it endlessly. */
 	private reads = 0;
 
@@ -39,8 +39,8 @@ export class GameHost extends ScriptHost {
 		return super.now();
 	}
 
-	repeatBeforeClock(tick: number): boolean {
-		return this.repeatsFirst.has(tick);
+	keyBeforeClock(tick: number): boolean {
+		return this.keysFirst.has(tick);
 	}
 
 	override async sleep(ms: number): Promise<void> {
@@ -353,17 +353,18 @@ export interface OracleTrace {
 	mouseReports: MouseReport[] | null;
 	/** On a Mac Plus, when the ROM took each button transition; null when not traced. */
 	buttonTicks: number[] | null;
-	/** The ticks whose key repeat came before the program first called TickCount in them. */
-	repeatsFirst: Set<number>;
+	/** The ticks whose key, typed or repeated, came before the program first called TickCount in them. */
+	keysFirst: Set<number>;
 }
 
 export function oracleTrace(output: string, script: Script, kind: MachineKind): OracleTrace {
 	const reports: MouseReport[] = [];
-	const repeatsFirst = new Set<number>();
+	const keysFirst = new Set<number>();
 	for (const line of output.split('\n')) {
-		const r = /^autokey (\d+) [0-9A-F]{4} 0$/.exec(line);
+		// A repeat made, or a key given to TEKey, before any TickCount in the tick.
+		const r = /^(?:autokey (\d+) [0-9A-F]{4}|tekey (\d+)) 0$/.exec(line);
 		if (r !== null) {
-			repeatsFirst.add(Number(r[1]));
+			keysFirst.add(Number(r[1] ?? r[2]));
 		}
 		const m = /^adbmouse (\d+) (-?\d+) (-?\d+) ([01]) (\d+)$/.exec(line);
 		if (m !== null) {
@@ -371,7 +372,7 @@ export function oracleTrace(output: string, script: Script, kind: MachineKind): 
 		}
 	}
 	const traced = kind === 'ii' && script.lines.includes('mouse 1');
-	return { keyTimes: oracleKeyTimes(output, script, kind), mouseReports: traced ? reports : null, buttonTicks: kind === 'plus' ? oracleButtonTicks(output, script) : null, repeatsFirst };
+	return { keyTimes: oracleKeyTimes(output, script, kind), mouseReports: traced ? reports : null, buttonTicks: kind === 'plus' ? oracleButtonTicks(output, script) : null, keysFirst };
 }
 
 const keyNames = new Map(Object.entries(keyCodes).map(([name, code]) => [code, name]));
@@ -434,7 +435,7 @@ export function replay(run: GameRun, script: Script, trace?: OracleTrace): { sho
 	const buttonTicks = trace?.buttonTicks ?? null;
 	let buttonIndex = 0;
 	const mouseReports = trace?.mouseReports ?? null;
-	h.repeatsFirst = trace?.repeatsFirst ?? new Set();
+	h.keysFirst = trace?.keysFirst ?? new Set();
 	// The ADB mouse's reports, when the oracle traced them, come in the ticks the bus's polling gave
 	// them: as the tick begins, before the program runs, or later in it.
 	for (const r of mouseReports ?? []) {

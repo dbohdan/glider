@@ -34,6 +34,10 @@ Each gallery says how its pictures are laid out.
 
 [![The port's desktop](2026-10-19-desktop/09-port-desktop-plus.png)](2026-10-19-desktop/)
 
+**[A name longer than its field](2026-10-20-edit-field/)**, 20 October 2026: the high-score field scrolling sideways and starting over, read in the ROM and in System 6's TextEdit.
+
+[![The field scrolling and wrapping](2026-10-20-edit-field/01-long-name-scrolls-and-wraps-plus.png)](2026-10-20-edit-field/)
+
 **[Glider for Windows](windows/)**: the 1994 Windows release, for the port's planned Windows look.
 
 [![The House, room 5, in Glider for Windows](windows/room-05-youre-invited.png)](windows/)

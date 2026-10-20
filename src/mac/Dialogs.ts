@@ -3,7 +3,7 @@
 
 import { GetMainDevice, parseColorTable } from './Color.ts';
 import { ControlRecord, checkBoxProc, Draw1Control, DrawControls, HiliteControl, inButton, NewControl, GetNewControl, pushButProc, radioButProc, TrackControl } from './Controls.ts';
-import { autoKey, autoKeyMask, cmdKey, EventAvail, type EventRecord, GetNextEvent, keyDown, mouseDown, newEventRecord, activateEvt, TickCount, updateEvt, everyEvent } from './Events.ts';
+import { autoKey, autoKeyMask, cmdKey, keyDownMask, EventAvail, type EventRecord, GetNextEvent, keyDown, mouseDown, newEventRecord, activateEvt, TickCount, updateEvt, everyEvent } from './Events.ts';
 import { decodeMacRoman, encodeMacRoman, pascalString } from './MacRoman.ts';
 import { forgetAddress } from './Memory.ts';
 import { getHost } from './OS.ts';
@@ -170,6 +170,7 @@ export function newDialog(
 			if (kind & editText && d.editField < 0) {
 				d.editField = i;
 				d.textH = TENew(it.rect, it.rect);
+				editRects(d.textH, it.rect);
 				TEAutoView(true, d.textH);
 				d.textH.hText = handle;
 				TECalText(d.textH);
@@ -331,6 +332,21 @@ export function SelIText(theDialog: DialogRecord, itemNo: Integer, strtSel: Inte
 	SetPort(save);
 }
 
+/**
+ * Puts the text record on an edit text item: its view the item's rectangle, and its destination
+ * the same but, for an item no taller than a line and 2 pixels, twice as wide, so that a one-line
+ * field scrolls sideways before its text wraps (the ROM's Dialog Manager, at $415482 in the Mac
+ * Plus ROM, read after a long name typed into Glider's high-score field scrolled and then started
+ * over in the oracle).
+ */
+function editRects(te: TERec, r: Rect): void {
+	te.viewRect = { ...r };
+	te.destRect = { ...r };
+	if (r.bottom <= r.top + 2 + te.lineHeight) {
+		te.destRect.right += r.right - r.left;
+	}
+}
+
 /** Makes an edit text item the current one, moving the text record to it. */
 function setEditField(d: DialogRecord, index: number): void {
 	if (d.editField === index && d.textH !== null) {
@@ -342,8 +358,7 @@ function setEditField(d: DialogRecord, index: number): void {
 	}
 	const te = d.textH ?? TENew(it.rect, it.rect);
 	TEAutoView(true, te);
-	te.destRect = { ...it.rect };
-	te.viewRect = { ...it.rect };
+	editRects(te, it.rect);
 	te.hText = it.handle as Handle;
 	te.selStart = te.selEnd = 0;
 	TECalText(te);
@@ -576,17 +591,20 @@ export async function ModalDialog(filterProc: ModalFilterProc | null): Promise<I
 	for (;;) {
 		const ev = newEventRecord();
 		await GetNextEvent(everyEvent, ev);
-		// TEIdle blinks the caret when the clock says, and a repeat typed at the caret hides it: in a
-		// tick where both fall due, which comes first is a race on a Mac, decided by where the loop is
-		// as the tick begins (traced in the oracle: the high-score name, `room9`). The clock comes
-		// first unless the host says otherwise; then TEIdle waits for the repeat.
-		const repeatFirst = getHost().repeatBeforeClock?.(TickCount()) ?? false;
-		const waiting = repeatFirst && ev.what !== autoKey && EventAvail(autoKeyMask, newEventRecord());
-		if (!waiting && !(repeatFirst && ev.what === autoKey)) {
+		// TEIdle blinks the caret when the clock says, and a key typed at the caret hides it: in a tick
+		// where both fall due, which comes first is a race on a Mac, decided by where the loop is as
+		// the tick begins (traced in the oracle: the high-score name, `room9` for a repeat and
+		// `longName` for keys typed). The clock comes first unless the host says otherwise; then
+		// TEIdle waits for the key, queued or a repeat the Event Manager is yet to make, even when
+		// the loop first gets a null event as the tick begins.
+		const keyFirst = getHost().keyBeforeClock?.(TickCount()) ?? false;
+		const isKey = ev.what === keyDown || ev.what === autoKey;
+		const waiting = keyFirst && !isKey && EventAvail(keyDownMask | autoKeyMask, newEventRecord());
+		if (!waiting && !(keyFirst && isKey)) {
 			idle();
 		}
 		const hit = await respond(d, ev, filterProc);
-		if (repeatFirst && ev.what === autoKey) {
+		if (keyFirst && isKey) {
 			idle();
 		}
 		if (hit !== null) {

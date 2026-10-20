@@ -556,6 +556,16 @@ void ALineTrap(unsigned long pc, unsigned long opcode, unsigned long d0)
 		}
 		++ClockReads;
 	}
+	/*
+		TEKey, which the Dialog Manager calls for each key typed into an
+		edit field (repeats too), with the TickCount calls made before it
+		in the tick: 0 means the key came before the caret's blink.
+	*/
+	if (KeyMapTrace && (0xA9DC == opcode)) {
+		printf("tekey %lu %lu\n", tick,
+			(ClockTick == tick) ? ClockReads : 0UL);
+		fflush(stdout);
+	}
 
 	if ((2 == TrapTrace) || ((1 == TrapTrace) && (pc < kRAM_Size))) {
 		if ((0 != TrapCount) && ((tick != TrapTick) || (pc != TrapPC)

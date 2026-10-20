@@ -489,6 +489,39 @@ export function savedGameScript(probe = false): Script {
 	return s;
 }
 
+/**
+ * Ends the house as houseEndScript does, then types a name longer than the high-score dialog's
+ * field, 104 letters, a screenshot after each, and backspaces four of them: the field scrolls
+ * sideways, and once the text wraps at twice the field's width, starts over on the second line.
+ */
+export function longNameScript(): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(900).press('return').wait(60);
+	s.press('n', 'command').wait(20);
+	s.key('.', true).wait(600).key('.', false).wait(2400).shot('dialog');
+	const letters = 'abcdefghijklmnopqrstuvwxyz'.repeat(4);
+	for (let i = 0; i < letters.length; i++) {
+		s.press(letters[i]!).wait(4).shot(`letter${String(i + 1).padStart(3, '0')}`);
+	}
+	for (let i = 1; i <= 4; i++) {
+		s.press('delete').wait(4).shot(`back${i}`);
+	}
+	return s;
+}
+
+/** A long name typed into the high-score dialog, on a Mac Plus and on a Mac II. */
+cases.longName = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, [...gameFiles(houseOfOneRoom('')), alternateScreenFile()], 'Glider 4.06');
+	return run(macPlus, longNameScript(), disk, dir);
+};
+cases.longNameColor = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, gameFiles(houseOfOneRoom('')), 'Glider 4.06');
+	return run(macII, longNameScript(), disk, dir);
+};
+
 for (const [name, nextFile] of Object.entries(houseEnds)) {
 	/** A house that ends after its first room, on a Mac Plus and on a Mac II. */
 	cases[name] = (dir) => {

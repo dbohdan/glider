@@ -1,7 +1,7 @@
 // The game cases: the oracle's scripts (oracle/cases.ts) that the port replays, on each machine, with
 // the houses they play.
 
-import { blackAndWhiteScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { blackAndWhiteScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 
@@ -53,6 +53,7 @@ export const gameCases: [MachineKind, Case][] = [
 	['ii', { caseName: 'blackAndWhiteColor', makeScript: blackAndWhiteScript, what: 'a Mac II switched to black and white plays', launchTick: 30 }],
 	...both('tour', tourScript, 'a long flight through the house plays'),
 	...both('repeats', repeatScript, 'keys held in the high-score dialog repeat'),
+	...both('longName', longNameScript, 'a name longer than the high-score field scrolls', () => houseOfOneRoom('')),
 	...both('ui', interfaceScript, "Glider's menus, dialogs, help and a paused game look"),
 	...both('everyTick', everyTickScript, 'every tick of the alert going away and a game starting looks'),
 ];

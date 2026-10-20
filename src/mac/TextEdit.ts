@@ -417,10 +417,9 @@ export function TEIdle(te: TERec): void {
 	}
 }
 
-/** Replaces the selection with bytes and redraws. */
-function replaceSelection(te: TERec, bytes: Uint8Array): void {
+/** Replaces the selection with bytes and redraws; `replacedRange`, whether it was one the user selected. */
+function replaceSelection(te: TERec, bytes: Uint8Array, replacedRange = te.selStart !== te.selEnd): void {
 	const old = te.hText.data;
-	const replacedRange = te.selStart !== te.selEnd;
 	const text = new Uint8Array(old.length - (te.selEnd - te.selStart) + bytes.length);
 	text.set(old.subarray(0, te.selStart), 0);
 	text.set(bytes, te.selStart);
@@ -447,26 +446,47 @@ export function TEAutoView(auto: boolean, te: TERec): void {
 }
 
 /**
- * Pascal `TESelView`: with automatic scrolling on, scrolls the text so that the line with the
- * insertion point (the start of the selection) is in view: its top, then its bottom. A line taller
- * than the view, as in a dialog's 15-pixel edit field in the 16-pixel system font, ends up with its
- * bottom in view, a pixel up (seen in the oracle once a key is typed into Glider's high-score name).
+ * Pascal `TESelView`: with automatic scrolling on, scrolls the text so that the insertion point
+ * (the start of the selection) is in view. As System 6's TextEdit does (its patch, read in a RAM
+ * dump of the oracle): if the caret's top left is outside the view less a line at the bottom and a
+ * pixel at the right, the text scrolls to put it at that corner, pinned (TEPinScroll). A line
+ * taller than the view, as in a dialog's 15-pixel edit field in the 16-pixel system font, ends up
+ * with its bottom in view, a pixel up; a one-line field, whose destination is twice its width
+ * (Dialogs.ts), scrolls sideways as its text grows, and back when the text wraps.
  */
 export function TESelView(te: TERec): void {
 	if (!te.autoView) {
 		return;
 	}
-	const top = te.destRect.top + lineOf(te, te.selStart) * te.lineHeight;
-	const bottom = top + te.lineHeight;
-	let dv = 0;
-	if (top < te.viewRect.top) {
-		dv = te.viewRect.top - top;
+	const caret = caretRect(te);
+	const right = te.viewRect.right - 1;
+	const bottom = te.viewRect.bottom - te.lineHeight;
+	if (caret.left >= te.viewRect.left && caret.left < right && caret.top >= te.viewRect.top && caret.top < bottom) {
+		return;
 	}
-	if (bottom + dv > te.viewRect.bottom) {
-		dv = te.viewRect.bottom - bottom;
+	TEPinScroll(right - caret.left, bottom - caret.top, te);
+}
+
+/**
+ * Pascal `TEPinScroll`: scrolls as TEScroll does, but no further than brings the text's last line
+ * to the view's bottom or its first to the top, or the destination's right or left edge to the
+ * view's (System 6's TextEdit).
+ */
+export function TEPinScroll(dh: Integer, dv: Integer, te: TERec): void {
+	const text = te.hText.data;
+	if (dv < 0) {
+		const lines = te.nLines + (text.length > 0 && text[text.length - 1] === 13 ? 1 : 0);
+		dv = Math.max(dv, Math.min(0, te.viewRect.bottom - te.destRect.top - lines * te.lineHeight));
+	} else {
+		dv = Math.min(dv, Math.max(0, te.viewRect.top - te.destRect.top));
 	}
-	if (dv !== 0) {
-		TEScroll(0, dv, te);
+	if (dh < 0) {
+		dh = Math.max(dh, Math.min(0, te.viewRect.right - te.destRect.right));
+	} else {
+		dh = Math.min(dh, Math.max(0, te.viewRect.left - te.destRect.left));
+	}
+	if (dh !== 0 || dv !== 0) {
+		TEScroll(dh, dv, te);
 	}
 }
 
@@ -480,8 +500,14 @@ function typeKey(key: string | Integer, te: TERec): void {
 	const code = typeof key === 'string' ? encodeMacRoman(key)[0]! : key;
 	switch (code) {
 		case 8: // backspace
-			if (te.selStart === te.selEnd && te.selStart > 0) {
-				te.selStart--;
+			// At the caret, the character before it goes as typing at the caret goes: the caret hides
+			// until it next blinks (seen in the oracle, tick by tick: `longName`).
+			if (te.selStart === te.selEnd) {
+				if (te.selStart > 0) {
+					te.selStart--;
+					replaceSelection(te, new Uint8Array(0), false);
+				}
+				return;
 			}
 			replaceSelection(te, new Uint8Array(0));
 			return;
