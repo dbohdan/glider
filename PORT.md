@@ -220,7 +220,8 @@ do {
   - [ ] Pixel patterns (`ppat`), color icons (`cicn`), color cursors, the Palette Manager, the inverse table for arithmetic modes.
 - [ ] **5. Platform:** display, scaling, input, time, cursors.
   - [x] The browser page: the screen with its cursor at integer scales, keys (arrow keys by key, for remote desktops), the mouse with Pointer Lock, the clock, sound, storage of the player's files.
-  - [ ] Choosing the machine other than by the URL (`?machine=plus`); deploying to GitHub Pages at launch (decision 7).
+  - [x] Deploying to GitHub Pages (decision 7), on every push to `master` (`.github/workflows/pages.yml`).
+  - [ ] Choosing the machine other than by the URL (`?machine=plus`): an Options submenu (roadmap 13).
 - [ ] **6. Toolbox user interface (System 6):** Window, Menu, Control, Dialog, TextEdit, and Alert managers.
   - [x] Every Toolbox routine Glider calls exists with its Inside Macintosh name (`src/mac/Toolbox.ts`).
   - [x] Glider's menus, its "New keyboard" alert, and its Sound Settings dialog match the oracle pixel for pixel on both machines.
@@ -242,11 +243,11 @@ do {
   - [x] A Mac II switched to black and white with Command held at launch (`blackAndWhiteScript`).
   - [x] Opening another house (Load House…), here one that is not the first of its chain (`loadHouseScript`).
   - Not to be compared: a Mac II started at 256 colors, where Glider asks to switch (`CheckAndSwitch`). The port's Mac II starts at 16 colors, so no player meets that alert.
-- [ ] **10. Standard File and the desktop** (decisions 2 and 16).
+- [x] **10. Standard File and the desktop** (decisions 2 and 16).
   - [x] Standard File's dialogs on the Mac's screen, after System 6.0.8's (DLOG and DITL -3999 and -4000, measured in the oracle, with resources of our own), checked against the oracle during the saved-game and house cases.
   - [x] The desktop, after System 6.0.8's Finder (measured in the oracle), with `startup` and Quit.
   - [x] The browser's operations in the desktop's menus: importing houses, exporting the player's files, resetting preferences and scores.
-  - [ ] The README: what the port is and is not, credits and licenses, and the precedent below.
+  - [x] The README: what the port is and is not, credits and licenses, and the precedent below.
 - [ ] **11. Windows look:** palettes, then art.
 - [ ] **12. Room Editor.**
   - Started from the desktop, or with `?startup=room-editor`.
