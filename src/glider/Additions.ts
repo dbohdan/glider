@@ -90,11 +90,13 @@ const submenus: [id: Integer, title: string][] = [
 	[mArt, 'Art'],
 ];
 
+// Grouped by what a choice costs: the black-and-white Macs each start Glider again, while the Mac
+// II's color screen and Glider for Windows' change among themselves at once.
 const displays: [Display | null, string][] = [
 	['plus', 'Mac Plus'],
-	['ii', 'Mac II, 16 Colors'],
 	['ii-bw', 'Mac II, Black & White'],
 	[null, '(-'],
+	['ii', 'Mac II, 16 Colors'],
 	['win-16', 'Windows, 16 Colors'],
 	['win-256', 'Windows, 256 Colors'],
 ];

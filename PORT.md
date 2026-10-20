@@ -30,7 +30,7 @@ Do not relitigate these without discussing them first.
    System 7 may be revisited after the Room Editor.
 4. **Machines:** a Mac Plus (512×342, black and white, page flipping) and a Mac II (640×480, 16 colors or black and white).
    In the browser the Mac II has an Apple Extended Keyboard, the keyboard Glider 4.05's preferences were saved with, so its arrow-key controls work without the "New keyboard" alert; the oracle's Mac II (and the tests') has the standard ADB keyboard.
-   A "Windows" look uses the Glider for Windows palette (the 256-color variant by default, the 16-color VGA variant as an option) and, later, Windows art.
+   A "Windows" look uses the Glider for Windows palette (the 256-color variant by default, the 16-color VGA variant as an option) and its brushes for the shapes drawn in code; its art is out of scope (roadmap 11).
    Integer scaling for modern displays.
 5. **Execution model:** async/await on the main thread.
    No Web Worker, `SharedArrayBuffer`, or service worker.
@@ -249,14 +249,15 @@ do {
   - [x] The desktop, after System 6.0.8's Finder (measured in the oracle), with `startup` and Quit.
   - [x] The browser's operations in the desktop's menus: importing houses, exporting the player's files, resetting preferences and scores.
   - [x] The README: what the port is and is not, credits and licenses, and the precedent below.
-- [x] **11. Windows look:** palettes.
+- [x] **11. Windows look:** palettes and brushes.
   - [x] Glider for Windows' colors on the Mac II's screen, with a 16-color driver and in 256 colors (`src/platform/WindowsColors.ts`), from the Machine submenu.
+  - [x] Its brushes: the tables, shelves and cabinets Glider draws in code, filled with the checkerboards Windows dithers brown and light brown into, and their light brown highlights in gray (the nearest of the 16 to Windows' static gray).
   - Out of scope: Glider/WIN's art, its own behaviors (the planes' banners, flight recording, relinking houses), and its Windows 3.1 interface. Its art is the Mac's 4.04 sheet with new sprites for those behaviors (docs/versions.md), so without them it brings little the colors do not, and they would be new code from a release with no source, with a second user interface around them.
 - [ ] **12. Room Editor.**
   - Started from the desktop, or with `?startup=room-editor`.
 - [ ] **13. Additions** (decision 14), once the port is complete:
   - [x] Switching machines and palettes (Mac Plus, Mac II in color or black and white, the Windows palettes) from a submenu of the Options menu, built like Glider's own submenu.
-    A machine change restarts the program, as changing the Mac would; a palette change does not.
+    A machine change restarts the program, as changing the Mac would; a change among the Mac II's color screen and the Windows looks does not, and the submenu groups its items by that.
   - [x] Scaling (integer factors, and the largest that fits) from another Options submenu; up to 400% of the page's size, those that do not fit the window dimmed, as the Art submenu dims art of the other kind.
   - [x] Switching art from an Options submenu: the art files on the volume (the game's, and imported ones such as More Glider's Improved Art), color and black and white in one menu, those of the other kind dimmed.
     Glider 4.05 opens its art by the name in its preferences, so a change restarts it.
@@ -591,3 +592,8 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 - Switching between the Mac Plus and the Mac II left Glider with comma and period on both. Glider saves the keyboard's type with its keys and, finding another keyboard as it starts, says "New keyboard" and goes back to its own keys; with one copy of the preferences, every switch did that. On a 1991 desk each Mac had its own copy of Glider, its preferences inside it, so the browser now keeps one for each Mac (decision 13): a Mac Plus starting for the first time gets the alert once, and the Mac II keeps its arrow keys. Houses and saved games are shared. The Mac II's displays share its copy, as one Mac II with the Monitors control panel set otherwise would; so color art is still forgotten in black and white, as Glider forgets it there.
 - Glider/WIN's object sheet (`GLIDER.EXE`'s bitmap 27, its mask 1) is the Mac's color sheet of 4.02 and 4.04, before 4.05 moved its graphics to word boundaries, compared pixel by pixel through the color substitution: every Mac sprite is drawn the same. New are the planes' banners and the flight recorder's buttons; the crumpled glider, the "G" of Game Over, and one column of sprites moved; the Game Over letters went from purple to blue. docs/versions.md had the crumpled glider as new; it is the Mac's own.
 
+### 2026-10-20 (Glider/WIN's brushes)
+
+- Glider/WIN draws the shapes the Mac draws in code with GDI, which fills with a brush and draws lines with a pen. A brush of a color the palette lacks is dithered from pure colors; a pen takes the nearest color. Measured in the screenshots of rooms 3 and 4, in the play area's coordinates (the screenshots' less 61 across): brown fills are dark red where x + y is even and olive where it is odd; light brown fills are red where it is even and, where it is odd, white on odd rows and yellow on even ones; light brown lines are static gray (162, 162, 166). The brushes are aligned to the play area, as the room's offscreen port is.
+- The port draws them on the Windows displays: QuickDraw takes a set of brushes (`setBrushes`), and a solid paint or frame in brown or light brown in a color port becomes transparent pattern passes in other colors of the Mac II's 16, which the palette then shows as the Windows ones (brown as dark red, tan as olive). Static gray has no index of its own among the 16, all of which the art uses, so gray (130) stands in for it. Violet, which Glider/WIN draws in pure magenta, stays purple for the same reason. Compared with the screenshots letter by letter, the table and the shelf match but for that gray.
+- The fills are drawn into the room's offscreen copy as the room is entered, so a switch between the Mac II's color screen and a Windows look leaves the room on the screen as it was drawn and changes the next one. Redrawing the room mid-game would mean running Glider's room setup again out of its order; leaving it is simpler, and the switch still needs no restart. The Machine submenu now groups its items by what a choice costs: the two black-and-white Macs, each a restart, then the Mac II in color and the two Windows looks, which change at once.

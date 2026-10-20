@@ -24,7 +24,7 @@ What it is not:
 ## Playing
 
 You need a keyboard (or a mouse, once you switch Glider to mouse steering); phones and tablets are not supported yet.
-The page starts on a Mac II in 16 colors. Options > Machine switches to a black-and-white Mac Plus, a Mac II in black and white, or the Mac II's screen in Glider for Windows' colors; Options > Scale sets the size, and Options > Art picks among the art files on the disk. The browser remembers these. Add `?startup=desktop` to the end of the address to start on the desktop instead of in Glider, or `?machine=plus` (`ii`, `ii-bw`, `win-16`, `win-256`) to choose the machine there.
+The page starts on a Mac II in 16 colors. Options > Machine switches to a black-and-white Mac Plus, a Mac II in black and white, or the Mac II's screen as Glider for Windows draws it, in its colors and its dithered fills; Options > Scale sets the size, and Options > Art picks among the art files on the disk. The browser remembers these. Add `?startup=desktop` to the end of the address to start on the desktop instead of in Glider, or `?machine=plus` (`ii`, `ii-bw`, `win-16`, `win-256`) to choose the machine there.
 
 The keys Glider comes with (⌘ is Command on a Mac and Control elsewhere):
 

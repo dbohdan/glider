@@ -9,12 +9,12 @@ import { main as desktop, setDesktopHost } from '../../desktop/Desktop.ts';
 import { type AdditionsHost, type Display, RefreshScales, setAdditionsHost } from '../../glider/Additions.ts';
 import { main as glider } from '../../glider/GameBody.ts';
 import { wantsMouseCapture } from '../../glider/Globals.ts';
-import { ExitToShellSignal, setBeeper } from '../../mac/Toolbox.ts';
+import { ExitToShellSignal, setBeeper, setBrushes } from '../../mac/Toolbox.ts';
 import { parseResourceFork } from '../../mac/ResourceFork.ts';
 import { loadVolume, type VolumeManifest } from '../../mac/Volume.ts';
 import { bootMachine, type MachineKind } from '../Machine.ts';
 import { renderScreen } from '../Screen.ts';
-import { type RGB8, windowsColors } from '../WindowsColors.ts';
+import { type RGB8, windowsBrushes, windowsColors } from '../WindowsColors.ts';
 import { chosenDisplay, chosenScale, keepDisplay, keepScale } from './Settings.ts';
 import { beep } from './Beep.ts';
 import { BrowserHost } from './Clock.ts';
@@ -43,8 +43,16 @@ function substituteFor(display: Display): RGB8[] | null {
 	return display === 'win-16' ? windowsColors(16) : display === 'win-256' ? windowsColors(256) : null;
 }
 
-/** The Mac a display runs on, and its screen's depth: palettes on the same Mac change at once. */
-const macOf = (display: Display): string => (display === 'plus' ? 'plus' : display === 'ii-bw' ? 'ii-bw' : 'ii');
+/** Glider for Windows' brushes on its displays (src/platform/WindowsColors.ts), the Mac's on others. */
+function brushesFor(display: Display): void {
+	setBrushes(display === 'win-16' || display === 'win-256' ? windowsBrushes : null);
+}
+
+/**
+ * The Mac a display runs Glider on, with its screen's depth. Displays on the same one change at once
+ * (the Mac II's color screen and Glider for Windows' two); others start Glider again.
+ */
+const macOf = (display: Display): string => (display === 'win-16' || display === 'win-256' ? 'ii' : display);
 
 function showMessage(text: string): void {
 	const p = document.createElement('p');
@@ -67,6 +75,7 @@ async function start(): Promise<void> {
 	let scaleChoice = chosenScale(params);
 	let substitute = substituteFor(display);
 	const kind: MachineKind = display === 'plus' ? 'plus' : 'ii';
+	brushesFor(display);
 	const manifest = (await (await fetch('data/volume.json')).json()) as VolumeManifest;
 	const volume = await loadVolume(manifest, (p) => fetchBytes(`data/${p}`));
 	const store = await FileStore.open();
@@ -147,6 +156,8 @@ async function start(): Promise<void> {
 		setDisplay: (d) => {
 			display = d;
 			substitute = substituteFor(d);
+			// The room on the screen keeps the fills it was drawn with; the next room drawn has the new ones.
+			brushesFor(d);
 			keepDisplay(d);
 			if (params.has('machine')) {
 				const url = new URL(location.href);

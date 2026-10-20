@@ -998,6 +998,35 @@ function transferBit(s: Surface, h: number, v: number, bit: number, op: number, 
 	}
 }
 
+/**
+ * Port: drawing as another system draws it, for the port's additions (Glider for Windows' screen,
+ * src/platform/WindowsColors.ts). A brush replaces a solid fill or frame in a color with patterns
+ * in other colors, each drawn where its pattern's bits are set, as Windows' GDI dithers a brush
+ * of a color it lacks; a pen replaces a line's color with another, as GDI draws a pen in the
+ * nearest color it has. Null for none, as on a Mac.
+ */
+export interface Brushes {
+	brush(color: RGBColor): { pat: Pattern; color: RGBColor }[] | null;
+	pen(color: RGBColor): RGBColor | null;
+}
+
+let brushes: Brushes | null = null;
+
+export function setBrushes(b: Brushes | null): void {
+	brushes = b;
+}
+
+/** Draws with the port's foreground color set to another for a moment. */
+function inColor(port: CGrafPort, color: RGBColor, draw: () => void): void {
+	const rgb = port.rgbFgColor;
+	const index = port.fgColor;
+	port.rgbFgColor = { ...color };
+	port.fgColor = colorToIndex(port.portPixMap.pmTable, color);
+	draw();
+	port.rgbFgColor = rgb;
+	port.fgColor = index;
+}
+
 /** Draws a shape's region with a verb, as StdRgn does after the shape has become a region. */
 function drawShape(verb: GrafVerb, shape: Region, frameRgn?: () => Region, curved = false): void {
 	const port = thePort;
@@ -1009,7 +1038,15 @@ function drawShape(verb: GrafVerb, shape: Region, frameRgn?: () => Region, curve
 		case paint: {
 			const pen = penTransfer(port);
 			if (pen !== null) {
-				fillRegion(clipToPort(verb === frame ? frameRgn!() : shape), pen.pat, pen.mode, isColorPort(port) ? port.pnPixPat : null, curved);
+				const rgn = clipToPort(verb === frame ? frameRgn!() : shape);
+				const passes = isColorPort(port) && brushes !== null && pen.pat.every((row) => row === 0xff) ? brushes.brush(port.rgbFgColor) : null;
+				if (passes !== null && isColorPort(port)) {
+					for (const { pat, color } of passes) {
+						inColor(port, color, () => fillRegion(rgn, pat, patCopy + transparent));
+					}
+				} else {
+					fillRegion(rgn, pen.pat, pen.mode, isColorPort(port) ? port.pnPixPat : null, curved);
+				}
 			}
 			break;
 		}
@@ -1115,7 +1152,13 @@ export function StdLine(newPt: Point): void {
 	// Port: lines in source modes (0 to 7) draw nothing on the original QuickDraw, and draw in the
 	// corresponding pattern modes on Color QuickDraw (seen in the oracle).
 	if (port.pnVis >= 0 && port.pnSize.h > 0 && port.pnSize.v > 0 && (port.pnMode >= 8 || hasColorQD)) {
-		fillRegion(clipToPort(lineRegion(from, newPt, port.pnSize)), port.pnPat, port.pnMode < 8 ? port.pnMode | 8 : port.pnMode);
+		const draw = () => fillRegion(clipToPort(lineRegion(from, newPt, port.pnSize)), port.pnPat, port.pnMode < 8 ? port.pnMode | 8 : port.pnMode);
+		const color = isColorPort(port) && brushes !== null ? brushes.pen(port.rgbFgColor) : null;
+		if (color !== null && isColorPort(port)) {
+			inColor(port, color, draw);
+		} else {
+			draw();
+		}
 	}
 }
 
