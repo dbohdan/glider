@@ -12,7 +12,7 @@ It is the original game, Glider 4.05, with its houses, art and sounds, playing i
 
 Two things run in the page, both written in TypeScript.
 One is Glider itself, translated from Calhoun's Pascal source unit by unit, keeping its procedures, variables and control flow.
-The other is the part of the Mac's system software that Glider calls, the Toolbox of System 6 (QuickDraw and Color QuickDraw for drawing, the Window, Menu, Control and Dialog Managers, TextEdit, Standard File, and the SMS sound engine Glider links), written anew from what the real one does.
+The other is the part of the Mac's system software that Glider calls, the Toolbox of System 6 (QuickDraw and Color QuickDraw for drawing, the Window, Menu, Control and Dialog Managers, TextEdit, Standard File, and SMS, the sound library Glider links), written anew from what the real one does.
 
 What it is not:
 
@@ -23,7 +23,7 @@ What it is not:
 
 ## Playing
 
-You need a keyboard, or a mouse; phones and tablets are not supported yet.
+You need a keyboard (or a mouse, once you switch Glider to mouse steering); phones and tablets are not supported yet.
 The page starts on a Mac II in 16 colors. Add `?machine=plus` to the end of the address for a black-and-white Mac Plus, and `?startup=desktop` to start on the desktop instead of in Glider.
 
 The keys Glider comes with (⌘ is Command on a Mac and Control elsewhere):
@@ -42,7 +42,7 @@ While Glider steers by the mouse, a click on the screen captures the pointer, an
 Quitting Glider goes to the desktop, a System 6 Finder with three icons: Glider, the Room Editor (not ported yet), and the source code.
 Its menus are where the browser's own operations live:
 
-- **File > Import Files…** puts houses, art and saved games on the disk: MacBinary, AppleSingle, StuffIt, Compact Pro, disk images (DiskCopy 4.2 or bare HFS), and ZIP archives of them.
+- **File > Import Files…** puts houses, art and saved games on the port's disk, beside the houses that come with it: MacBinary, AppleSingle, StuffIt, Compact Pro, disk images (DiskCopy 4.2 or bare HFS), and ZIP archives of them.
 - **File > Export Files…** saves your saved games, houses, high scores and preferences as a ZIP archive, which Import reads back.
 - **Special > Reset Preferences and Scores…** puts back Glider's preferences and the high scores of the houses that came with it.
 
@@ -55,7 +55,7 @@ What you change is kept in the browser's storage, so Export Files… is your bac
 The oracle is the original Glider running on an emulated Mac, kept beside the port to answer one question: what does the real thing do?
 In testing, an oracle is anything that gives the right answer for whatever input you put to it, so that a new implementation can be compared with it rather than with expected results written by hand (programmers may know the idea as differential or golden-master testing).
 The idea came to this project from [porting Starlark to Python](https://dbohdan.com/starlark-python), where a corpus of conformance tests played the part.
-Glider came with no tests, and the Mac's system software has no specification exact to the pixel, but the original program still runs, so it is its own specification.
+Glider came with no tests of its own, and the Mac's system software has no specification exact to the pixel, but the original program still runs, so it is its own specification.
 
 The oracle is Glider 4.06 (the release nearest the 4.05 source that is at hand as an application, with 4.05's code put back where the two differ) on [Mini vMac](https://www.gryphel.com/c/minivmac/), an emulator of the Mac Plus and the Mac II, changed to run without a window and to repeat a run exactly.
 It runs only on a developer's computer, from ROMs and System software it downloads there; none of it is in this repository or in the page.
