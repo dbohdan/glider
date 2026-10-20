@@ -162,7 +162,7 @@ export function desktopFile(root: string): MacFile {
 	put('DITL', 131, ditl([
 		[4, [82, 238, 102, 308], text('Cancel')],
 		[4, [82, 150, 102, 220], text('Reset')],
-		[136, [10, 72, 74, 308], text('Put back Glider\u2019s preferences and the high scores of the houses that came with it? Your saved games and your own houses stay.')],
+		[136, [10, 72, 74, 308], text('Restore Glider\u2019s original preferences and high scores? Your saved games and your own houses aren\u2019t changed.')],
 		[160, [10, 20, 42, 52], word(gliderIconID)],
 	]));
 	return { name: desktopFileName, type: 'FNDR', creator: 'GLD4', finderFlags: 0x4000, created: 0, modified: 0, data: new Uint8Array(0), rsrc: writeResourceFork(rf) };
