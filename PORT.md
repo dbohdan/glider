@@ -274,6 +274,7 @@ do {
 - Initial values of uninitialized Pascal globals; `Globals.ts` starts them at zero. The one that shows, `is4Channel` (the preference Glider writes instead of reading), is zero in the oracle on both machines: Sound Settings opens on 2-Channel at first.
 - Whether the Palette Manager changes the Mac II's color table for `pltt` 128, whose colors differ from `clut` 4 in their low bytes (tolerance 0). The oracle's CLUT dump (`c`) can tell.
 - Where System 6 puts a submenu in general: the oracle shows it 4 pixels inside the parent's right edge and 7 pixels below the parent item's top, for Glider's one submenu.
+- The Machine submenu's name: its Windows looks are the Mac II's game drawn as Glider/WIN draws it, not another machine. Kept as "Machine" for now, because the Mac Plus brings its keyboard as well as its screen. Candidates: "Display" (every visual characteristic; the period word, after the Monitors control panel and Windows Setup's Display; the code's `Display` type), "Monitor" (period, but "Windows, 256 Colors" is no monitor), "Computer" (honest for the Macs, not for Windows), "Platform" (overclaims for Windows), "Look" (too modern).
 - Which keyboard type the port reports (`SysEnvirons`' `keyBoardType`): the shipped preferences say 4, so any other value shows the "New keyboard" alert at first launch, as the oracle does on both machines.
 - Which of the Windows palette variants needs what exact values (6-bit DAC levels such as 195 versus requested 192).
 
