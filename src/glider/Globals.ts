@@ -240,11 +240,22 @@ export const iQuit = 9;
 
 export const mOption = 130; // Menu resource ID
 export const iControls = 1; // Menu items…
-export const iSound = 2;
-export const iShowAir = 3;
-export const iRestoreDeep = 4;
-export const iHiScores = 6;
-export const iHelp = 8;
+// Port: `let`, not `const`: the port's additions (Additions.ts, PORT.md decision 14) insert their
+// submenus after Controls, which moves the items after it (moveOptionItems).
+export let iSound = 2;
+export let iShowAir = 3;
+export let iRestoreDeep = 4;
+export let iHiScores = 6;
+export let iHelp = 8;
+
+/** Port: moves the Options menu's items after Controls down by `by`, for the additions' submenus. */
+export function moveOptionItems(by: number): void {
+	iSound += by;
+	iShowAir += by;
+	iRestoreDeep += by;
+	iHiScores += by;
+	iHelp += by;
+}
 
 export const mControls = 131; // Menu resource ID
 export const iHoldKeyboard = 1; // Menu items…

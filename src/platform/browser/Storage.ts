@@ -1,6 +1,6 @@
 // Port: what the player keeps, in the browser (IndexedDB), by file name. The game's own files are
 // ours to update, so of them only the player's part is kept: Glider's preferences (its 'Gprf'
-// resource) and each bundled house's high scores, put back into the bundled files at start. Files
+// resource, and the 'Wprf' of the port's additions) and each bundled house's high scores, put back into the bundled files at start. Files
 // the player makes, such as saved games and houses of their own, are kept whole, as MacBinary.
 // A deleted file is kept as a tombstone so that a bundled file stays deleted.
 //
@@ -31,6 +31,8 @@ interface Stored {
 	macBinary: Uint8Array | null;
 	/** The application's preferences resource. */
 	prefs?: Uint8Array;
+	/** The port's additions' preferences resource in the application ('Wprf' 128), once it has one. */
+	webPrefs?: Uint8Array;
 	/** A bundled house's high scores. */
 	scores?: Scores;
 }
@@ -54,13 +56,22 @@ export function prefsOf(app: MacFile): Uint8Array | null {
 	return parseResourceFork(app.rsrc).resources.find((r) => r.type === 'Gprf' && r.id === 128)?.data ?? null;
 }
 
-export function withPrefs(app: MacFile, prefs: Uint8Array): MacFile {
+/** The port's additions' preferences resource ('Wprf' 128, src/glider/Additions.ts), if the application has one. */
+export function webPrefsOf(app: MacFile): Uint8Array | null {
+	return parseResourceFork(app.rsrc).resources.find((r) => r.type === 'Wprf' && r.id === 128)?.data ?? null;
+}
+
+/** The application with these preferences, and the additions' if given. */
+export function withPrefs(app: MacFile, prefs: Uint8Array, webPrefs: Uint8Array | null = null): MacFile {
 	const fork = parseResourceFork(app.rsrc);
 	const res = fork.resources.find((r) => r.type === 'Gprf' && r.id === 128);
 	if (res === undefined) {
 		return app;
 	}
 	res.data = prefs;
+	if (webPrefs !== null) {
+		fork.put({ type: 'Wprf', id: 128, name: null, attrs: 0, data: webPrefs });
+	}
 	return { ...app, rsrc: writeResourceFork(fork) };
 }
 
@@ -91,7 +102,7 @@ export function playerPart(bundled: Map<string, MacFile>, file: MacFile): MacFil
 		return file;
 	}
 	if (isApplication(game)) {
-		return samePrefs(prefsOf(game), prefsOf(file)) ? null : file;
+		return samePrefs(prefsOf(game), prefsOf(file)) && webPrefsOf(file) === null ? null : file;
 	}
 	if (isHouse(game)) {
 		return JSON.stringify(scoresOf(game)) === JSON.stringify(scoresOf(file)) ? null : file;
@@ -112,7 +123,8 @@ export function importedFile(bundled: Map<string, MacFile>, current: MacFile | u
 	}
 	if (isApplication(game)) {
 		const prefs = prefsOf(file);
-		return prefs === null ? null : withPrefs(current ?? game, prefs);
+		const kept = current === undefined ? null : webPrefsOf(current);
+		return prefs === null ? null : withPrefs(current ?? game, prefs, webPrefsOf(file) ?? kept);
 	}
 	if (isHouse(game) && isHouse(file) && file.data.length === game.data.length) {
 		return withScores(current ?? game, scoresOf(file));
@@ -176,7 +188,7 @@ export class FileStore {
 			} else if (game !== undefined && isApplication(game)) {
 				const prefs = s.prefs ?? (s.macBinary !== null ? prefsOf(parseMacBinary(s.macBinary)) : null);
 				if (prefs !== null) {
-					volume.put(withPrefs(game, prefs));
+					volume.put(withPrefs(game, prefs, s.webPrefs ?? null));
 				}
 			} else if (game !== undefined && isHouse(game)) {
 				const scores = s.scores ?? (s.macBinary !== null ? scoresOf(parseMacBinary(s.macBinary)) : null);
@@ -251,7 +263,8 @@ export class FileStore {
 			if (prefs === null) {
 				return;
 			}
-			record = { name: file.name, deleted: false, macBinary: null, prefs };
+			const webPrefs = webPrefsOf(file);
+			record = { name: file.name, deleted: false, macBinary: null, prefs, ...(webPrefs === null ? {} : { webPrefs }) };
 		} else if (game !== undefined && isHouse(game)) {
 			record = { name: file.name, deleted: false, macBinary: null, scores: scoresOf(file) };
 		} else if (game !== undefined) {

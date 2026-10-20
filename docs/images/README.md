@@ -38,6 +38,10 @@ Each gallery says how its pictures are laid out.
 
 [![The field scrolling and wrapping](2026-10-20-edit-field/01-long-name-scrolls-and-wraps-plus.png)](2026-10-20-edit-field/)
 
+**[The additions](2026-10-20-additions/)**, 20 October 2026: the Machine, Scale and Art submenus, Bass Beat, and Glider for Windows' colors.
+
+[![The Machine submenu](2026-10-20-additions/01-machine-submenu-mac-ii.png)](2026-10-20-additions/)
+
 **[Glider for Windows](windows/)**: the 1994 Windows release, for the port's planned Windows look.
 
 [![The House, room 5, in Glider for Windows](windows/room-05-youre-invited.png)](windows/)

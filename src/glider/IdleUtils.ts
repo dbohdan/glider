@@ -99,6 +99,7 @@ import {
 	keyDown,
 	pString,
 } from '../mac/Toolbox.ts';
+import { AddBassBeat, CancelBassBeat, HitBassBeat } from './Additions.ts';
 import {
 	balloonMode,
 	battry,
@@ -853,6 +854,8 @@ export async function DoSoundSettings(): Promise<void> {
 	const holdChannel = G.is4Channel;
 
 	const theDlgPtr = GetNewDialog(rSoundDlgID, null, inFront)!;
+	// Port: Bass Beat under Music On, the port's addition (Additions.ts).
+	AddBassBeat(theDlgPtr, musicOnItem, G.cantMusic);
 	tempRect = cloneRect(theDlgPtr.portRect);
 	tempRect.top = div(screenBits.bounds.bottom - screenBits.bounds.top - (tempRect.bottom - tempRect.top), 2);
 	tempRect.left = div(screenBits.bounds.right - screenBits.bounds.left - (tempRect.right - tempRect.left), 2);
@@ -908,7 +911,10 @@ export async function DoSoundSettings(): Promise<void> {
 			G.soundOn = holdSound;
 			G.musicOn = holdMusic;
 			G.is4Channel = holdChannel;
+			CancelBassBeat(); // Port: the addition's checkbox too
 		}
+
+		HitBassBeat(theDlgPtr, itemHit); // Port: the addition's checkbox
 
 		if (itemHit === soundOnItem) {
 			G.soundOn = !G.soundOn;

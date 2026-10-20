@@ -227,6 +227,11 @@ export function InitMenus(): void {
 	onDepthChange(DrawMenuBar);
 }
 
+/** Pascal `DelMCEntries`: removes a color entry, or (mctAllItems, -98) every entry of the menu. */
+export function DelMCEntries(menuID: Integer, menuItem: Integer): void {
+	menuColors = menuColors.filter((e) => !(e.mctID === menuID && (menuItem === -98 || e.mctItem === menuItem)));
+}
+
 export function NewMenu(menuID: Integer, menuTitle: string): MenuInfo {
 	const m = new MenuInfo();
 	m.menuID = menuID;
@@ -284,6 +289,29 @@ export function DisposeMenu(_menu: MenuInfo | null): void {}
  * !c a mark, <s a style, /c a key equivalent, and ( disabled.
  */
 export function AppendMenu(menu: MenuInfo, data: string): void {
+	InsMenuItem(menu, data, menu.items.length);
+}
+
+/** Pascal `DelMenuItem`: the items after it move up, enabled or not. */
+export function DelMenuItem(menu: MenuInfo, item: Integer): void {
+	if (item < 1 || item > menu.items.length) {
+		return;
+	}
+	menu.items.splice(item - 1, 1);
+	const below = (1 << item) - 1;
+	const flags = menu.enableFlags;
+	if (item <= 31) {
+		menu.enableFlags = (flags & below) | ((flags >>> 1) & ~below) | (1 << 31);
+	}
+	CalcMenuSize(menu);
+}
+
+/**
+ * Pascal `InsMenuItem`: items as AppendMenu takes them, after an item (0 for the menu's start).
+ * The items after them move down, enabled or not; their colors (an 'mctb') stay with the numbers.
+ */
+export function InsMenuItem(menu: MenuInfo, data: string, afterItem: Integer): void {
+	let at = Math.max(0, Math.min(afterItem, menu.items.length));
 	for (const part of data.split(/[;\r]/)) {
 		const item: MenuItem = { text: '', icon: 0, keyEquiv: 0, mark: 0, style: 0 };
 		let enabled = true;
@@ -311,10 +339,14 @@ export function AppendMenu(menu: MenuInfo, data: string): void {
 				i++;
 			}
 		}
-		menu.items.push(item);
-		const n = menu.items.length;
-		if (!enabled && n <= 31) {
-			menu.enableFlags &= ~(1 << n);
+		menu.items.splice(at, 0, item);
+		at++;
+		// Bit n enables item n; bit 0, the whole menu, stays.
+		const below = (1 << at) - 1;
+		const flags = menu.enableFlags;
+		menu.enableFlags = (flags & below) | ((flags & ~below) << 1) | (enabled ? 1 << at : 0);
+		if (at > 31) {
+			menu.enableFlags = flags;
 		}
 	}
 	CalcMenuSize(menu);
@@ -670,6 +702,20 @@ function redrawTitleOf(_menu: MenuInfo): void {}
 
 export function CheckItem(menu: MenuInfo, item: Integer, checked: boolean): void {
 	SetItemMark(menu, item, checked ? checkMark : noMark);
+}
+
+/** Pascal `SetItemCmd`: the item's key equivalent, or hMenuCmd to make it a submenu's (its mark the submenu's ID). */
+export function SetItemCmd(menu: MenuInfo, item: Integer, cmdChar: Integer): void {
+	const it = menu.items[item - 1];
+	if (it !== undefined) {
+		it.keyEquiv = cmdChar;
+		CalcMenuSize(menu);
+	}
+}
+
+/** Pascal `GetItemCmd`. */
+export function GetItemCmd(menu: MenuInfo, item: Integer): Integer {
+	return menu.items[item - 1]?.keyEquiv ?? 0;
 }
 
 /** Pascal `SetItemMark`; on a hierarchical item the mark is the submenu's ID, so it is left alone. */

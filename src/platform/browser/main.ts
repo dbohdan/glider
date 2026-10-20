@@ -2,9 +2,11 @@
 // its screen at an integer scale, and runs the program `?startup=` names: Glider (`glider4`, or no
 // parameter) or the desktop (`desktop`). Each program runs in a page load of its own (PORT.md,
 // decision 16): quitting Glider loads the desktop's page, and opening Glider on the desktop loads
-// Glider's.
+// Glider's. Glider has the port's additions (src/glider/Additions.ts): the page runs the Mac and
+// screen they choose, at their scale, and starts Glider again on another Mac.
 
 import { main as desktop, setDesktopHost } from '../../desktop/Desktop.ts';
+import { type AdditionsHost, type Display, RefreshScales, setAdditionsHost } from '../../glider/Additions.ts';
 import { main as glider } from '../../glider/GameBody.ts';
 import { wantsMouseCapture } from '../../glider/Globals.ts';
 import { ExitToShellSignal, setBeeper } from '../../mac/Toolbox.ts';
@@ -12,6 +14,8 @@ import { parseResourceFork } from '../../mac/ResourceFork.ts';
 import { loadVolume, type VolumeManifest } from '../../mac/Volume.ts';
 import { bootMachine, type MachineKind } from '../Machine.ts';
 import { renderScreen } from '../Screen.ts';
+import { type RGB8, windowsColors } from '../WindowsColors.ts';
+import { chosenDisplay, chosenScale, keepDisplay, keepScale } from './Settings.ts';
 import { beep } from './Beep.ts';
 import { BrowserHost } from './Clock.ts';
 import { attachInput } from './Input.ts';
@@ -28,11 +32,19 @@ async function fetchBytes(path: string): Promise<Uint8Array> {
 	return new Uint8Array(await r.arrayBuffer());
 }
 
-/** The largest whole number of screen pixels per Mac pixel that fits the window. */
-function fitScale(width: number, height: number): number {
+/** The largest whole number of device pixels per Mac pixel that fits the window. */
+function fitFactor(width: number, height: number): number {
 	const ratio = window.devicePixelRatio || 1;
-	return Math.max(1, Math.floor(Math.min((window.innerWidth * ratio) / width, (window.innerHeight * ratio) / height))) / ratio;
+	return Math.max(1, Math.floor(Math.min((window.innerWidth * ratio) / width, (window.innerHeight * ratio) / height)));
 }
+
+/** The colors a display shows the Mac II's 16 as, if not its own. */
+function substituteFor(display: Display): RGB8[] | null {
+	return display === 'win16' ? windowsColors(16) : display === 'win256' ? windowsColors(256) : null;
+}
+
+/** The Mac a display runs on, and its screen's depth: palettes on the same Mac change at once. */
+const macOf = (display: Display): string => (display === 'plus' ? 'plus' : display === 'ii-bw' ? 'ii-bw' : 'ii');
 
 function showMessage(text: string): void {
 	const p = document.createElement('p');
@@ -51,14 +63,17 @@ function startupURL(program: string): string {
 async function start(): Promise<void> {
 	const params = new URLSearchParams(location.search);
 	const onDesktop = params.get('startup') === 'desktop';
-	const kind: MachineKind = params.get('machine') === 'plus' ? 'plus' : 'ii';
+	let display = chosenDisplay(params);
+	let scaleChoice = chosenScale(params);
+	let substitute = substituteFor(display);
+	const kind: MachineKind = display === 'plus' ? 'plus' : 'ii';
 	const manifest = (await (await fetch('data/volume.json')).json()) as VolumeManifest;
 	const volume = await loadVolume(manifest, (p) => fetchBytes(`data/${p}`));
 	const store = await FileStore.open();
 	await store.restore(volume);
 	const system = parseResourceFork(await fetchBytes('data/System.rsrc'));
 	const host = new BrowserHost();
-	const machine = bootMachine({ kind, system, volume, application: onDesktop ? 'Desktop' : 'Glider 4.05', host, fileChanged: (f, deleted) => store.save(f, deleted), extendedKeyboard: true });
+	const machine = bootMachine({ kind, system, volume, application: onDesktop ? 'Desktop' : 'Glider 4.05', host, fileChanged: (f, deleted) => store.save(f, deleted), extendedKeyboard: true, blackAndWhite: display === 'ii-bw' });
 	setBeeper(beep);
 	const sound = new BrowserSound();
 
@@ -71,16 +86,20 @@ async function start(): Promise<void> {
 	const image = ctx.createImageData(machine.width, machine.height);
 	let scale = 1;
 	const layout = (): void => {
-		scale = fitScale(machine.width, machine.height);
+		const fit = fitFactor(machine.width, machine.height);
+		scale = (scaleChoice === 0 ? fit : Math.min(scaleChoice, fit)) / (window.devicePixelRatio || 1);
 		canvas.style.width = `${machine.width * scale}px`;
 		canvas.style.height = `${machine.height * scale}px`;
 	};
 	layout();
-	window.addEventListener('resize', layout);
+	window.addEventListener('resize', () => {
+		layout();
+		RefreshScales();
+	});
 	attachInput({ screen: canvas, scale: () => scale, plusKeyboard: kind === 'plus', width: machine.width, height: machine.height, capture: wantsMouseCapture, wake: () => host.wake() });
 	const frame = (): void => {
 		sound.update();
-		renderScreen(machine, image.data);
+		renderScreen(machine, image.data, true, substitute);
 		ctx.putImageData(image, 0, 0);
 		requestAnimationFrame(frame);
 	};
@@ -119,6 +138,45 @@ async function start(): Promise<void> {
 		await desktop();
 		return;
 	}
+	let restartOn: Display | null = null;
+	const additions: AdditionsHost = {
+		get display() {
+			return display;
+		},
+		changesAtOnce: (d) => macOf(d) === macOf(display),
+		setDisplay: (d) => {
+			display = d;
+			substitute = substituteFor(d);
+			keepDisplay(d);
+			if (params.has('machine')) {
+				const url = new URL(location.href);
+				url.searchParams.set('machine', d);
+				history.replaceState(null, '', url.href);
+			}
+		},
+		restartOn: (d) => {
+			restartOn = d;
+		},
+		scales: () => {
+			const ratio = window.devicePixelRatio || 1;
+			const fit = fitFactor(machine.width, machine.height);
+			return Array.from({ length: fit }, (_, k) => ({ factor: k + 1, name: `${Math.round(((k + 1) / ratio) * 100)}%` }));
+		},
+		get scale() {
+			return scaleChoice;
+		},
+		setScale: (factor) => {
+			scaleChoice = factor;
+			keepScale(factor);
+			if (params.has('scale')) {
+				const url = new URL(location.href);
+				url.searchParams.set('scale', String(factor));
+				history.replaceState(null, '', url.href);
+			}
+			layout();
+		},
+	};
+	setAdditionsHost(additions);
 	try {
 		await glider();
 	} catch (e) {
@@ -126,6 +184,15 @@ async function start(): Promise<void> {
 			showMessage(`Glider stopped: ${e instanceof Error ? e.message : String(e)}`);
 			throw e;
 		}
+	}
+	if (restartOn !== null) {
+		// Glider again, on the Mac the additions chose: kept by the browser, or in the address if it will not keep it.
+		const url = new URL(startupURL('glider4'));
+		if (!keepDisplay(restartOn) || params.has('machine')) {
+			url.searchParams.set('machine', restartOn);
+		}
+		location.assign(url.href);
+		return;
 	}
 	// Quitting goes to the desktop, as it went to the Finder.
 	location.assign(startupURL('desktop'));

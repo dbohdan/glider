@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { houseRecLayout } from '../../src/glider/Globals.ts';
 import { readLayout, writeLayout } from '../../src/mac/PascalLayout.ts';
 import { parseResourceFork, writeResourceFork } from '../../src/mac/ResourceFork.ts';
-import { prefsOf, scoresOf, withPrefs, withScores } from '../../src/platform/browser/Storage.ts';
+import { importedFile, playerPart, prefsOf, scoresOf, webPrefsOf, withPrefs, withScores } from '../../src/platform/browser/Storage.ts';
 import { bundledFiles } from '../../tools/build-resources.ts';
 
 const files = bundledFiles();
@@ -37,4 +37,18 @@ test("a bundled house's high scores go into a fresh copy of it, and nothing else
 	assert.deepEqual(restored.data, data);
 	const original = readLayout(houseRecLayout, house.data, 0);
 	assert.deepEqual(readLayout(houseRecLayout, restored.data, 0).theRooms, original.theRooms);
+});
+
+test("the additions' preferences go with Glider's, and only once there are some", () => {
+	const bundled = new Map(files.map((f) => [f.name, f]));
+	const web = new Uint8Array([0, 1, 0, 0]);
+	const withWeb = withPrefs(app, prefsOf(app)!, web);
+	assert.deepEqual(webPrefsOf(withWeb), web);
+	assert.equal(webPrefsOf(app), null);
+	// The bundled application has none, so it is not the player's until it has.
+	assert.equal(playerPart(bundled, app), null);
+	assert.notEqual(playerPart(bundled, withWeb), null);
+	// Importing an application without them keeps the ones on the volume.
+	assert.deepEqual(webPrefsOf(importedFile(bundled, withWeb, app)!), web);
+	assert.deepEqual(webPrefsOf(importedFile(bundled, undefined, withWeb)!), web);
 });

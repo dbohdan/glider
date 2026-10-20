@@ -130,6 +130,7 @@ import {
 } from '../mac/Toolbox.ts';
 import { PBoolean, PInteger, PRecord, PRect, PString, readLayout, writeLayout } from '../mac/PascalLayout.ts';
 import { DoOpen, GetHouse } from './FileInNOut.ts';
+import { SetUpAdditions } from './Additions.ts';
 import {
 	type acur,
 	ball,
@@ -1310,6 +1311,8 @@ export async function InitializeAll(): Promise<void> {
 			await GenericAlert(kErrUnknownAtInit);
 			ExitToShell();
 		}
+		// Port: the port's additions to the Options menu, on a page that has them (Additions.ts).
+		SetUpAdditions(GetMenu(mOption)!);
 
 		if (G.airVisible) {
 			SetItem(GetMenu(mOption)!, iShowAir, 'Air is Visible');

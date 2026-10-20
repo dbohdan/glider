@@ -16,6 +16,7 @@ export class Handle {
 
 export const resNotFound: OSErr = -192;
 export const resFNotFound: OSErr = -193;
+export const addResFailed: OSErr = -194;
 
 interface OpenFile {
 	refNum: Integer;
@@ -168,6 +169,19 @@ export function SetResInfo(h: Handle, id: Integer, name: string): void {
 	}
 	found.res.id = id;
 	found.res.name = name;
+	resErr = noErr;
+}
+
+/** Pascal `AddResource`: makes a handle a resource of the current file, written when the file is updated. */
+export function AddResource(h: Handle, type: OSType, id: Integer, name: string): void {
+	const file = chain.find((f) => f.refNum === current);
+	if (file === undefined || resourceOf(h) !== null) {
+		resErr = addResFailed;
+		return;
+	}
+	const res: Resource = { type, id, name: name === '' ? null : name, attrs: 0, data: h.data };
+	file.fork.put(res);
+	file.handles.set(res, h);
 	resErr = noErr;
 }
 

@@ -60,6 +60,7 @@ import {
 	WriteResource,
 } from '../mac/Toolbox.ts';
 import { PBoolean, PInteger, PRecord, PString, readLayout, writeLayout } from '../mac/PascalLayout.ts';
+import { SaveWebPrefs } from './Additions.ts';
 import { DemoVersion, G, helpScreensMode, highScoreMode, kErrLoadingRes, kErrMemLow, kErrSavingPrefs, kSleep } from './Globals.ts';
 import { DrawHiScores, GenericAlert, RedrawWindowFrame, ShowMenuBar, SpinBall } from './GlobalUtils.ts';
 import { DisplayAHelpScreen, DoIdle, DropIdle, InitIdle } from './IdleUtils.ts';
@@ -146,6 +147,8 @@ async function SavePrefs(): Promise<void> {
 	}
 	HUnlock(theirPrefs);
 	ReleaseResource(theirPrefs);
+	// Port: and the port's additions' own preferences (Additions.ts).
+	SaveWebPrefs();
 }
 
 //=================================

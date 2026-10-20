@@ -1,6 +1,7 @@
 // Port: what the monitor shows: the screen buffer the video circuit reads (on a Mac Plus, the page
 // the VIA selects), through the device's color table, with the cursor over it.
 
+import type { RGB8 } from './WindowsColors.ts';
 import { cursorState, GetMainDevice, isAlternatePage, mouse, resolve, type RGBColor } from '../mac/Toolbox.ts';
 import { type Machine, plusAlternateScreen, plusMainScreen } from './Machine.ts';
 
@@ -8,7 +9,11 @@ import { type Machine, plusAlternateScreen, plusMainScreen } from './Machine.ts'
  * Renders the screen into RGBA pixels (width × height × 4). Port: the cursor is drawn over the
  * image rather than into screen memory; see PORT.md's open questions.
  */
-export function renderScreen(m: Machine, out: Uint8ClampedArray, withCursor = true): void {
+/**
+ * Draws the machine's screen into RGBA pixels. `colors`, for a Mac II in 16 colors, shows each of
+ * its standard colors as another (the Windows colors of the port's additions).
+ */
+export function renderScreen(m: Machine, out: Uint8ClampedArray, withCursor = true, substitute: RGB8[] | null = null): void {
 	const device = GetMainDevice();
 	if (m.kind === 'plus' || device === null) {
 		const base = isAlternatePage() ? plusAlternateScreen : plusMainScreen;
@@ -29,19 +34,26 @@ export function renderScreen(m: Machine, out: Uint8ClampedArray, withCursor = tr
 		const pm = device.gdPMap;
 		const depth = pm.pixelSize;
 		const rowBytes = pm.rowBytes & 0x3fff;
-		const colors = pm.pmTable.ctTable.map((c) => c.rgb);
+		const table = pm.pmTable.ctTable.map((c) => c.rgb);
 		const { bytes, offset } = resolve(pm.baseAddr, rowBytes * m.height);
 		const mask = (1 << depth) - 1;
 		for (let y = 0; y < m.height; y++) {
 			for (let x = 0; x < m.width; x++) {
 				const bitPos = x * depth;
 				const value = (bytes[offset + y * rowBytes + (bitPos >> 3)]! >> (8 - depth - (bitPos & 7))) & mask;
-				const c = colors[value] ?? { red: 0, green: 0, blue: 0 };
 				const i = (y * m.width + x) * 4;
-				// Port: the Mac II's video card has 8-bit color components: the high byte of each.
-				out[i] = c.red >> 8;
-				out[i + 1] = c.green >> 8;
-				out[i + 2] = c.blue >> 8;
+				const shown = depth === 4 ? substitute?.[value] : undefined;
+				if (shown !== undefined) {
+					out[i] = shown[0];
+					out[i + 1] = shown[1];
+					out[i + 2] = shown[2];
+				} else {
+					const c = table[value] ?? { red: 0, green: 0, blue: 0 };
+					// Port: the Mac II's video card has 8-bit color components: the high byte of each.
+					out[i] = c.red >> 8;
+					out[i + 1] = c.green >> 8;
+					out[i + 2] = c.blue >> 8;
+				}
 				out[i + 3] = 255;
 			}
 		}

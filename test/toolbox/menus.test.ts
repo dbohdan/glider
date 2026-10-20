@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { macII, macPlus, type Machine } from '../../oracle/Oracle.ts';
-import { AppendMenu, CheckItem, ClearMenuBar, DisableItem, DrawMenuBar, GetMenu, InsertMenu, MenuSelect, SetItem } from '../../src/mac/Menus.ts';
+import { AppendMenu, CheckItem, ClearMenuBar, DelMenuItem, DisableItem, DrawMenuBar, GetMenu, InsertMenu, InsMenuItem, MenuSelect, NewMenu, SetItem, SetItemCmd, SetItemMark } from '../../src/mac/Menus.ts';
 import { bootMachine, type Box, cursorBox, differences, oracleRunAvailable, oracleShot, writeComparison } from './machine.ts';
 import type { Image } from '../../oracle/Image.ts';
 import { mouse } from '../../src/mac/OS.ts';
@@ -96,3 +96,18 @@ for (const [m, caseName] of [
 		assert.deepEqual(failures, []);
 	});
 }
+
+test('InsMenuItem and DelMenuItem move the items after them, enabled or not', () => {
+	const m = NewMenu(200, 'Test');
+	AppendMenu(m, 'One;(Two;Three');
+	InsMenuItem(m, 'New;(Dim', 1);
+	assert.deepEqual(m.items.map((i) => i.text), ['One', 'New', 'Dim', 'Two', 'Three']);
+	const enabled = (n: number) => (m.enableFlags & (1 << n)) !== 0;
+	assert.deepEqual([1, 2, 3, 4, 5].map(enabled), [true, true, false, false, true]);
+	DelMenuItem(m, 2);
+	assert.deepEqual(m.items.map((i) => i.text), ['One', 'Dim', 'Two', 'Three']);
+	assert.deepEqual([1, 2, 3, 4].map(enabled), [true, false, false, true]);
+	SetItemMark(m, 1, 201);
+	SetItemCmd(m, 1, 0x1b);
+	assert.deepEqual([m.items[0]!.keyEquiv, m.items[0]!.mark], [0x1b, 201]);
+});

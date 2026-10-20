@@ -81,6 +81,7 @@ import {
 	Concat,
 } from '../mac/Toolbox.ts';
 import { PRect, readLayout, writeLayout } from '../mac/PascalLayout.ts';
+import { BassBeatOn } from './Additions.ts';
 import {
 	G,
 	highScoreMode,
@@ -182,7 +183,8 @@ export function DoTheMusic(whichOne: Integer): void {
 //=================================
 
 export function DoTheBass(whichOne: Integer): void {
-	if (G.musicOn) {
+	// Port: and Bass Beat, the port's addition (Additions.ts), on unless the player turns it off.
+	if (G.musicOn && BassBeatOn()) {
 		SMSStart(whichOne);
 	}
 }

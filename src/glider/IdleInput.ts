@@ -59,6 +59,7 @@ import {
 	type WindowPtr,
 	Yield,
 } from '../mac/Toolbox.ts';
+import { AfterRestartQuit, DoAdditionMenu } from './Additions.ts';
 import {
 	DemoVersion,
 	G,
@@ -558,6 +559,12 @@ export async function HandleMenu(theMenu: Integer, theItem: Integer): Promise<vo
 			break;
 
 		default:
+			// Port: the additions' submenus (Additions.ts); a choice that needs Glider to start again
+			// quits as Quit does.
+			if (DoAdditionMenu(theMenu, theItem)) {
+				await HandleMenu(mGame, iQuit);
+				AfterRestartQuit(G.doneFlag);
+			}
 	}
 
 	HiliteMenu(0);

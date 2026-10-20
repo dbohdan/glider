@@ -31,6 +31,7 @@ import {
 	setHost,
 	setMachine,
 	setMainDevice,
+	SetDepth,
 	setScreenPage,
 	setStartDateTime,
 	standardClut4,
@@ -73,6 +74,8 @@ export interface MachineOptions {
 	 * alert.
 	 */
 	extendedKeyboard?: boolean;
+	/** Whether a Mac II starts with its screen in black and white, as the Monitors control panel can set it. */
+	blackAndWhite?: boolean;
 }
 
 export interface Machine {
@@ -128,8 +131,12 @@ export function bootMachine(options: MachineOptions): Machine {
 		};
 		screen = pm;
 		setMachine(options.extendedKeyboard === true ? { ...macIIConfig, keyBoardType: envAExtendKbd } : macIIConfig);
-		setMainDevice({ gdType: 2, gdPMap: pm, gdRect: { ...pm.bounds }, gdFlags: 0 });
+		const device = { gdType: 2, gdPMap: pm, gdRect: { ...pm.bounds }, gdFlags: 0 };
+		setMainDevice(device);
 		InitGraf(pm, true);
+		if (options.blackAndWhite === true) {
+			SetDepth(device, 1, 0, 0);
+		}
 	}
 	initResources(options.system);
 	mountVolume(options.volume, options.fileChanged);
