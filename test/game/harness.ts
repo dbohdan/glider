@@ -151,6 +151,11 @@ export function screenAt(kind: MachineKind, tick: number, withCursor: boolean): 
 	return inWorker({ kind, tick, withCursor });
 }
 
+/** Boots Glider with 4-Channel saved in its preferences and returns whether it starts in 4-Channel, in a worker of its own. */
+export function startsInFourChannels(additions: boolean): Promise<boolean> {
+	return inWorker({ fourChannelsSaved: true, additions });
+}
+
 function inWorker<T>(job: object): Promise<T> {
 	return new Promise((resolve, reject) => {
 		const worker = new Worker(new URL('./caseWorker.ts', import.meta.url), { workerData: job });

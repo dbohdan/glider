@@ -130,7 +130,7 @@ import {
 } from '../mac/Toolbox.ts';
 import { PBoolean, PInteger, PRecord, PRect, PString, readLayout, writeLayout } from '../mac/PascalLayout.ts';
 import { DoOpen, GetHouse } from './FileInNOut.ts';
-import { SetUpAdditions } from './Additions.ts';
+import { RemembersChannels, SetUpAdditions } from './Additions.ts';
 import {
 	type acur,
 	ball,
@@ -1009,8 +1009,13 @@ export async function InitializeAll(): Promise<void> {
 					G.musicOn = prefs.musicIs;
 					// Port: Glider's bug, kept: the preference is written instead of read, so
 					// is4Channel keeps its initial value. The original writes into the resource in
-					// memory, which ReleaseResource then discards; here the copy is changed.
-					prefs.channel4Is = G.is4Channel;
+					// memory, which ReleaseResource then discards; here the copy is changed. The
+					// port's additions read it (RemembersChannels).
+					if (RemembersChannels()) {
+						G.is4Channel = prefs.channel4Is;
+					} else {
+						prefs.channel4Is = G.is4Channel;
+					}
 					G.airVisible = prefs.airVisIs;
 					G.buttonFires = prefs.buttonIs;
 					G.restoreColor = prefs.restoreIs;

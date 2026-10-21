@@ -3,7 +3,7 @@
 // Plus, the Mac II in color or black and white, and the Mac II's screen in the colors of Glider for
 // Windows), Scale, and Art (the art files on the disk, the other kind dimmed). And Bass Beat, a
 // checkbox in Sound Settings under Music On, as Glider for Windows has, which turns the bass during
-// play off without the jingle on entering a room.
+// play off without the jingle on entering a room. And Sound Settings' 4-Channel is remembered.
 //
 // The additions are on only when the page gives a host (setAdditionsHost). The tests boot Glider
 // without one, so that it stays as the oracle measures it.
@@ -312,6 +312,16 @@ const webPrefsType = 'Wprf';
 
 let bassBeat = true;
 let bassBeatBefore = true;
+
+/**
+ * Whether Glider takes Sound Settings' 4-Channel from its preferences as it starts. Glider 4.05
+ * saves the choice but, as it starts, writes over the saved one instead of reading it (its own
+ * comment calls the field "presently un-used"), so it always starts in 2-Channel; the additions
+ * read it. Without them, Glider stays as the oracle measures it.
+ */
+export function RemembersChannels(): boolean {
+	return host !== null;
+}
 
 /** Whether the bass plays during a game (with Music on); always, without the additions. */
 export function BassBeatOn(): boolean {

@@ -278,6 +278,7 @@ do {
   - [x] A "Bass Beat" checkbox in the Sound Settings dialog, as in Glider for Windows, whose dialog has "Object", "Music" and "Bass Beat" under "Sounds To Play".
     On the Mac, Music covers both the jingle on entering a room and the bass during play; the checkbox would split off the bass.
     It is on by default, as the Mac plays it; Glider for Windows had it off by default (`docs/versions.md`).
+  - [x] Sound Settings' 4-Channel remembered: Glider 4.05 saves it but, as it starts, writes over the saved choice instead of reading it (its SavePrefs calls the field "presently un-used"), so it always started in 2-Channel. With the additions it reads it (`RemembersChannels`); the shipped preferences say 2-Channel.
 
 ## Open questions
 
@@ -628,3 +629,7 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 - Two were the port's. The Mac II's desktop is solid medium gray (128) at 16 colors in the oracle, before any program starts; the port had drawn its 50% gray pattern in black and white. The port's System now has a color desktop pattern (ppat 16, type 1) of that gray. And a document window's shadow is its frame one pixel wider and taller, from the frame's top row and left column; the port had Executor's L-shaped shadow one pixel in.
 - DragWindow, DragGrayRgn and TrackGoAway are written from Inside Macintosh. The oracle shows the outline as a dotted gray frame, drawn by XOR so that it hardly shows over the gray desktop; its pixels are still to be measured.
 - Try Glider leaves a trail of gliders on the screen (seen by the person in a modified LeadFish): the editor's DrawScene and DrawCScene put the glider on the screen with CopyMask each frame and never put the background back where it was. The original does the same, on both Macs (`editorTryGlider`, a new house's first room); the port's trail matches it pixel for pixel. Before the glider is dropped, the original erases and draws its frame (patXor) as fast as it can, so a screenshot catches it whole, in part, or not at all; the case takes none then.
+
+### 2026-10-21 (four channels remembered)
+
+- Documenting the kept bugs for the README brought up one no one wants: Sound Settings' 4-Channel is forgotten when Glider quits. GetPrefs writes `is4Channel` into the preferences it has just read instead of reading it, and SavePrefs, which does save it, calls the field "presently un-used". The person asked for it fixed. It is an addition (decision 14): with the page's host Glider reads the field; the oracle cases, which run without one, still start in 2-Channel as the original does. A test boots Glider with 4-Channel saved, with and without the additions (`test/game/additions.test.ts`); a first check that edited the file on the volume after the machine had booted changed nothing, since the machine opens Glider's resources as it boots.

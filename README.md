@@ -58,6 +58,7 @@ What the port adds to Glider, in Glider's own style and built from its own parts
 - **Options > Scale:** whole screen pixels per Mac pixel, the largest that fits the window by default; sizes that do not fit are dimmed.
 - **Options > Art:** the art files on the disk, the original's and any you import; the other kind (color or black and white) is dimmed. Glider opens its art as it starts, so a choice starts it again.
 - **Bass Beat**, in Sound Settings under Music On, as Glider for Windows has it: off, it silences the bass during play and keeps the jingle on entering a room. It is on unless turned off, as the Mac plays the bass.
+- **Sound Settings remembers 4-Channel.** Glider 4.05 saves the choice but, as it starts, writes over it instead of reading it, so on a Mac it always started in 2-Channel.
 - **Preferences for each Mac:** the Mac Plus and the Mac II each keep their own copy of Glider's preferences, as each Mac on a 1991 desk had its own copy of Glider. Houses and saved games are shared.
 - **The desktop** in place of the Finder, with the browser's own operations in its menus (see [Playing](#playing)).
 - **The address:** `?startup=desktop` starts on the desktop, `?machine=plus` (or `ii`, `ii-bw`, `win-16`, `win-256`) chooses the machine, and `?scale=2` the scale. The browser remembers the machine and the scale you choose in the menus.
@@ -75,7 +76,6 @@ Small changes:
 The port keeps the original's bugs, so that it plays as the original did. These are the ones you are likely to meet:
 
 - **Try Glider leaves a trail.** In the Room Editor, the glider leaves a copy of itself on every frame until the flight ends, and on a black-and-white screen its shadow smears along the floor. The editor's flight code puts the glider on the screen and never puts the background back. Its source is a copy of Glider's play code with the erasing left out, so it may be on purpose: the trail shows the flight path, which is what a house's author tunes. Calhoun fixed a "glide ratio" bug in Try Glider for 1.03, where the glider flew farther than in the game, and a trail would show just that.
-- **Four-channel sound is forgotten.** Sound Settings' 4-Channel lasts until you quit. Glider writes the saved choice over instead of reading it, so it starts again in 2-Channel.
 - **"New keyboard" on the Mac Plus.** The first time Glider starts on the Mac Plus it says "New keyboard. Switching to default keyboard controls." and steers with comma and period, Return and space. Its preferences were saved with another keyboard; Configure… sets the keys again.
 - **Art from other releases looks wrong.** Glider 4.05 moved its sprites to new places in the art file, so art files from 4.02 and 4.04 ("Art 16" and "Art 2") show the wrong pieces of the sprites. The black-and-white art of 4.06 and later has the switches a little narrower.
 - **Locked houses stay locked.** The Room Editor will not open a locked house, and locking one in House Info… cannot be undone. The House and most of the other houses that come with the port are locked; The House (July 1991), Calhoun's working copy, is not, and you can open it to see how a house is made.
