@@ -88,6 +88,16 @@ export function macPrefsOf(app: MacFile, mac: Mac): MacPrefs | null {
 	return prefs === null ? null : { prefs, ...(webPrefs === null ? {} : { webPrefs }) };
 }
 
+/**
+ * Whether preferences can be an application's own: as long as the record it came with. Earlier
+ * versions of the port kept one copy for "the application", so the Room Editor's preferences (104
+ * bytes) could end up in Glider's record (170 bytes) and the other way round; Glider then read the
+ * editor's bytes as its house's and art's names and found neither. Such a copy is dropped.
+ */
+export function prefsFit(app: MacFile, prefs: Uint8Array | undefined): boolean {
+	return prefs !== undefined && prefs.length === prefsOf(app)?.length;
+}
+
 /** The game's application with each Mac's copy of the preferences it has, for Export Files…. */
 export function withAllPrefs(app: MacFile, copies: Partial<Record<Mac, MacPrefs>>): MacFile {
 	const fork = parseResourceFork(app.rsrc);
@@ -245,10 +255,10 @@ export class FileStore {
 			} else if (game !== undefined && isApplication(game)) {
 				const copies = this.copiesOf(s.name);
 				const prefs = s.prefs ?? (s.macBinary !== null ? prefsOf(parseMacBinary(s.macBinary)) : null);
-				if (prefs !== null) {
+				if (prefs !== null && prefsFit(game, prefs)) {
 					copies.ii = { prefs, ...(s.webPrefs === undefined ? {} : { webPrefs: s.webPrefs }) };
 				}
-				if (s.plus !== undefined) {
+				if (s.plus !== undefined && prefsFit(game, s.plus.prefs)) {
 					copies.plus = s.plus;
 				}
 				const copy = copies[mac];
@@ -290,7 +300,7 @@ export class FileStore {
 			let any = false;
 			for (const mac of ['ii', 'plus'] as const) {
 				const copy = macPrefsOf(file, mac);
-				if (copy !== null) {
+				if (copy !== null && prefsFit(game, copy.prefs)) {
 					copies[mac] = copy;
 					any = true;
 				}

@@ -3,12 +3,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { houseRecLayout } from '../../src/glider/Globals.ts';
-import { readLayout, writeLayout } from '../../src/mac/PascalLayout.ts';
+import { PRecord, PString, readLayout, writeLayout } from '../../src/mac/PascalLayout.ts';
 import { parseResourceFork, writeResourceFork } from '../../src/mac/ResourceFork.ts';
 import { FileStore, importedFile, playerPart, prefsOf, scoresOf, webPrefsOf, withPrefs, withScores } from '../../src/platform/browser/Storage.ts';
 import type { MacFile } from '../../src/mac/MacBinary.ts';
 import { Volume } from '../../src/mac/Volume.ts';
 import { bundledFiles } from '../../tools/build-resources.ts';
+import { MemoryIndexedDB, settled, withIndexedDB } from './memoryIndexedDB.ts';
 
 const files = bundledFiles();
 const app = files.find((f) => f.name === 'Glider 4.05')!;
@@ -109,4 +110,59 @@ test("Glider's and the Room Editor's preferences are kept apart", async () => {
 	const exported = store.playerFiles(fresh());
 	assert.equal(prefsOf(exported.find((f) => f.name === app.name)!)![0], 0x11);
 	assert.equal(prefsOf(exported.find((f) => f.name === editor.name)!)![0], 0x33);
+});
+
+/** Glider's house and art names in the preferences an application on a volume reads. */
+const names = (volume: Volume, app: string) => {
+	const prefs = parseResourceFork(volume.get(app)!.rsrc).get('Gprf', 128)!.data;
+	return readLayout(PRecord({ theName: PString(24), houseName: PString(32), resName: PString(32) }), prefs, 0);
+};
+
+/** Page loads on one browser's storage: each restores the volume on a Mac, then the programs that quit save their preferences. */
+function pageLoads(idb: MemoryIndexedDB) {
+	return (mac: 'ii' | 'plus', saves: MacFile[]) =>
+		withIndexedDB(idb, async () => {
+			const store = await FileStore.open();
+			const volume = new Volume('Glider');
+			for (const f of files) {
+				volume.put(f);
+			}
+			await store.restore(volume, mac);
+			for (const f of saves) {
+				store.save(f, false);
+			}
+			await settled();
+			return volume;
+		});
+}
+
+test("Glider never gets the Room Editor's preferences, across page loads on both Macs", async () => {
+	const editor = files.find((f) => f.name === 'Room Editor 1.03')!;
+	const page = pageLoads(new MemoryIndexedDB());
+	await page('ii', [app]);
+	await page('ii', [editor]);
+	await page('plus', [app]);
+	const volume = await page('ii', []);
+	// Before preferences were kept for each application, Glider read the editor's 104 bytes here: a
+	// house named with the editor's key bytes and art named "right arrow".
+	assert.deepEqual({ ...names(volume, app.name) }, { theName: 'Ozma', houseName: 'The House', resName: 'Color Art' });
+});
+
+test('a stored copy of preferences that cannot be the application\'s own is dropped', async () => {
+	const editor = files.find((f) => f.name === 'Room Editor 1.03')!;
+	const idb = new MemoryIndexedDB();
+	// What an earlier version of the port could leave: the editor's preferences in Glider's record.
+	await withIndexedDB(idb, async () => {
+		const store = await FileStore.open();
+		const volume = new Volume('Glider');
+		for (const f of files) {
+			volume.put(f);
+		}
+		await store.restore(volume, 'ii');
+		store.save({ ...app, rsrc: editor.rsrc }, false);
+		await settled();
+	});
+	const volume = await pageLoads(idb)('ii', []);
+	assert.equal(parseResourceFork(volume.get(app.name)!.rsrc).get('Gprf', 128)!.data.length, prefsOf(app)!.length);
+	assert.equal(names(volume, app.name).houseName, 'The House');
 });
