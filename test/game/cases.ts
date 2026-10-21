@@ -1,7 +1,7 @@
 // The game cases: the oracle's scripts (oracle/cases.ts) that the port replays, on each machine, with
 // the houses they play.
 
-import { blackAndWhiteScript, editorNewHouseScript, editorTryGliderScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { blackAndWhiteScript, editorNewHouseScript, editorTryGliderScript, handsOffHouse, handsOffScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 import type { Program } from './harness.ts';
@@ -59,6 +59,8 @@ export const gameCases: [MachineKind, Case][] = [
 	...both('longName', longNameScript, 'a name longer than the high-score field scrolls', () => houseOfOneRoom('')),
 	...both('ui', interfaceScript, "Glider's menus, dialogs, help and a paused game look"),
 	...both('everyTick', everyTickScript, 'every tick of the alert going away and a game starting looks'),
+	// Fifteen minutes with no input: the glider flies twelve rooms and dies at Shockproof!, as the original does on a fast Mac.
+	...both('handsOff', () => handsOffScript(), 'Hands-off House, which plays itself, plays', handsOffHouse),
 	// The Room Editor (roadmap 12).
 	['plus', { caseName: 'editorNewHouse', makeScript: () => editorNewHouseScript('plus'), what: "the Room Editor's first room of a new house looks", program: 'editor' }],
 	['ii', { caseName: 'editorNewHouseColor', makeScript: () => editorNewHouseScript('ii'), what: "the Room Editor's first room of a new house looks", program: 'editor' }],

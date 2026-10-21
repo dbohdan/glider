@@ -1112,10 +1112,16 @@ export function handsOffHouse(): Uint8Array {
 	return data;
 }
 
-/** A game of Hands-off House with no input after ⌘N, with a screenshot every `every` ticks for `ticks`. */
-export function handsOffScript(every = 300, ticks = 60 * 60 * 15): Script {
+/**
+ * A game of Hands-off House with no input after ⌘N, with a screenshot every `every` ticks for `ticks`;
+ * on a Mac as fast as the port (speed 8), or at the emulated Mac's own speed.
+ */
+export function handsOffScript(every = 300, ticks = 60 * 60 * 15, fast = true): Script {
 	const s = new Script();
-	s.speed(8).traceKeys();
+	if (fast) {
+		s.speed(8);
+	}
+	s.traceKeys();
 	s.until(900).press('return').wait(60);
 	s.press('n', 'command');
 	for (let t = every; t <= ticks; t += every) {
@@ -1135,4 +1141,16 @@ cases.handsOffColor = (dir) => {
 	const disk = dir + '.dsk';
 	makeDisk(disk, gameFiles(handsOffHouse()), 'Glider 4.06');
 	return run(macII, handsOffScript(), disk, dir);
+};
+/** Hands-off House at the Mac Plus's own speed, where drawing takes time. */
+cases.handsOffSlow = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, [...gameFiles(handsOffHouse()), alternateScreenFile()], 'Glider 4.06');
+	return run(macPlus, handsOffScript(300, 60 * 60 * 15, false), disk, dir);
+};
+/** Hands-off House at the Mac II's own speed. */
+cases.handsOffSlowColor = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, gameFiles(handsOffHouse()), 'Glider 4.06');
+	return run(macII, handsOffScript(300, 60 * 60 * 15, false), disk, dir);
 };
