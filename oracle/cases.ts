@@ -46,6 +46,20 @@ export const cases: Record<string, (dir: string) => RunResult> = {
 		return run(macPlus, editorNewHouseScript('plus'), disk, dir);
 	},
 
+	/** The Room Editor on a Mac Plus: Try Glider in a new house's first room. */
+	editorTryGlider(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...glider406().values(), roomEditor104()], 'Room Editor', 8, 'root');
+		return run(macPlus, editorTryGliderScript('plus'), disk, dir);
+	},
+
+	/** The Room Editor on a Mac II: Try Glider. */
+	editorTryGliderColor(dir) {
+		const disk = dir + '.dsk';
+		makeDisk(disk, [...glider406().values(), roomEditor104()], 'Room Editor', 8, 'root');
+		return run(macII, editorTryGliderScript('ii'), disk, dir);
+	},
+
 	/** The Room Editor on a Mac II: a new house's first room. */
 	editorNewHouseColor(dir) {
 		const disk = dir + '.dsk';
@@ -1068,5 +1082,20 @@ export function editorNewHouseScript(kind: 'plus' | 'ii'): Script {
 	s.until(900).shot('open');
 	s.click(newHouse[0]!, newHouse[1]!).wait(120).shot('background');
 	s.click(okay[0]!, okay[1]!).wait(120).shot('room');
+	return s;
+}
+
+/** Try Glider (Special's first item) in a new house's first room, with a screenshot every half second as the glider falls. */
+export function editorTryGliderScript(kind: 'plus' | 'ii'): Script {
+	const s = editorNewHouseScript(kind);
+	s.mouse(138, 10).wait(5).button(true).wait(20).mouse(150, 28).wait(20).button(false);
+	// The glider's frame follows the mouse until a click drops the glider there. No screenshot of
+	// it: the original erases and draws it again (patXor) as fast as it can, so a screenshot shows
+	// it whole, in part, or not at all (seen in the oracle), while the port draws it once a tick.
+	s.wait(30).mouse(200, 140).wait(30);
+	s.click(200, 140);
+	for (let t = 1; t <= 8; t++) {
+		s.wait(30).shot(`fly${t}`);
+	}
 	return s;
 }

@@ -1,7 +1,7 @@
 // The game cases: the oracle's scripts (oracle/cases.ts) that the port replays, on each machine, with
 // the houses they play.
 
-import { blackAndWhiteScript, editorNewHouseScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { blackAndWhiteScript, editorNewHouseScript, editorTryGliderScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 import type { Program } from './harness.ts';
@@ -62,4 +62,7 @@ export const gameCases: [MachineKind, Case][] = [
 	// The Room Editor (roadmap 12).
 	['plus', { caseName: 'editorNewHouse', makeScript: () => editorNewHouseScript('plus'), what: "the Room Editor's first room of a new house looks", program: 'editor' }],
 	['ii', { caseName: 'editorNewHouseColor', makeScript: () => editorNewHouseScript('ii'), what: "the Room Editor's first room of a new house looks", program: 'editor' }],
+	// Try Glider leaves the glider's every frame on the screen, as the original does: it never puts the background back.
+	['plus', { caseName: 'editorTryGlider', makeScript: () => editorTryGliderScript('plus'), what: "the Room Editor's Try Glider flies", program: 'editor' }],
+	['ii', { caseName: 'editorTryGliderColor', makeScript: () => editorTryGliderScript('ii'), what: "the Room Editor's Try Glider flies", program: 'editor' }],
 ];
