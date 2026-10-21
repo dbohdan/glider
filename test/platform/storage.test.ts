@@ -6,6 +6,7 @@ import { houseRecLayout } from '../../src/glider/Globals.ts';
 import { readLayout, writeLayout } from '../../src/mac/PascalLayout.ts';
 import { parseResourceFork, writeResourceFork } from '../../src/mac/ResourceFork.ts';
 import { FileStore, importedFile, playerPart, prefsOf, scoresOf, webPrefsOf, withPrefs, withScores } from '../../src/platform/browser/Storage.ts';
+import type { MacFile } from '../../src/mac/MacBinary.ts';
 import { Volume } from '../../src/mac/Volume.ts';
 import { bundledFiles } from '../../tools/build-resources.ts';
 
@@ -83,4 +84,29 @@ test('each Mac keeps its own copy of Glider\'s preferences, and an export carrie
 	await other.restore(volume, 'plus');
 	assert.equal(other.import(volume, exported), true);
 	assert.equal(prefsOf(volume.get(app.name)!)![0], 0x22);
+});
+
+test("Glider's and the Room Editor's preferences are kept apart", async () => {
+	const editor = files.find((f) => f.name === 'Room Editor 1.03')!;
+	assert.notEqual(prefsOf(editor), null);
+	const fresh = () => {
+		const v = new Volume('Glider');
+		for (const f of files) {
+			v.put(f);
+		}
+		return v;
+	};
+	const played = (f: MacFile, byte: number) => {
+		const fork = parseResourceFork(f.rsrc);
+		const res = fork.resources.find((r) => r.type === 'Gprf' && r.id === 128)!;
+		res.data = res.data.map((v, i) => (i === 0 ? byte : v));
+		return { ...f, rsrc: writeResourceFork(fork) };
+	};
+	const store = await FileStore.open();
+	await store.restore(fresh(), 'ii');
+	store.save(played(app, 0x11), false);
+	store.save(played(editor, 0x33), false);
+	const exported = store.playerFiles(fresh());
+	assert.equal(prefsOf(exported.find((f) => f.name === app.name)!)![0], 0x11);
+	assert.equal(prefsOf(exported.find((f) => f.name === editor.name)!)![0], 0x33);
 });

@@ -39,7 +39,7 @@ The keys Glider comes with (⌘ is Command on a Mac and Control elsewhere):
 Configure… in the Options menu changes the keys or switches to the mouse, and Glider's own Help screens (also in the Options menu) explain the rest.
 While Glider steers by the mouse, a click on the screen captures the pointer, and Escape releases it.
 
-Quitting Glider goes to the desktop, a System 6 Finder with three icons: Glider, the Room Editor (being ported: `?startup=room-editor` starts it as it is), and the source code.
+Quitting Glider goes to the desktop, a System 6 Finder with three icons: Glider, the Room Editor (still being checked against the original), and the source code.
 Its menus are where the browser's own operations live:
 
 - **File > Import Files…** puts houses, art and saved games on the port's disk, beside the houses that come with it: MacBinary, AppleSingle, StuffIt, Compact Pro, disk images (DiskCopy 4.2 or bare HFS), and ZIP archives of them.
@@ -135,7 +135,7 @@ The port:
 ## Status
 
 The game is complete and matches the original on both machines.
-The Room Editor is translated and runs (`?startup=room-editor`); its first screens and Try Glider match the original, and the rest is being checked against it. Its help window is still empty, and the desktop's icon does not open it yet. The roadmap is in [`PORT.md`](PORT.md).
+The Room Editor is translated and runs (`?startup=room-editor`); its first screens and Try Glider match the original, and the rest is being checked against it. Its help window is still empty. The roadmap is in [`PORT.md`](PORT.md).
 
 ## Credits and licenses
 

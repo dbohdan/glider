@@ -207,33 +207,35 @@ do {
 
 - [x] **0. Scaffolding:** Makefile, tool installation, TypeScript configuration, lint, test runner, smoke test.
 - [x] **1. Resources and data formats:** DeRez listing, MacBinary, AppleDouble, and resource fork parsers; resource file writer; house, saved game, and preference records.
-- [ ] **2. Oracle:** run the original in a deterministic headless emulator and capture reference screenshots.
+- [x] **2. Oracle:** run the original in a deterministic headless emulator and capture reference screenshots.
   - [x] Headless Mini vMac (Mac Plus, Mac II), fetched inputs, boot disks, scripts, screenshots.
   - [x] Glider 4.06 boots to the title screen and plays on both machines.
-  - [ ] Test houses, RAM inspection of game state, the cursor in screenshots.
-  - [ ] A rebuilt 4.05 (THINK Pascal 4.0 is in Infinite Mac's library), if 4.06 differences get in the way.
-- [ ] **3. QuickDraw, black and white:** rectangles, regions, patterns, pen, lines, shapes, `CopyBits`, `CopyMask`, text, PICT playback.
+  - [x] Test houses (`houseWith`), RAM dumps (`Script.ram`), traces of keys, traps and low memory, sound, the cursor in screenshots.
+  - Not needed: a rebuilt 4.05. Where 4.06 differs, the oracle's copy gets 4.05's code instead (`switches405`); the Room Editor 1.04 likewise, if its switches ever show.
+- [x] **3. QuickDraw, black and white:** rectangles, regions, patterns, pen, lines, shapes, `CopyBits`, `CopyMask`, text, PICT playback.
   - [x] Picture oracle: test pictures drawn by the ROM and by the port, compared pixel by pixel (`test/quickdraw/`).
   - [x] Rectangles, regions, patterns, pattern modes, lines, ovals (known gaps), rounded rectangles, polygons, region recording from lines, 1-bit `CopyBits` in `srcCopy`, `DrawPicture` for these.
-  - [ ] Text, all `CopyBits` modes, `CopyMask`, arcs, picture scaling.
-- [ ] **4. Color QuickDraw:** 4-bit pixel maps, color tables, inverse tables, fore and back colors, colorizing, arithmetic modes used by Glider.
+  - [x] Text, `CopyMask` (with the Mac Plus ROM's word quirk and stretching), and the `CopyBits` modes and stretching Glider and the editor use, through their oracle cases.
+  - Left as known gaps, which neither program meets: arcs, the other `CopyBits` modes, the top rows of some short, wide ovals.
+- [x] **4. Color QuickDraw:** 4-bit pixel maps, color tables, inverse tables, fore and back colors, colorizing, arithmetic modes used by Glider.
   - [x] Color ports, 4-bit pixel maps, the standard color table, RGB fore and back colors, pattern and text modes in color, transparent mode, version 2 pictures with pixel maps, `CopyBits` between depths and color tables.
-  - [ ] Pixel patterns (`ppat`), color icons (`cicn`), color cursors, the Palette Manager, the inverse table for arithmetic modes.
-- [ ] **5. Platform:** display, scaling, input, time, cursors.
+  - [x] Pixel patterns (`ppat`, the desktop's), color icons (`cicn`, the editor's tools), color cursors, the Palette Manager as far as Glider uses it.
+  - Left as a known gap: arithmetic modes other than transparent, whose colors the ROM matches through its inverse table (Glider uses only transparent).
+- [x] **5. Platform:** display, scaling, input, time, cursors.
   - [x] The browser page: the screen with its cursor at integer scales, keys (arrow keys by key, for remote desktops), the mouse with Pointer Lock, the clock, sound, storage of the player's files.
   - [x] Deploying to GitHub Pages (decision 7), on every push to `master` (`.github/workflows/pages.yml`).
-  - [ ] Choosing the machine other than by the URL (`?machine=plus`): an Options submenu (roadmap 13).
-- [ ] **6. Toolbox user interface (System 6):** Window, Menu, Control, Dialog, TextEdit, and Alert managers.
+  - [x] Choosing the machine other than by the URL (`?machine=plus`): an Options submenu (roadmap 13).
+- [x] **6. Toolbox user interface (System 6):** Window, Menu, Control, Dialog, TextEdit, and Alert managers.
   - [x] Every Toolbox routine Glider calls exists with its Inside Macintosh name (`src/mac/Toolbox.ts`).
   - [x] Glider's menus, its "New keyboard" alert, and its Sound Settings dialog match the oracle pixel for pixel on both machines.
   - [x] The default button's flash on Return, in black and white and in color, tick for tick.
-  - [ ] The other dialogs (Configure, high scores, About), menu blinking, document windows (for the Room Editor).
-- [ ] **7. Files:** File Manager over the virtual file system, Standard File backed by the house library, preferences.
+  - [x] The other dialogs (Configure, high scores, About) and menu blinking, in the `ui` and `settings` cases. Document windows are the Room Editor's (roadmap 12).
+- [x] **7. Files:** File Manager over the virtual file system, Standard File backed by the house library, preferences.
   - [x] File Manager over the in-memory volume; `OpenResFile` writes resource changes back; Standard File's filter and hook.
-- [ ] **8. Sound:** SMS reimplementation.
+- [x] **8. Sound:** SMS reimplementation.
   - [x] SMS's engine, read from its object code; every tick of the sound matches the oracle's recordings on both machines (`test/game/`).
   - [x] Playing it in the browser.
-- [ ] **9. Glider:** port the 11 units.
+- [x] **9. Glider:** port the 11 units.
   - [x] All units translated (`src/glider/`); Glider starts up on both machines exactly as the original does (`test/game/`).
   - [x] A game plays exactly as the original's: the oracle's `play` and `playColor` cases replayed on the port give identical screens through 10 seconds of play on both machines.
   - [x] Steering with the keyboard matches the oracle on both machines, and so does every tick of the alert going away and of a game starting.
@@ -254,12 +256,12 @@ do {
   - [x] Its brushes: the tables, shelves and cabinets Glider draws in code, filled with the checkerboards Windows dithers brown and light brown into, and their light brown highlights in gray (the nearest of the 16 to Windows' static gray).
   - Out of scope: Glider/WIN's art, its own behaviors (the planes' banners, flight recording, relinking houses), and its Windows 3.1 interface. Its art is the Mac's 4.04 sheet with new sprites for those behaviors (docs/versions.md), so without them it brings little the colors do not, and they would be new code from a release with no source, with a second user interface around them.
 - [ ] **12. Room Editor.**
-  - [x] Translated, unit by unit, into `src/editor/` (10,970 lines from 9,750 of Pascal), and started with `?startup=room-editor`; the desktop's icon still says it is not ported.
+  - [x] Translated, unit by unit, into `src/editor/` (10,970 lines from 9,750 of Pascal), and started with `?startup=room-editor`.
   - [x] Oracle cases on the Room Editor 1.04 (`editorBoot`, `editorNewHouse`), with the files at the disk's root; the game harness runs either program (`program: 'editor'`).
   - [x] A new house's first room matches on both Macs: Open House, Room Background Info, the room and the tool window (`editorNewHouse`).
   - [x] Try Glider flies as the original does, its trail of gliders included (`editorTryGlider`).
-  - [ ] More cases: opening a house, the menus, placing, dragging and resizing objects, each dialog, saving, Try Glider, Go To Room, the window drag and close box.
-  - [ ] The desktop's icon opens it.
+  - [ ] More cases: opening a house, the menus, placing, dragging and resizing objects, each dialog, saving, Go To Room, the window drag and close box.
+  - [x] The desktop's icon opens it, and its preferences are kept apart from Glider's, for each Mac.
   - Its help window may differ in the timing of interaction (how fast a drag-selection scrolls, how the scroll bar's thumb follows the mouse), not in how it looks at any scroll position.
   - The Toolbox it needs beyond Glider's, estimated at 1,500 to 2,500 lines (the editor calls 190 Toolbox routines, of which the port lacks only small ones):
     - [ ] The About™ 2.1 library (Jon Wind's, compiled, `About.lib`): the help window, with an icon, titles, scrolling styled text, OK, and ⌘C. From its disassembly, as SMS was.
@@ -274,7 +276,7 @@ do {
   - [x] Scaling (integer factors, and the largest that fits) from another Options submenu; up to 400% of the page's size, those that do not fit the window dimmed, as the Art submenu dims art of the other kind.
   - [x] Switching art from an Options submenu: the art files on the volume (the game's, and imported ones such as More Glider's Improved Art), color and black and white in one menu, those of the other kind dimmed.
     Glider 4.05 opens its art by the name in its preferences, so a change restarts it.
-  - Phones, as a second tier: a virtual mouse on the touch screen is little code, but making it pleasant to steer with is a sidequest of its own.
+  - [ ] Phones, as a second tier: a virtual mouse on the touch screen is little code, but making it pleasant to steer with is a sidequest of its own.
   - [x] A "Bass Beat" checkbox in the Sound Settings dialog, as in Glider for Windows, whose dialog has "Object", "Music" and "Bass Beat" under "Sounds To Play".
     On the Mac, Music covers both the jingle on entering a room and the bass during play; the checkbox would split off the bass.
     It is on by default, as the Mac plays it; Glider for Windows had it off by default (`docs/versions.md`).
@@ -633,3 +635,9 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 ### 2026-10-21 (four channels remembered)
 
 - Documenting the kept bugs for the README brought up one no one wants: Sound Settings' 4-Channel is forgotten when Glider quits. GetPrefs writes `is4Channel` into the preferences it has just read instead of reading it, and SavePrefs, which does save it, calls the field "presently un-used". The person asked for it fixed. It is an addition (decision 14): with the page's host Glider reads the field; the oracle cases, which run without one, still start in 2-Channel as the original does. A test boots Glider with 4-Channel saved, with and without the additions (`test/game/additions.test.ts`); a first check that edited the file on the volume after the machine had booted changed nothing, since the machine opens Glider's resources as it boots.
+
+### 2026-10-21 (the desktop opens the editor)
+
+- The desktop's Room Editor icon opens the editor, zooming and showing its name as Glider's does; the alert that said it was not ported is gone.
+- The browser's storage kept one copy of the preferences for "the application", for each Mac. The Room Editor keeps its own preferences in its own 'Gprf' 128, so its saves would have overwritten Glider's copy, and a restore could have put one program's preferences into the other. The copies are now kept for each application, by name (`test/platform/storage.test.ts`).
+- The roadmap's boxes caught up with the journal: the oracle, QuickDraw, Color QuickDraw, the platform, the Toolbox, files, sound and Glider are done, with the known gaps neither program meets written down beside them.

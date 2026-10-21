@@ -135,13 +135,6 @@ export function desktopFile(root: string): MacFile {
 	put('ICN#', sourceIconID, [...bits(sourceIcon), ...bits(sourceMask)]);
 	// The alerts' icon: Glider's, the black and white half of its ICN#.
 	put('ICON', gliderIconID, glider.get('ICN#', 128)!.data.slice(0, 128));
-	// The Room Editor, not yet ported: a note alert, 1 beep, OK.
-	put('ALRT', 128, [...word(80), ...word(96), ...word(166), ...word(416), ...word(128), 0x55, 0x55]);
-	put('DITL', 128, ditl([
-		[4, [56, 238, 76, 308], text('OK')],
-		[136, [10, 72, 46, 308], text('The Room Editor has not been ported yet.')],
-		[160, [10, 20, 42, 52], word(gliderIconID)],
-	]));
 	// About the Desktop…: a note alert, OK, with the port's name and the notice the MIT License asks for (the license's
 	// whole text is served beside the page, as LICENSE).
 	put('ALRT', 129, [...word(80), ...word(96), ...word(192), ...word(416), ...word(129), 0x55, 0x55]);

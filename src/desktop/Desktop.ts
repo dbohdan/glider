@@ -90,7 +90,7 @@ import {
 
 /** What the page does for the desktop: start a program in a page of its own, open a link, restart. */
 export interface DesktopHost {
-	launch(program: 'glider4'): void;
+	launch(program: 'glider4' | 'room-editor'): void;
 	openURL(url: string): void;
 	restart(): void;
 	/** Asks for files and puts those it can read on the volume: their names, and those it could not read; null if the player cancels. */
@@ -119,7 +119,6 @@ export const repositoryURL = 'https://github.com/dbohdan/glider';
 const gliderIconID = 128;
 const editorIconID = 129;
 const sourceIconID = 130;
-const editorAlertID = 128;
 const aboutAlertID = 129;
 const messageAlertID = 130;
 const resetAlertID = 131;
@@ -303,8 +302,14 @@ async function openGlider(icon: DesktopIcon): Promise<void> {
 	}
 }
 
-async function openEditor(): Promise<void> {
-	await NoteAlert(editorAlertID, null);
+async function openEditor(icon: DesktopIcon): Promise<void> {
+	await zoomRects(iconRect(icon), screenBits.bounds);
+	showLaunching(icon.name);
+	host.launch('room-editor');
+	// The page goes on to the Room Editor's.
+	for (;;) {
+		await Yield();
+	}
 }
 
 async function openSource(icon: DesktopIcon): Promise<void> {
@@ -520,7 +525,7 @@ export async function main(): Promise<void> {
 	const h = screenBits.bounds.right - 56;
 	icons = [
 		{ name: 'Glider 4.0', iconID: gliderIconID, where: { h, v: 28 }, selected: false, open: () => openGlider(icons[0]!) },
-		{ name: 'Room Editor', iconID: editorIconID, where: { h, v: 92 }, selected: false, open: openEditor },
+		{ name: 'Room Editor', iconID: editorIconID, where: { h, v: 92 }, selected: false, open: () => openEditor(icons[1]!) },
 		{ name: 'Source Code', iconID: sourceIconID, where: { h, v: 156 }, selected: false, open: () => openSource(icons[2]!) },
 	];
 	setDeskHook(paintDesk);
