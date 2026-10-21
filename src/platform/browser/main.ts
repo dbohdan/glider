@@ -1,12 +1,12 @@
 // Port: the browser page's entry point: loads the volume and the System, boots the machine, shows
 // its screen at an integer scale, and runs the program `?startup=` names: Glider (`glider4`, or no
-// parameter), the Room Editor (`room-editor`), or the desktop (`desktop`). Each program runs in a page load of its own (PORT.md,
-// decision 16): quitting Glider loads the desktop's page, and opening Glider on the desktop loads
-// Glider's. Glider has the port's additions (src/glider/Additions.ts): the page runs the Mac and
-// screen they choose, at their scale, and starts Glider again on another Mac.
+// parameter), the Room Editor (`room-editor`), or the desktop (`desktop`). Each program runs in a
+// page load of its own (PORT.md, decision 16): quitting a program loads the desktop's page, and
+// opening one on the desktop loads its page. Each has the port's additions (src/additions/): the page
+// runs the Mac and screen they choose, at their scale, and starts the program again on another Mac.
 
 import { main as desktop, setDesktopHost } from '../../desktop/Desktop.ts';
-import { type AdditionsHost, type Display, RefreshScales, setAdditionsHost } from '../../glider/Additions.ts';
+import { type AdditionsHost, type Display, RefreshScales, setAdditionsHost } from '../../additions/Additions.ts';
 import { main as editor } from '../../editor/GameBody.ts';
 import { main as glider } from '../../glider/GameBody.ts';
 import { wantsMouseCapture } from '../../glider/Globals.ts';
@@ -116,51 +116,6 @@ async function start(): Promise<void> {
 	};
 	requestAnimationFrame(frame);
 
-	if (onDesktop) {
-		setDesktopHost({
-			launch: (program) => location.assign(startupURL(program)),
-			openURL: (url) => window.open(url, '_blank', 'noopener'),
-			restart: () => location.reload(),
-			importFiles: async () => {
-				const uploads = await pickFiles();
-				if (uploads === null) {
-					return null;
-				}
-				const { files, rejected } = await readUploads(uploads, inflate);
-				const added: string[] = [];
-				for (const f of files) {
-					if (store.import(volume, f)) {
-						added.push(f.name);
-					} else {
-						rejected.push(f.name);
-					}
-				}
-				return { added, rejected };
-			},
-			exportFiles: () => {
-				const files = store.playerFiles(volume);
-				if (files.length > 0) {
-					download('Glider Files.zip', exportArchive(files, new Date()), 'application/zip');
-				}
-				return files.length;
-			},
-			resetPlayerData: () => store.reset(volume),
-		});
-		await desktop();
-		return;
-	}
-	if (onEditor) {
-		try {
-			await editor();
-		} catch (e) {
-			if (!(e instanceof ExitToShellSignal)) {
-				showMessage(`The Room Editor stopped: ${e instanceof Error ? e.message : String(e)}`);
-				throw e;
-			}
-		}
-		location.assign(startupURL('desktop'));
-		return;
-	}
 	let restartOn: Display | null = null;
 	const additions: AdditionsHost = {
 		get display() {
@@ -204,17 +159,51 @@ async function start(): Promise<void> {
 		},
 	};
 	setAdditionsHost(additions);
+
+	if (onDesktop) {
+		setDesktopHost({
+			launch: (program) => location.assign(startupURL(program)),
+			openURL: (url) => window.open(url, '_blank', 'noopener'),
+			restart: () => location.reload(),
+			importFiles: async () => {
+				const uploads = await pickFiles();
+				if (uploads === null) {
+					return null;
+				}
+				const { files, rejected } = await readUploads(uploads, inflate);
+				const added: string[] = [];
+				for (const f of files) {
+					if (store.import(volume, f)) {
+						added.push(f.name);
+					} else {
+						rejected.push(f.name);
+					}
+				}
+				return { added, rejected };
+			},
+			exportFiles: () => {
+				const files = store.playerFiles(volume);
+				if (files.length > 0) {
+					download('Glider Files.zip', exportArchive(files, new Date()), 'application/zip');
+				}
+				return files.length;
+			},
+			resetPlayerData: () => store.reset(volume),
+		});
+	}
+	const program = onDesktop ? 'desktop' : onEditor ? 'room-editor' : 'glider4';
+	const name = onDesktop ? 'The desktop' : onEditor ? 'The Room Editor' : 'Glider';
 	try {
-		await glider();
+		await (onDesktop ? desktop() : onEditor ? editor() : glider());
 	} catch (e) {
 		if (!(e instanceof ExitToShellSignal)) {
-			showMessage(`Glider stopped: ${e instanceof Error ? e.message : String(e)}`);
+			showMessage(`${name} stopped: ${e instanceof Error ? e.message : String(e)}`);
 			throw e;
 		}
 	}
 	if (restartOn !== null) {
-		// Glider again, on the Mac the additions chose: kept by the browser, or in the address if it will not keep it.
-		const url = new URL(startupURL('glider4'));
+		// The program again, on the Mac the additions chose: kept by the browser, or in the address if it will not keep it.
+		const url = new URL(startupURL(program));
 		if (!keepDisplay(restartOn) || params.has('machine')) {
 			url.searchParams.set('machine', restartOn);
 		}

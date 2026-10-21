@@ -1,7 +1,7 @@
 // Port: the port's additions to Glider (PORT.md, decision 14), in Glider's own style and from its
-// own parts. Three submenus of the Options menu after Controls, built like it: Machine (the Mac
-// Plus, the Mac II in color or black and white, and the Mac II's screen in the colors of Glider for
-// Windows), Scale, and Art (the art files on the disk, the other kind dimmed). And Bass Beat, a
+// own parts. The submenus every program has (src/additions/Additions.ts: Display & Keyboard, Scale,
+// and Art, the art files on the disk, the other kind dimmed) in the Options menu after Controls,
+// colored as Controls is. And Bass Beat, a
 // checkbox in Sound Settings under Music On, as Glider for Windows has, which turns the bass during
 // play off without the jingle on entering a room. And Sound Settings' 4-Channel is remembered.
 //
@@ -11,38 +11,29 @@
 import {
 	AddResource,
 	ChangedResource,
-	CheckItem,
 	ControlRecord,
 	type ControlHandle,
 	CountMItems,
 	DelMCEntries,
-	DelMenuItem,
 	DialogRecord,
-	DisableItem,
 	Get1Resource,
 	GetCtlValue,
 	GetDItem,
 	GetMCEntry,
 	Handle,
 	HideDItem,
-	hMenuCmd,
-	InsertMenu,
 	InsMenuItem,
 	type Integer,
 	type ItemHandle,
 	type MenuHandle,
 	MoveControl,
 	NewControl,
-	NewMenu,
 	ref,
 	type Rect,
 	SetCtlValue,
 	SetDItem,
-	SetItemCmd,
-	SetItemMark,
 	SetMCEntries,
 	SizeWindow,
-	AppendMenu,
 	UseResFile,
 	CurResFile,
 	WriteResource,
@@ -50,72 +41,11 @@ import {
 	chkCtrl,
 	ctrlItem,
 } from '../mac/Toolbox.ts';
-import { getVolume } from '../mac/Files.ts';
 import { PBoolean, PInteger, PRecord, readLayout, sizeOf, writeLayout } from '../mac/PascalLayout.ts';
-import { parseResourceFork } from '../mac/ResourceFork.ts';
 import { G, iControls, iHoldKeyboard, mControls, mOption, moveOptionItems } from './Globals.ts';
+import { additionsHost, setSubmenu, SetUpSubmenus } from '../additions/Additions.ts';
 
-/** The machine and screen the page runs: the Mac II's screen may show Glider for Windows' colors. */
-export type Display = 'plus' | 'ii' | 'ii-bw' | 'win-16' | 'win-256';
-
-/** What the page does for the additions. */
-export interface AdditionsHost {
-	readonly display: Display;
-	/** Whether the page can change to a display at once (a palette on the same Mac) rather than start the program again. */
-	changesAtOnce(display: Display): boolean;
-	/** Changes to a display at once. */
-	setDisplay(display: Display): void;
-	/** Once the program quits, starts it again on a display; null to go to the desktop, as Quit does. */
-	restartOn(display: Display | null): void;
-	/** The scales the page offers, whole device pixels to a Mac pixel: their names, and whether they fit the window now. */
-	scales(): { factor: number; name: string; fits: boolean }[];
-	/** The chosen scale's factor; 0 for the largest that fits. */
-	readonly scale: number;
-	setScale(factor: number): void;
-}
-
-let host: AdditionsHost | null = null;
-
-/** Turns the additions on, for a page; before Glider starts. */
-export function setAdditionsHost(h: AdditionsHost | null): void {
-	host = h;
-}
-
-export const mMachine = 132; // Menu resource IDs, after Glider's
-export const mScale = 133;
-export const mArt = 134;
-const submenus: [id: Integer, title: string][] = [
-	[mMachine, 'Machine'],
-	[mScale, 'Scale'],
-	[mArt, 'Art'],
-];
-
-// Grouped by what a choice costs: the black-and-white Macs each start Glider again, while the Mac
-// II's color screen and Glider for Windows' change among themselves at once.
-const displays: [Display | null, string][] = [
-	['plus', 'Mac Plus'],
-	['ii-bw', 'Mac II, Black & White'],
-	[null, '(-'],
-	['ii', 'Mac II, 16 Colors'],
-	['win-16', 'Windows, 16 Colors'],
-	['win-256', 'Windows, 256 Colors'],
-];
-
-/** The art files in the Art submenu, in its order. */
-let artFiles: string[] = [];
-/** The art Glider had before a choice that waits for it to start again. */
-let artBefore = '';
-
-/** The additions' submenus, which are no resources, by ID. */
-const made = new Map<Integer, MenuHandle>();
-
-/** A new submenu, among the hierarchical menus. */
-function newSubmenu(id: Integer, title: string): MenuHandle {
-	const m = NewMenu(id, title);
-	InsertMenu(m, -1);
-	made.set(id, m);
-	return m;
-}
+export { AfterRestartQuit, DoAdditionMenu } from '../additions/Additions.ts';
 
 /** Gives a submenu's items the colors of the Controls submenu's. */
 function colorItems(m: MenuHandle): void {
@@ -132,9 +62,19 @@ function colorItems(m: MenuHandle): void {
 
 /** Puts the additions' submenus in the Options menu after Controls; after SetUpMenus has put in Glider's. */
 export function SetUpAdditions(options: MenuHandle): void {
-	if (host === null) {
+	if (additionsHost() === null) {
 		return;
 	}
+	const submenus = SetUpSubmenus(
+		{
+			get: () => G.resourceName,
+			set: (name) => {
+				G.resourceName = name; // Glider saves it in its preferences as it quits, and opens it as it starts
+			},
+			inColor: G.inColor,
+		},
+		colorItems,
+	);
 	moveOptionItems(submenus.length);
 	// An item's colors stay with its number ('mctb' 130), so those after Controls move with them; the
 	// new items take Controls' own.
@@ -149,155 +89,12 @@ export function SetUpAdditions(options: MenuHandle): void {
 	const controls = GetMCEntry(mOption, iControls);
 	submenus.forEach(([id], k) => {
 		const item = iControls + 1 + k;
-		SetItemMark(options, item, id);
-		SetItemCmd(options, item, hMenuCmd);
+		setSubmenu(options, item, id);
 		if (controls !== null) {
 			SetMCEntries([{ ...controls, mctItem: item }]);
 		}
 	});
-
-	const machine = newSubmenu(mMachine, 'Machine');
-	AppendMenu(machine, displays.map(([, name]) => name).join(';'));
-	colorItems(machine);
-	newSubmenu(mScale, 'Scale');
-	RefreshScales();
-	const art = newSubmenu(mArt, 'Art');
-	const files = (getVolume()?.list() ?? [])
-		.filter((f) => f.type === 'GLbk')
-		.map((f) => ({ name: f.name, depth: artDepth(f.rsrc) }))
-		.toSorted((a, b) => a.name.localeCompare(b.name));
-	artFiles = files.map((f) => f.name);
-	if (files.length > 0) {
-		// AppendMenu's metacharacters would be read in a name; they are rare in a file's.
-		AppendMenu(art, files.map((f) => f.name.replace(/[;^!</(]/g, ' ')).join(';'));
-	}
-	// Glider takes color art in color and black-and-white art in black and white ('deep' 128).
-	const wanted = G.inColor ? 4 : 1;
-	files.forEach((f, k) => {
-		if (f.depth !== wanted) {
-			DisableItem(art, k + 1);
-		}
-	});
-	colorItems(art);
 	ReadWebPrefs();
-	checkChoices();
-}
-
-/** An art file's depth, as its 'deep' resource gives it (4 for color art, 1 for black and white). */
-function artDepth(rsrc: Uint8Array): Integer {
-	try {
-		const deep = parseResourceFork(rsrc).get('deep', 128);
-		return deep === undefined || deep.data.length < 2 ? 0 : (deep.data[0]! << 8) | deep.data[1]!;
-	} catch {
-		return 0;
-	}
-}
-
-/** Puts the Scale submenu's items in again, for the page's size now: the page calls it when its window changes. */
-export function RefreshScales(): void {
-	const menu = submenuByID(mScale);
-	if (host === null || menu === null) {
-		return;
-	}
-	while (CountMItems(menu) > 0) {
-		DelMenuItem(menu, 1);
-	}
-	AppendMenu(menu, 'Largest That Fits;(-');
-	const scales = host.scales();
-	if (scales.length > 0) {
-		AppendMenu(menu, scales.map((s) => s.name).join(';'));
-	}
-	// Those that do not fit the window are dimmed, as art of the other kind is.
-	scales.forEach((s, k) => {
-		if (!s.fits) {
-			DisableItem(menu, k + 3);
-		}
-	});
-	colorItems(menu);
-	checkChoices();
-}
-
-function submenuByID(id: Integer): MenuHandle | null {
-	return made.get(id) ?? null;
-}
-
-/** Checks the current machine, scale, and art. */
-function checkChoices(): void {
-	if (host === null) {
-		return;
-	}
-	const machine = submenuByID(mMachine);
-	if (machine !== null) {
-		displays.forEach(([d], k) => CheckItem(machine, k + 1, d === host!.display));
-	}
-	const scale = submenuByID(mScale);
-	if (scale !== null) {
-		const factors = host.scales().map((s) => s.factor);
-		CheckItem(scale, 1, host.scale === 0);
-		factors.forEach((f, k) => CheckItem(scale, k + 3, host!.scale === f));
-	}
-	const art = submenuByID(mArt);
-	if (art !== null) {
-		artFiles.forEach((name, k) => CheckItem(art, k + 1, name.toUpperCase() === G.resourceName.toUpperCase()));
-	}
-}
-
-/**
- * Answers a choice from the additions' submenus. True if Glider must quit to start again (another
- * Mac, or other art, which Glider opens as it starts): HandleMenu then quits as Quit does, and
- * AfterRestartQuit says whether it did.
- */
-export function DoAdditionMenu(theMenu: Integer, theItem: Integer): boolean {
-	if (host === null) {
-		return false;
-	}
-	switch (theMenu) {
-		case mMachine: {
-			const d = displays[theItem - 1]?.[0] ?? null;
-			if (d === null || d === host.display) {
-				return false;
-			}
-			if (host.changesAtOnce(d)) {
-				host.setDisplay(d);
-				checkChoices();
-				return false;
-			}
-			host.restartOn(d);
-			return true;
-		}
-		case mScale: {
-			const factor = theItem === 1 ? 0 : (host.scales()[theItem - 3]?.factor ?? null);
-			if (factor !== null) {
-				host.setScale(factor);
-				checkChoices();
-			}
-			return false;
-		}
-		case mArt: {
-			const name = artFiles[theItem - 1];
-			if (name === undefined || name.toUpperCase() === G.resourceName.toUpperCase()) {
-				return false;
-			}
-			artBefore = G.resourceName;
-			G.resourceName = name; // Glider saves it in its preferences as it quits, and opens it as it starts
-			host.restartOn(host.display);
-			return true;
-		}
-		default:
-			return false;
-	}
-}
-
-/** After a choice that quits: if Glider stays (the player cancelled), it stays as it was. */
-export function AfterRestartQuit(quit: boolean): void {
-	if (host === null || quit) {
-		return;
-	}
-	host.restartOn(null);
-	if (artBefore !== '') {
-		G.resourceName = artBefore;
-	}
-	artBefore = '';
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -320,7 +117,7 @@ let bassBeatBefore = true;
  * read it. Without them, Glider stays as the oracle measures it.
  */
 export function RemembersChannels(): boolean {
-	return host !== null;
+	return additionsHost() !== null;
 }
 
 /** Whether the bass plays during a game (with Music on); always, without the additions. */
@@ -340,7 +137,7 @@ function ReadWebPrefs(): void {
 
 /** Writes the additions' preferences into Glider, as SavePrefs writes Glider's; only once one differs from its default. */
 export function SaveWebPrefs(): void {
-	if (host === null) {
+	if (additionsHost() === null) {
 		return;
 	}
 	const save = CurResFile();
@@ -374,7 +171,7 @@ const bassBeatRow = 18;
  * is changed as it is made, not its resources, which Glider's file would keep.
  */
 export function AddBassBeat(d: DialogRecord, musicItem: Integer, musicHidden: boolean): void {
-	if (host === null) {
+	if (additionsHost() === null) {
 		return;
 	}
 	const kind = ref<Integer>(0);
@@ -402,7 +199,7 @@ export function AddBassBeat(d: DialogRecord, musicItem: Integer, musicHidden: bo
 
 /** Answers a click in Sound Settings: Bass Beat's checkbox turns over. */
 export function HitBassBeat(d: DialogRecord, itemHit: Integer): void {
-	if (host === null || itemHit !== bassBeatItem) {
+	if (additionsHost() === null || itemHit !== bassBeatItem) {
 		return;
 	}
 	const kind = ref<Integer>(0);

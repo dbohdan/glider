@@ -1,9 +1,9 @@
-// Port: the page's own settings, which the additions' Machine and Scale submenus change (PORT.md,
+// Port: the page's own settings, which the additions' Display & Keyboard and Scale submenus change (PORT.md,
 // decision 14): which Mac and screen the page runs, and its scale. They are the page's, not Glider's,
 // so the browser keeps them (localStorage), for this browser only; the address's `machine` and
 // `scale` parameters win over them.
 
-import type { Display } from '../../glider/Additions.ts';
+import type { Display } from '../../additions/Additions.ts';
 
 const displays: Display[] = ['plus', 'ii', 'ii-bw', 'win-16', 'win-256'];
 const displayKey = 'glider4.display';

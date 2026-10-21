@@ -24,7 +24,7 @@ What it is not:
 ## Playing
 
 You need a keyboard (or a mouse, once you switch Glider to mouse steering); phones and tablets are not supported yet.
-The page starts on a Mac II in 16 colors; Options > Machine, Scale and Art change that (see [Additions](#additions)).
+The page starts on a Mac II in 16 colors; Options > Display & Keyboard, Scale and Art change that (see [Additions](#additions)).
 
 The keys Glider comes with (⌘ is Command on a Mac and Control elsewhere):
 
@@ -54,9 +54,10 @@ What you change is kept in the browser's storage, so Export Files… is your bac
 
 What the port adds to Glider, in Glider's own style and built from its own parts, and what it changes:
 
-- **Options > Machine:** a black-and-white Mac Plus (512×342), a Mac II in 16 colors or in black and white (640×480), or the Mac II's screen as Glider for Windows (1994) drew it, in its colors and with its dithered fills, with a 16-color or a 256-color driver. Another Mac starts Glider again through its own Quit; the Mac II's color screen and the Windows looks change into one another at once.
+- **Options > Display & Keyboard:** a black-and-white Mac Plus (512×342) with its own keyboard, a Mac II in 16 colors or in black and white (640×480), or the Mac II's screen as Glider for Windows (1994) drew it, in its colors and with its dithered fills, with a 16-color or a 256-color driver. Another Mac starts the program again through its own Quit; the Mac II's color screen and the Windows looks change into one another at once.
 - **Options > Scale:** whole screen pixels per Mac pixel, the largest that fits the window by default; sizes that do not fit are dimmed.
-- **Options > Art:** the art files on the disk, the original's and any you import; the other kind (color or black and white) is dimmed. Glider opens its art as it starts, so a choice starts it again.
+- **Options > Art:** the art files on the disk, the original's and any you import; the other kind (color or black and white) is dimmed. Glider and the Room Editor each open their art as they start, so a choice starts the program again.
+- **The same Options on the desktop and in the Room Editor:** Display & Keyboard and Scale on the desktop, and Art as well in the editor, in an Options menu after their own.
 - **Bass Beat**, in Sound Settings under Music On, as Glider for Windows has it: off, it silences the bass during play and keeps the jingle on entering a room. It is on unless turned off, as the Mac plays the bass.
 - **Sound Settings remembers 4-Channel.** Glider 4.05 saves the choice but, as it starts, writes over it instead of reading it, so on a Mac it always started in 2-Channel.
 - **Preferences for each Mac:** the Mac Plus and the Mac II each keep their own copy of Glider's preferences, as each Mac on a 1991 desk had its own copy of Glider. Houses and saved games are shared.

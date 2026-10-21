@@ -1,5 +1,5 @@
 // Port: the colors of Glider for Windows (docs/versions.md, "Glider for Windows"), for the Mac II's
-// screen in the additions' Machine submenu (src/glider/Additions.ts). Glider/WIN's art is the Mac's
+// screen in the additions' Display & Keyboard submenu (src/additions/Additions.ts). Glider/WIN's art is the Mac's
 // color art with each of the Mac II's 16 standard colors replaced by a Windows color, four pairs
 // merging; the port shows the Mac's screen through the same replacement.
 //

@@ -2,7 +2,7 @@
 // from fresh modules (see playCase in harness.ts), and sends the test what it gave.
 
 import { parentPort, workerData } from 'node:worker_threads';
-import { setAdditionsHost } from '../../src/glider/Additions.ts';
+import { setAdditionsHost } from '../../src/additions/Additions.ts';
 import { G } from '../../src/glider/Globals.ts';
 import { GetResource } from '../../src/mac/Toolbox.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';

@@ -1,5 +1,6 @@
 // Port of E-Initialize.p: starting up the Room Editor.
 
+import { AddOptionsMenu, CheckAdditions } from '../additions/Additions.ts';
 import {
 	AddResMenu,
 	Alert,
@@ -519,6 +520,15 @@ export async function InitVariables(): Promise<void> {
 		}
 
 		SpinBall();
+		// Port: the port's additions, an Options menu after Windows (src/additions/Additions.ts); none
+		// without the page's host, as in the tests.
+		AddOptionsMenu({
+			get: () => G.resourceName,
+			set: (name) => {
+				G.resourceName = name; // the editor saves it in its preferences as it quits, and opens it as it starts
+			},
+			inColor: G.inColor,
+		});
 		DrawMenuBar();
 	}
 
@@ -1003,6 +1013,8 @@ export async function InitVariables(): Promise<void> {
 	await GetPrefs();
 	SpinBall();
 	await LoadPICTs();
+	// Port: the additions' Art submenu checks the art the editor opened, now that it has (its menus come first).
+	CheckAdditions();
 
 	SpinBall();
 	G.doneFlag = false;

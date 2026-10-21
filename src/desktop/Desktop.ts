@@ -4,6 +4,7 @@
 // zooms as the Finder does and has the page start it; Source Code opens the repository in a new
 // tab; Shut Down shows System 6's last screen, with the port's words.
 
+import { AddOptionsMenu, DoAdditionMenu } from '../additions/Additions.ts';
 import {
 	AppendMenu,
 	type BitMap,
@@ -13,6 +14,7 @@ import {
 	DrawMenuBar,
 	DrawString,
 	EraseRect,
+	ExitToShell,
 	everyEvent,
 	type EventRecord,
 	FillRect,
@@ -395,6 +397,8 @@ function setUpMenus(): void {
 	const special = NewMenu(specialID, 'Special');
 	AppendMenu(special, 'Reset Preferences and Scores\u2026;(-;Restart;Shut Down');
 	InsertMenu(special, 0);
+	// The port's additions (src/additions/Additions.ts): an Options menu, on the page.
+	AddOptionsMenu(null);
 	DrawMenuBar();
 }
 
@@ -418,6 +422,9 @@ async function doMenu(result: number): Promise<void> {
 		host.restart();
 	} else if (menu === specialID && item === 4) {
 		await shutDown();
+	} else if (DoAdditionMenu(menu, item)) {
+		// Another Mac: the desktop has nothing to save, so it starts again at once.
+		ExitToShell();
 	}
 	HiliteMenu(0);
 }

@@ -1,6 +1,7 @@
 // Port of E-TheMenus.p: the editor's menu commands: houses (new, open, close, save, quit), rooms
 // (go to, previous, next, new), the Edit menu's cut, copy, paste, and clear, and the help window.
 
+import { AfterRestartQuit, DoAdditionMenu } from '../additions/Additions.ts';
 import {
 	blueColor,
 	CheckItem,
@@ -650,6 +651,12 @@ export async function HandleMenu(theMenu: Integer, theItem: Integer): Promise<vo
 			break;
 
 		default:
+			// Port: the additions' submenus (src/additions/Additions.ts). Another Mac, or other art,
+			// starts the editor again through its own Quit, which offers to save the house first.
+			if (DoAdditionMenu(theMenu, theItem)) {
+				await HandleMenu(mFile, iQuit);
+				AfterRestartQuit(G.doneFlag);
+			}
 	}
 	HiliteMenu(0);
 }
