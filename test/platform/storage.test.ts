@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { houseRecLayout } from '../../src/glider/Globals.ts';
 import { PRecord, PString, readLayout, writeLayout } from '../../src/mac/PascalLayout.ts';
 import { parseResourceFork, writeResourceFork } from '../../src/mac/ResourceFork.ts';
-import { FileStore, importedFile, playerPart, prefsOf, scoresOf, webPrefsOf, withPrefs, withScores } from '../../src/platform/browser/Storage.ts';
+import { FileStore, importedFile, onlyScoresChanged, playerPart, prefsOf, scoresOf, webPrefsOf, withPrefs, withScores } from '../../src/platform/browser/Storage.ts';
 import type { MacFile } from '../../src/mac/MacBinary.ts';
 import { Volume } from '../../src/mac/Volume.ts';
 import { bundledFiles } from '../../tools/build-resources.ts';
@@ -165,4 +165,40 @@ test('a stored copy of preferences that cannot be the application\'s own is drop
 	const volume = await pageLoads(idb)('ii', []);
 	assert.equal(parseResourceFork(volume.get(app.name)!.rsrc).get('Gprf', 128)!.data.length, prefsOf(app)!.length);
 	assert.equal(names(volume, app.name).houseName, 'The House');
+});
+
+test('a bundled house changed in the Room Editor is kept whole, and Reset keeps its rooms', async () => {
+	const july = files.find((f) => f.name === 'The House (July 1991)')!;
+	const edit = (f: MacFile, roomName: string, score: number) => {
+		const rec = readLayout(houseRecLayout, f.data, 0);
+		rec.theRooms[1]!.roomName = roomName;
+		rec.hiScores[0] = score;
+		const data = new Uint8Array(f.data);
+		writeLayout(houseRecLayout, rec, data, 0);
+		return { ...f, data };
+	};
+	const idb = new MemoryIndexedDB();
+	const page = pageLoads(idb);
+	await page('ii', [edit(july, 'My first room', 12345)]);
+	let volume = await page('ii', []);
+	let rec = readLayout(houseRecLayout, volume.get(july.name)!.data, 0);
+	assert.equal(rec.theRooms[1]!.roomName, 'My first room');
+	assert.equal(rec.hiScores[0], 12345);
+	// Reset Preferences and Scores… puts back the scores it came with, not the rooms.
+	await withIndexedDB(idb, async () => {
+		const store = await FileStore.open();
+		volume = new Volume('Glider');
+		for (const f of files) {
+			volume.put(f);
+		}
+		await store.restore(volume, 'ii');
+		await store.reset(volume);
+	});
+	volume = await page('ii', []);
+	rec = readLayout(houseRecLayout, volume.get(july.name)!.data, 0);
+	assert.equal(rec.theRooms[1]!.roomName, 'My first room');
+	assert.equal(rec.hiScores[0], readLayout(houseRecLayout, july.data, 0).hiScores[0]);
+	// A house only played keeps only its scores: an update to the game's copy would show.
+	assert.equal(onlyScoresChanged(house, withScores(house, { ...scoresOf(house), hiScores: scoresOf(house).hiScores.map(() => 1) })), true);
+	assert.equal(onlyScoresChanged(july, edit(july, 'Another', 0)), false);
 });

@@ -2,7 +2,8 @@
 // ours to update, so of them only the player's part is kept: the applications' preferences (the
 // 'Gprf' resource of Glider and of the Room Editor, and the 'Wprf' of the port's additions) and each
 // bundled house's high scores, put back into the bundled files at start. Files the player makes,
-// such as saved games and houses of their own, are kept whole, as MacBinary.
+// such as saved games and houses of their own, are kept whole, as MacBinary, and so is a bundled
+// house whose rooms the player changed in the Room Editor.
 // A deleted file is kept as a tombstone so that a bundled file stays deleted.
 //
 // Each application's preferences are kept for each Mac, as each Mac had its own copy (PORT.md,
@@ -139,6 +140,17 @@ export function withScores(house: MacFile, scores: Scores): MacFile {
 	return { ...house, data };
 }
 
+/**
+ * Whether a house is a bundled house as it came but for its high scores: the player played it.
+ * Otherwise the player changed its rooms in the Room Editor, and it is theirs, kept whole.
+ */
+export function onlyScoresChanged(game: MacFile, house: MacFile): boolean {
+	if (house.data.length !== game.data.length || !sameBytes(house.rsrc, game.rsrc)) {
+		return false;
+	}
+	return sameBytes(withScores(house, scoresOf(game)).data, game.data);
+}
+
 function samePrefs(a: Uint8Array | null, b: Uint8Array | null): boolean {
 	return a !== null && b !== null && a.length === b.length && a.every((v, i) => v === b[i]);
 }
@@ -157,7 +169,7 @@ export function playerPart(bundled: Map<string, MacFile>, file: MacFile): MacFil
 		return samePrefs(prefsOf(game), prefsOf(file)) && webPrefsOf(file) === null ? null : file;
 	}
 	if (isHouse(game)) {
-		return JSON.stringify(scoresOf(game)) === JSON.stringify(scoresOf(file)) ? null : file;
+		return onlyScoresChanged(game, file) && JSON.stringify(scoresOf(game)) === JSON.stringify(scoresOf(file)) ? null : file;
 	}
 	return null;
 }
@@ -179,7 +191,8 @@ export function importedFile(bundled: Map<string, MacFile>, current: MacFile | u
 		return prefs === null ? null : withPrefs(current ?? game, prefs, webPrefsOf(file) ?? kept);
 	}
 	if (isHouse(game) && isHouse(file) && file.data.length === game.data.length) {
-		return withScores(current ?? game, scoresOf(file));
+		// A house the player changed comes back whole; one they played, as its scores.
+		return onlyScoresChanged(game, file) ? withScores(current ?? game, scoresOf(file)) : file;
 	}
 	return null;
 }
@@ -266,9 +279,14 @@ export class FileStore {
 					volume.put(withPrefs(game, copy.prefs, copy.webPrefs ?? null));
 				}
 			} else if (game !== undefined && isHouse(game)) {
-				const scores = s.scores ?? (s.macBinary !== null ? scoresOf(parseMacBinary(s.macBinary)) : null);
-				if (scores !== null) {
-					volume.put(withScores(game, scores));
+				const whole = s.macBinary !== null ? { ...parseMacBinary(s.macBinary), name: s.name } : null;
+				if (whole !== null && !onlyScoresChanged(game, whole)) {
+					volume.put(whole); // changed in the Room Editor: the player's own now
+				} else {
+					const scores = s.scores ?? (whole !== null ? scoresOf(whole) : null);
+					if (scores !== null) {
+						volume.put(withScores(game, scores));
+					}
 				}
 			} else if (game === undefined && s.macBinary !== null) {
 				volume.put({ ...parseMacBinary(s.macBinary), name: s.name });
@@ -331,9 +349,17 @@ export class FileStore {
 	/** Puts back the game's preferences, each Mac's, and the bundled houses' high scores. */
 	async reset(volume: Volume): Promise<void> {
 		this.copies.clear();
+		// A bundled house the player changed in the Room Editor keeps its rooms and gets the scores it came with.
+		const changed = new Map<string, MacFile>();
+		for (const game of this.bundled.values()) {
+			const current = volume.get(game.name);
+			if (isHouse(game) && current !== undefined && !onlyScoresChanged(game, current)) {
+				changed.set(game.name, withScores(current, scoresOf(game)));
+			}
+		}
 		for (const game of this.bundled.values()) {
 			if (isApplication(game) || isHouse(game)) {
-				volume.put(game);
+				volume.put(changed.get(game.name) ?? game);
 			}
 		}
 		if (this.db === null) {
@@ -341,7 +367,10 @@ export class FileStore {
 		}
 		const tx = this.db.transaction(storeName, 'readwrite');
 		for (const game of this.bundled.values()) {
-			if (isApplication(game) || isHouse(game)) {
+			const house = changed.get(game.name);
+			if (house !== undefined) {
+				tx.objectStore(storeName).put({ name: house.name, deleted: false, macBinary: writeMacBinary(house) } satisfies Stored);
+			} else if (isApplication(game) || isHouse(game)) {
 				tx.objectStore(storeName).delete(game.name);
 			}
 		}
@@ -370,8 +399,10 @@ export class FileStore {
 		let record: Stored;
 		if (deleted) {
 			record = { name: file.name, deleted: true, macBinary: null };
-		} else if (game !== undefined && isHouse(game)) {
+		} else if (game !== undefined && isHouse(game) && onlyScoresChanged(game, file)) {
 			record = { name: file.name, deleted: false, macBinary: null, scores: scoresOf(file) };
+		} else if (game !== undefined && isHouse(game)) {
+			record = { name: file.name, deleted: false, macBinary: writeMacBinary(file) };
 		} else if (game !== undefined) {
 			return; // the game's other files (its art, the read-me files) are ours
 		} else {
