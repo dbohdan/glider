@@ -1099,3 +1099,40 @@ export function editorTryGliderScript(kind: 'plus' | 'ii'): Script {
 	}
 	return s;
 }
+
+/**
+ * Hands-off House (Ward Hartenstein), a house that plays itself: its bytes, played as The House. Its
+ * record names "Hands-off House" as the first file of its sequence, which Glider checks against the
+ * file's name; here it names "The House", which changes nothing in play.
+ */
+export function handsOffHouse(): Uint8Array {
+	const data = new Uint8Array(readFileSync(join(oracleDir, '..', 'Houses', 'Hands-off House')));
+	const house = readLayout(houseRecLayout, data, 0);
+	writeLayout(houseRecLayout, { ...house, firstFile: 'The House' }, data, 0);
+	return data;
+}
+
+/** A game of Hands-off House with no input after ⌘N, with a screenshot every `every` ticks for `ticks`. */
+export function handsOffScript(every = 300, ticks = 60 * 60 * 15): Script {
+	const s = new Script();
+	s.speed(8).traceKeys();
+	s.until(900).press('return').wait(60);
+	s.press('n', 'command');
+	for (let t = every; t <= ticks; t += every) {
+		s.wait(every).shot(`t${String(t).padStart(6, '0')}`);
+	}
+	return s;
+}
+
+/** Hands-off House on a Mac Plus. */
+cases.handsOff = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, [...gameFiles(handsOffHouse()), alternateScreenFile()], 'Glider 4.06');
+	return run(macPlus, handsOffScript(), disk, dir);
+};
+/** Hands-off House on a Mac II. */
+cases.handsOffColor = (dir) => {
+	const disk = dir + '.dsk';
+	makeDisk(disk, gameFiles(handsOffHouse()), 'Glider 4.06');
+	return run(macII, handsOffScript(), disk, dir);
+};
