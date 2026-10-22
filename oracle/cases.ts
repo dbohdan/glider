@@ -1283,10 +1283,24 @@ cases.editorWindowsColor = (dir) => {
 };
 
 /** The Room Editor's help window (About™ 2.1): its text, scrolled, its icons, and OK. */
-export function editorHelpScript(_kind: 'plus' | 'ii'): Script {
+export function editorHelpScript(kind: 'plus' | 'ii'): Script {
 	const s = new Script().speed(8).traceKeys().traceMouse();
+	// The window's content is at (12, 30) on the Mac Plus, centered and a third of the way down.
+	const [dh, dv] = kind === 'plus' ? [0, 0] : [64, 29];
 	openTheHouse(s);
 	menuItem(s, 204, 9).wait(90).shot('help');
+	// Keys scroll a line or, with Command, a page (clicks on the arrows repeat as fast as the Mac goes).
+	for (let i = 0; i < 3; i++) {
+		s.press('down').wait(20);
+	}
+	s.shot('lines').press('down', 'command').wait(30).shot('page');
+	// Held in the scroll bar's page area, it pages until the thumb comes under the mouse.
+	s.mouse(487 + dh, 200 + dv).wait(5).button(true).wait(60).button(false).wait(30).shot('paged');
+	// The icon, held, shows the other icon and the click message.
+	s.mouse(36 + dh, 310 + dv).wait(5).button(true).wait(30).shot('iconHeld').button(false).wait(30).shot('iconLet');
+	// Option-click shows the library's version while the button is down.
+	s.mouse(250 + dh, 300 + dv).wait(5).key('option', true).wait(5).button(true).wait(30).shot('version').button(false).wait(5).key('option', false).wait(30).shot('afterVersion');
+	s.press('c', 'command').wait(30).shot('copied');
 	s.press('return').wait(60).shot('afterHelp');
 	return s;
 }

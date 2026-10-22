@@ -308,6 +308,11 @@ export function UpdtControl(theWindow: WindowRecord, _updateRgn: unknown): void 
 	DrawControls(theWindow);
 }
 
+/** Port: a control's frame color, as GetAuxCtl's color table gives it. */
+export function controlFrameColor(c: ControlRecord): RGBColor {
+	return { ...controlColors(c.contrlOwner).frame };
+}
+
 /** The control's colors: its frame, body, and text. */
 function controlColors(port: GrafPort): { frame: RGBColor; body: RGBColor; text: RGBColor } {
 	const black = { red: 0, green: 0, blue: 0 };
@@ -558,7 +563,10 @@ export async function TrackControl(theControl: ControlRecord, startPt: Point, ac
 		const pt = { ...mouse.where };
 		GlobalToLocal(pt);
 		SetPort(save);
-		const now = PtInRect(pt, theControl.contrlRect);
+		// The part pressed is highlighted, and the action called, only while the mouse is in that
+		// part: a scroll bar's page area stops once the thumb comes under the mouse (seen in the
+		// oracle: the Room Editor's help, held in its page area).
+		const now = TestControl(theControl, pt) === part;
 		if (now !== inside) {
 			inside = now;
 			HiliteControl(theControl, inside ? part : 0);

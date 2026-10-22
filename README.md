@@ -137,13 +137,13 @@ The port:
 ## Status
 
 The game is complete and matches the original on both machines.
-The Room Editor is translated and runs (`?startup=room-editor`); its first screens and Try Glider match the original, and the rest is being checked against it. Its help window is still empty. The roadmap is in [`PORT.md`](PORT.md).
+The Room Editor is translated and runs (`?startup=room-editor`); its rooms, dialogs, menus, editing, windows, Try Glider, and help window match the original in the cases checked so far. The roadmap is in [`PORT.md`](PORT.md).
 
 ## Credits and licenses
 
 - **Glider 4.0** by John Calhoun, published by Casady & Greene. Calhoun's softdorothy released the source under the MIT License ([`LICENSE`](LICENSE)), which covers this repository except where noted below.
 - **The More Glider houses**: Mad House by John Calhoun; the others by Jeff Carter, Brian Eaton, Tony Korlath and Steve Sullivan.
-- **Fonts:** Ozma and Glinda are Apple's bitmap fonts Chicago 12 and Geneva 9, copied pixel for pixel on purpose and renamed. We copied them from the System file of [Executor 2000](https://github.com/autc04/executor), whose MIT License covers Executor's code and grants nothing in Apple's glyphs. We use the glyphs because we believe they are in the public domain, for different reasons in different places:
+- **Fonts:** Ozma and Glinda are Apple's bitmap fonts Chicago 12 and Geneva 9 and 12, copied pixel for pixel on purpose and renamed. We copied them from the System file of [Executor 2000](https://github.com/autc04/executor), whose MIT License covers Executor's code and grants nothing in Apple's glyphs. We use the glyphs because we believe they are in the public domain, for different reasons in different places:
   - **United States:** typeface designs are not copyrightable (37 CFR 202.1(e); *Eltra Corp. v. Ringer*, 1978). Since 1988 the Copyright Office has held that "data that merely represents an electronic depiction of a particular typeface or individual letterform" is not registrable (53 FR 38110), and its 1992 rule restates that "digitized typeface as typeface is unregistrable" while registering the programs that generate typefaces ([57 FR 6201](https://archives.federalregister.gov/issue_slice/1992/2/21/6201-6203.pdf)). Outline fonts were protected in *Adobe Systems v. Southern Software* (1998) as programs whose choice of points was creative. A bitmap font has no program and no points: it is a picture of each letter and its width.
   - **United Kingdom:** copying a typeface is free 25 years after it was first marketed (Copyright, Designs and Patents Act 1988, s. 55). Chicago and Geneva date from 1984.
   - **European Union:** design rights, and Germany's protection of typefaces, end after 25 years at most.

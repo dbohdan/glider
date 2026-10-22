@@ -58,7 +58,9 @@ import {
 	srcCopy,
 	srcOr,
 	StringWidth,
+	TextFace,
 	TextFont,
+	TextSize,
 	TextMode,
 	thePort,
 	UnionRgn,
@@ -260,6 +262,11 @@ function defaultWindowColors(): RGBColor[] {
 }
 
 /** The colors of a window's parts, by part code. */
+/** Port: a window's content color, as GetAuxWin's color table gives it. */
+export function windowContentColor(w: WindowRecord): RGBColor {
+	return { ...windowColors(w)[wContentColor]! };
+}
+
 function windowColors(w: WindowRecord): RGBColor[] {
 	const colors = defaultColors.map((c) => ({ ...c }));
 	for (const spec of w.awCTable?.ctTable ?? []) {
@@ -529,7 +536,7 @@ export function newWindow(
 		right: w.portBits.bounds.right - boundsRect.left,
 	};
 	w.portRect = { top: 0, left: 0, bottom: boundsRect.bottom - boundsRect.top, right: boundsRect.right - boundsRect.left };
-	w.titleWidth = StringWidth(title);
+	w.titleWidth = titleWidthOf(title);
 	TextFont(1); // applFont
 	w.controlList = null;
 	w.windowPic = null;
@@ -859,12 +866,27 @@ export function ShowWindow(w: WindowRecord): void {
 // ---------------------------------------------------------------------------------------------
 // Titles and reference values
 
+/**
+ * A title's width in the system font, which the frame draws it in, whatever the window's own font:
+ * a window's port starts in the application font, Geneva, whose default size, 12, the port's
+ * System has since the Room Editor's help needed it.
+ */
+function titleWidthOf(title: string): Integer {
+	const port = thePort;
+	const saved = { font: port.txFont, face: port.txFace, size: port.txSize };
+	TextFont(0);
+	TextFace(0);
+	TextSize(0);
+	const width = StringWidth(title);
+	port.txFont = saved.font;
+	port.txFace = saved.face;
+	port.txSize = saved.size;
+	return width;
+}
+
 export function SetWTitle(w: WindowRecord, title: string): void {
 	w.titleHandle = title;
-	const save = thePort;
-	SetPort(w);
-	w.titleWidth = StringWidth(title);
-	SetPort(save);
+	w.titleWidth = titleWidthOf(title);
 	if (w.visible) {
 		withDrawingPort(() => {
 			SetClip(w.strucRgn);

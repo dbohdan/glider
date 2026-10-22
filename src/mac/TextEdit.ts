@@ -1,8 +1,11 @@
-// Port: TextEdit (Inside Macintosh I, chapter 12), for dialog text items and TextBox.
+// Port: TextEdit (Inside Macintosh I, chapter 12), for dialog text items and TextBox, and styled
+// TextEdit (Inside Macintosh V) as far as the Room Editor's help shows it: text in runs of fonts,
+// sizes, faces and colors, read from a 'styl' resource, scrolled and copied.
 //
-// One style per record, word wrap at the destination rectangle's width, the caret, selection,
-// typing, and the mouse. The oracle shows text drawn 1 pixel right of the destination
-// rectangle's left edge, with the first baseline the font's ascent below its top.
+// Word wrap at the destination rectangle's width, the caret, selection, typing, and the mouse. The
+// oracle shows text drawn 1 pixel right of the destination rectangle's left edge, with the first
+// baseline the font's ascent below its top; styled text gives each line the height and ascent of
+// the tallest run on it.
 
 import { getHost, mouse, TickCount, tickTime } from './OS.ts';
 import { GetCaretTime, GetDblTime } from './Events.ts';
@@ -19,6 +22,8 @@ import {
 	setHiliteMode,
 	MoveTo,
 	NewRgn,
+	RGBForeColor,
+	type RGBColor,
 	SectRect,
 	SectRgn,
 	SetClip,
@@ -65,6 +70,11 @@ export class TERec {
 	inPort!: GrafPort;
 	/** Offsets where lines start, with the text's length at the end. */
 	lineStarts: Integer[] = [0, 0];
+	/** Styled text's runs, in order of their starts (TEStylNew); null for text in one style. */
+	styleRuns: StyleRun[] | null = null;
+	/** For styled text, each line's height and ascent: those of the tallest run on it. */
+	lineHeights: Integer[] = [];
+	lineAscents: Integer[] = [];
 	/** Whether typing and clicking scroll the selection into view (TEAutoView). */
 	autoView = false;
 	caretState = false;
@@ -82,6 +92,22 @@ export class TERec {
 }
 
 export type TEHandle = TERec;
+
+/** Pascal `TextStyle`, with the height and ascent its font gives (a styled record's style table). */
+export interface TextStyle {
+	tsFont: Integer;
+	tsFace: Integer;
+	tsSize: Integer;
+	tsColor: RGBColor;
+}
+
+/** A run of styled text: where it starts, its style, and its font's line height and ascent. */
+export interface StyleRun {
+	start: Integer;
+	style: TextStyle;
+	height: Integer;
+	ascent: Integer;
+}
 
 /** Pascal `TEInit`: the scrap is empty. */
 export function TEInit(): void {
@@ -110,6 +136,162 @@ export function TENew(destRect: Rect, viewRect: Rect): TERec {
 
 export function TEDispose(_te: TERec): void {}
 
+/**
+ * Pascal `TEStylNew` (TEStyleNew): a record for styled text in the current port, starting in the
+ * port's font. Its lineHeight and fontAscent are -1, as the lines' own heights take their place.
+ */
+export function TEStylNew(destRect: Rect, viewRect: Rect): TERec {
+	const te = TENew(destRect, viewRect);
+	te.styleRuns = [runOf(te, { tsFont: te.txFont, tsFace: te.txFace, tsSize: te.txSize, tsColor: { red: 0, green: 0, blue: 0 } }, 0)];
+	te.lineHeight = -1;
+	te.fontAscent = -1;
+	TECalText(te);
+	return te;
+}
+
+/** A run in a style, with its font's line height and ascent, measured in the record's port. */
+function runOf(te: TERec, style: TextStyle, start: Integer): StyleRun {
+	return inPort(te, () => {
+		TextFont(style.tsFont);
+		TextSize(style.tsSize);
+		TextFace(style.tsFace);
+		const info = { ascent: 0, descent: 0, widMax: 0, leading: 0 };
+		GetFontInfo(info);
+		return { start, style, height: info.ascent + info.descent + info.leading, ascent: info.ascent };
+	});
+}
+
+/**
+ * Pascal `TEStylInsert` (TEDispatch selector 7): inserts text at the selection with the styles of a
+ * 'styl' resource (StScrpRec: a count, then per run its start, height, ascent, font, face, size and
+ * color). Port: as the help uses it, into an empty record.
+ */
+export function TEStylInsert(text: Uint8Array, length: LongInt, styl: Handle | null, te: TERec): void {
+	TEInsert(text, length, te);
+	const d = styl?.data;
+	if (d === undefined || d.length < 2) {
+		return;
+	}
+	const s16 = (o: number): number => (((d[o]! << 8) | d[o + 1]!) << 16) >> 16;
+	const u16 = (o: number): number => (d[o]! << 8) | d[o + 1]!;
+	const runs: StyleRun[] = [];
+	for (let i = 0, n = s16(0); i < n; i++) {
+		const o = 2 + i * 20;
+		const start = ((d[o]! << 24) | (d[o + 1]! << 16) | (d[o + 2]! << 8) | d[o + 3]!) >>> 0;
+		const style = { tsFont: s16(o + 8), tsFace: d[o + 10]!, tsSize: s16(o + 12), tsColor: { red: u16(o + 14), green: u16(o + 16), blue: u16(o + 18) } };
+		runs.push({ start, style, height: s16(o + 4), ascent: s16(o + 6) });
+	}
+	te.styleRuns = runs;
+	TECalText(te);
+}
+
+/** The run a character is in. */
+function runAt(te: TERec, offset: Integer): StyleRun {
+	const runs = te.styleRuns!;
+	let k = 0;
+	while (k + 1 < runs.length && runs[k + 1]!.start <= offset) {
+		k++;
+	}
+	return runs[k]!;
+}
+
+/** Sets the port's text to a run's style. */
+function useStyle(run: StyleRun): void {
+	TextFont(run.style.tsFont);
+	TextSize(run.style.tsSize);
+	TextFace(run.style.tsFace);
+}
+
+/** The width of text from one offset to another, in the record's port (and its runs' styles). */
+function rangeWidth(te: TERec, from: Integer, to: Integer): Integer {
+	const text = te.hText.data;
+	if (te.styleRuns === null) {
+		return TextWidth(text, from, to - from);
+	}
+	let w = 0;
+	for (let i = from; i < to; ) {
+		const run = runAt(te, i);
+		const next = te.styleRuns[te.styleRuns.indexOf(run) + 1];
+		const end = Math.min(to, next === undefined ? to : next.start);
+		useStyle(run);
+		w += TextWidth(text, i, end - i);
+		i = end;
+	}
+	return w;
+}
+
+/** A line's height and ascent. */
+function lineHeightOf(te: TERec, line: number): Integer {
+	return te.styleRuns === null ? te.lineHeight : (te.lineHeights[line] ?? 0);
+}
+
+function lineAscentOf(te: TERec, line: number): Integer {
+	return te.styleRuns === null ? te.fontAscent : (te.lineAscents[line] ?? 0);
+}
+
+/** The top of a line. */
+function lineTop(te: TERec, line: number): Integer {
+	if (te.styleRuns === null) {
+		return te.destRect.top + line * te.lineHeight;
+	}
+	let v = te.destRect.top;
+	for (let i = 0; i < line; i++) {
+		v += te.lineHeights[i]!;
+	}
+	return v;
+}
+
+/** The line at a vertical position, within the text's lines. */
+function lineAt(te: TERec, v: Integer): number {
+	if (te.styleRuns === null) {
+		return Math.max(0, Math.min(te.nLines - 1, Math.floor((v - te.destRect.top) / te.lineHeight)));
+	}
+	let top = te.destRect.top;
+	for (let line = 0; line < te.nLines; line++) {
+		top += te.lineHeights[line]!;
+		if (v < top) {
+			return line;
+		}
+	}
+	return Math.max(0, te.nLines - 1);
+}
+
+/**
+ * Pascal `TEGetHeight` (TEDispatch selector 9): the height of the lines from startLine to endLine,
+ * both included, counted from 1 and kept within the text's lines.
+ */
+export function TEGetHeight(endLine: LongInt, startLine: LongInt, te: TERec): LongInt {
+	const first = Math.max(1, Math.min(startLine, endLine));
+	const last = Math.min(te.nLines, Math.max(startLine, endLine));
+	let h = 0;
+	for (let line = first; line <= last; line++) {
+		h += lineHeightOf(te, line - 1);
+	}
+	return h;
+}
+
+/**
+ * Pascal `TEGetStyle` (TEDispatch selector 3): the style of the character at an offset, and the
+ * height and ascent of its line.
+ */
+export function TEGetStyle(offset: Integer, theStyle: TextStyle, lineHeight: { v: Integer }, fontAscent: { v: Integer }, te: TERec): void {
+	const line = lineOf(te, offset);
+	lineHeight.v = lineHeightOf(te, line);
+	fontAscent.v = lineAscentOf(te, line);
+	const style = te.styleRuns === null ? { tsFont: te.txFont, tsFace: te.txFace, tsSize: te.txSize, tsColor: { red: 0, green: 0, blue: 0 } } : runAt(te, offset).style;
+	Object.assign(theStyle, { ...style, tsColor: { ...style.tsColor } });
+}
+
+/** Pascal `TEGetOffset`: the offset of the character nearest a point. */
+export function TEGetOffset(pt: Point, te: TERec): Integer {
+	return inPort(te, () => offsetAt(te, pt));
+}
+
+/** Pascal `TEToScrap`: the Toolbox's scrap has nothing to show for it. */
+export function TEToScrap(): Integer {
+	return 0;
+}
+
 /** Runs drawing or measuring in the record's port with its font. */
 function inPort<T>(te: TERec, f: () => T): T {
 	const save = thePort;
@@ -135,7 +317,7 @@ function inPort<T>(te: TERec, f: () => T): T {
 // Lines
 
 /** Where lines start when text wraps within a width: after a return, or before a word that does not fit. */
-function lineBreaks(text: Uint8Array, width: number, crOnly: boolean): number[] {
+function lineBreaks(text: Uint8Array, width: number, crOnly: boolean, charWidth: (i: number) => number): number[] {
 	const starts = [0];
 	let start = 0;
 	while (start < text.length) {
@@ -155,7 +337,7 @@ function lineBreaks(text: Uint8Array, width: number, crOnly: boolean): number[] 
 			// with none before it breaks only past the width. Seen in the oracle, in Chicago 12 at
 			// widths equal to their boxes: Glider's Configure puts "key." of "controlling key." (103
 			// pixels in 103) on the next line; the Room Editor's Go To Room keeps "rooms." (45 in 45).
-			const cw = TextWidth(text, end, 1);
+			const cw = charWidth(end);
 			if (!crOnly && w + cw >= width && ch !== 0x20 && (lastBreak > start || w + cw > width)) {
 				if (lastBreak > start) {
 					end = lastBreak;
@@ -182,8 +364,30 @@ function lineBreaks(text: Uint8Array, width: number, crOnly: boolean): number[] 
 /** Pascal `TECalText`: recalculates where lines start. */
 export function TECalText(te: TERec): void {
 	inPort(te, () => {
-		const starts = lineBreaks(te.hText.data, te.destRect.right - te.destRect.left, te.crOnly < 0);
+		const text = te.hText.data;
+		const starts = lineBreaks(text, te.destRect.right - te.destRect.left, te.crOnly < 0, (i) => rangeWidth(te, i, i + 1));
 		te.lineStarts = starts.length > 1 ? starts : [0, 0];
+		if (te.styleRuns !== null) {
+			// Each line is as tall as the tallest run of its characters, its return included; an empty
+			// last line, after a final return, as the run there.
+			te.lineHeights = [];
+			te.lineAscents = [];
+			for (let line = 0; line < te.nLines; line++) {
+				const start = te.lineStarts[line]!;
+				const end = Math.max(te.lineStarts[line + 1]!, start + 1);
+				let height = 0;
+				let ascent = 0;
+				for (const run of te.styleRuns) {
+					const runEnd = te.styleRuns[te.styleRuns.indexOf(run) + 1]?.start ?? Infinity;
+					if (run.start < end && runEnd > Math.min(start, Math.max(0, text.length - 1))) {
+						height = Math.max(height, run.height);
+						ascent = Math.max(ascent, run.ascent);
+					}
+				}
+				te.lineHeights.push(height);
+				te.lineAscents.push(ascent);
+			}
+		}
 	});
 }
 
@@ -207,7 +411,7 @@ function lineLeft(te: TERec, line: number): number {
 	while (end > start && (text[end - 1] === 13 || text[end - 1] === 0x20)) {
 		end--;
 	}
-	const width = TextWidth(text, start, end - start);
+	const width = rangeWidth(te, start, end);
 	const room = te.destRect.right - te.destRect.left - textInset;
 	return te.destRect.left + textInset + (te.just === teJustCenter ? Math.trunc((room - width) / 2) : room - width);
 }
@@ -216,13 +420,13 @@ function lineLeft(te: TERec, line: number): number {
 function pointOf(te: TERec, offset: number): Point {
 	const line = lineOf(te, offset);
 	const start = te.lineStarts[line]!;
-	const h = lineLeft(te, line) + TextWidth(te.hText.data, start, offset - start);
-	return { h, v: te.destRect.top + line * te.lineHeight };
+	const h = lineLeft(te, line) + rangeWidth(te, start, offset);
+	return { h, v: lineTop(te, line) };
 }
 
 /** The offset nearest a point. */
 function offsetAt(te: TERec, pt: Point): number {
-	const line = Math.max(0, Math.min(te.nLines - 1, Math.floor((pt.v - te.destRect.top) / te.lineHeight)));
+	const line = lineAt(te, pt.v);
 	const text = te.hText.data;
 	const start = te.lineStarts[line]!;
 	let end = te.lineStarts[line + 1]!;
@@ -231,7 +435,7 @@ function offsetAt(te: TERec, pt: Point): number {
 	}
 	let h = lineLeft(te, line);
 	for (let i = start; i < end; i++) {
-		const w = TextWidth(text, i, 1);
+		const w = rangeWidth(te, i, i + 1);
 		if (pt.h < h + w / 2) {
 			return i;
 		}
@@ -265,16 +469,32 @@ export function TEUpdate(rUpdate: Rect, te: TERec): void {
 
 function drawLines(te: TERec, first: number, last: number): void {
 	const text = te.hText.data;
+	let top = lineTop(te, first);
 	for (let line = first; line < last; line++) {
-		const top = te.destRect.top + line * te.lineHeight;
-		EraseRect({ top, left: te.destRect.left, bottom: top + te.lineHeight, right: te.destRect.right });
+		const height = lineHeightOf(te, line);
+		EraseRect({ top, left: te.destRect.left, bottom: top + height, right: te.destRect.right });
 		const start = te.lineStarts[line]!;
 		let end = te.lineStarts[line + 1]!;
 		if (end > start && text[end - 1] === 13) {
 			end--;
 		}
-		MoveTo(lineLeft(te, line), top + te.fontAscent);
-		DrawText(text, start, end - start);
+		MoveTo(lineLeft(te, line), top + lineAscentOf(te, line));
+		if (te.styleRuns === null) {
+			DrawText(text, start, end - start);
+		} else {
+			// Run by run, each in its font, face, size and color.
+			for (let i = start; i < end; ) {
+				const run = runAt(te, i);
+				const next = te.styleRuns[te.styleRuns.indexOf(run) + 1];
+				const runEnd = Math.min(end, next === undefined ? end : next.start);
+				useStyle(run);
+				RGBForeColor(run.style.tsColor);
+				DrawText(text, i, runEnd - i);
+				i = runEnd;
+			}
+			RGBForeColor({ red: 0, green: 0, blue: 0 });
+		}
+		top += height;
 	}
 }
 
@@ -295,7 +515,7 @@ function hilite(te: TERec): void {
 
 function caretRect(te: TERec): Rect {
 	const p = pointOf(te, te.selStart);
-	return { top: p.v, left: p.h - 1, bottom: p.v + te.lineHeight, right: p.h };
+	return { top: p.v, left: p.h - 1, bottom: p.v + lineHeightOf(te, lineOf(te, te.selStart)), right: p.h };
 }
 
 function selectionRects(te: TERec): Rect[] {

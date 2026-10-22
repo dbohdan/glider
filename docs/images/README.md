@@ -46,6 +46,10 @@ Each gallery says how its pictures are laid out.
 
 [![The Room Editor's first room](2026-10-20-room-editor/02-port-first-room-mac-ii.png)](2026-10-20-room-editor/)
 
+**[The help window](2026-10-22-help-window/)**, 22 October 2026: the Room Editor's help, a third-party library written from its disassembly, with styled text, bold, and Geneva 12.
+
+[![The Room Editor's help on a Mac II](2026-10-22-help-window/01-help-mac-ii.png)](2026-10-22-help-window/)
+
 **[Glider for Windows](windows/)**: the 1994 Windows release, for the port's planned Windows look.
 
 [![The House, room 5, in Glider for Windows](windows/room-05-youre-invited.png)](windows/)
