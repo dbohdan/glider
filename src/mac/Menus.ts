@@ -897,6 +897,30 @@ function menuRectFor(menu: MenuInfo, left: Integer, top: Integer): Rect {
 	return { top: t, left: l, bottom: t + menu.menuHeight, right: l + menu.menuWidth };
 }
 
+/**
+ * Where a submenu goes, as System 6.0.8's menu bar definition puts it (MBDF 0's mbRect message, read
+ * in a disassembly): its top at the parent item's, but at least 7 pixels below the menu bar, and
+ * 12 above the screen's bottom; its left 4 pixels inside the parent menu's right edge, or, if it
+ * would not fit 8 pixels inside the screen, 8 pixels inside the parent's left edge and leftward, no
+ * nearer the screen's left than 8. Seen in the oracle: Glider's Controls submenu, from the first
+ * item, comes 7 pixels below it; the Room Editor's, from the second, level with it.
+ */
+function submenuRect(menu: MenuInfo, parent: Rect, itemTop: Integer): Rect {
+	const screen = screenBits.bounds;
+	let top = Math.max(itemTop - 7, screen.top + GetMBarHeight()) + 7;
+	if (top + menu.menuHeight + 12 > screen.bottom) {
+		top = screen.bottom - 12 - menu.menuHeight;
+	}
+	let left = parent.right - 4;
+	if (left + menu.menuWidth + 8 > screen.right) {
+		left = parent.left + 8 - menu.menuWidth;
+		if (left - 8 < screen.left) {
+			left = screen.left + 8;
+		}
+	}
+	return { top, left, bottom: top + menu.menuHeight, right: left + menu.menuWidth };
+}
+
 /** Saves what a menu covers, then draws its frame, shadow, and items. */
 function showMenu(menu: MenuInfo, rect: Rect, parentItem: Integer): ShownMenu {
 	const covered = { top: rect.top - 1, left: rect.left - 1, bottom: rect.bottom + 2, right: rect.right + 2 };
@@ -1035,7 +1059,7 @@ async function trackMenus(): Promise<LongInt> {
 				if (hierItem !== 0 && depth === shown.length - 1 && TickCount() - hierSince >= menuDelay) {
 					const sub = submenuOf(s.menu, hierItem)!;
 					const parent = itemRect(s.rect, hierItem);
-					shown.push(showMenu(sub, menuRectFor(sub, s.rect.right - 4, parent.top + 7), hierItem));
+					shown.push(showMenu(sub, submenuRect(sub, s.rect, parent.top), hierItem));
 					hierItem = 0;
 				}
 			} else if (shown.length > 0) {

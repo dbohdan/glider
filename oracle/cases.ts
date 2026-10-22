@@ -1318,6 +1318,48 @@ cases.editorHelpColor = (dir) => {
 	return run(macII, editorHelpScript('ii'), disk, dir);
 };
 
+/**
+ * Saving and opening again in the Room Editor: a table dragged into room 1, ⌘S, and the house opened
+ * again (⌘O); Special's Controls submenu, its Customize Keys dialog; Auto-Hide, which hides the tool
+ * window while a table is dragged off it; Quit.
+ */
+export function editorSaveScript(kind: 'plus' | 'ii'): Script {
+	const s = new Script().speed(8).traceKeys().traceMouse();
+	const [dh, dv] = kind === 'plus' ? [0, 0] : [64, 69]; // the room's place on the screen
+	const [th, tv] = [(kind === 'plus' ? 512 : 640) - 99, 40]; // the tool window's content
+	openTheHouse(s);
+	drag(s, [th + 21, tv + 71], [120 + dh, 110 + dv]).wait(60);
+	s.press('s', 'command').wait(120).shot('saved');
+	// Open House is for when no house is open: ⌘W closes this one first.
+	s.press('w', 'command').wait(90).shot('closed');
+	s.press('o', 'command').wait(90).shot('openDialog');
+	for (const c of 'the house ') {
+		s.press(c === ' ' ? 'space' : c).wait(3);
+	}
+	s.press('9', 'shift').wait(30).press('return').wait(180).shot('reopened');
+	// Special, then Controls (its second item), across into the submenu, and down to Configure.
+	s.mouse(138, 10).wait(5).button(true).wait(20).mouse(150, 44).wait(20).mouse(260, 44).wait(20).mouse(300, 44).wait(20);
+	s.mouse(300, 124).wait(30).shot('controlsMenu').button(false).wait(60).shot('customizeKeys');
+	s.press('return').wait(60).shot('afterKeys');
+	menuItem(s, 204, 2).wait(30);
+	drag(s, [th + 21, tv + 71], [300 + dh, 100 + dv]).wait(60).shot('autoHidden');
+	s.press('q', 'command').wait(120).shot('quit');
+	return s;
+}
+
+/** The Room Editor's saving on a Mac Plus. */
+cases.editorSave = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macPlus, editorSaveScript('plus'), disk, dir, [':The House (July 1991)']);
+};
+/** The Room Editor's saving on a Mac II. */
+cases.editorSaveColor = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macII, editorSaveScript('ii'), disk, dir, [':The House (July 1991)']);
+};
+
 /** The Room Editor's editing on a Mac Plus. */
 cases.editorEdit = (dir) => {
 	const disk = dir + '.dsk';
