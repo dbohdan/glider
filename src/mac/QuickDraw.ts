@@ -1270,51 +1270,94 @@ export function FillRect(r: Rect, pat: Pattern): void {
 // Ovals
 
 /**
- * How far each row of an oval of width w and height h is inset from the left and right of its
- * rectangle. A row whose inset reaches the middle has edges that meet or cross: empty in an oval,
- * but not in a rounded rectangle, which pulls the edges apart.
- * Port: QuickDraw's oval rule as far as the oracle has pinned it down. In half-pixel units from the
- * center, the outermost pixel of a row is the one whose center (x, y) satisfies
- * x²h² <= w²(h² + 1 - y²), an ellipse slightly taller than the rectangle, with x of the parity that
- * puts it on a pixel center. Ovals one pixel wide or tall are rectangles; ovals two pixels tall lose
- * w div 15 pixels at each end. This matches the ROM for 98.8% of the rows of all ovals up to 70 by 57
- * and for every oval Glider draws. Known differences: the top row of short, wide ovals (3 to 5
- * pixels tall, 16 or more wide) and a row near each end of some tall, narrow ones (8 by 32) come out
- * a pixel wider than the ROM's.
+ * `FixRatio` as InitOval uses it, for numbers not negative: numer / denom as a fixed-point number,
+ * truncated. Port: a denominator of 0 gives the largest positive number.
  */
-function ovalInsets(w: number, h: number): number[] {
-	if (w <= 1 || h <= 1) {
-		return Array.from({ length: Math.max(0, h) }, () => 0);
+function fixRatio(numer: number, denom: number): number {
+	return denom === 0 ? 0x7fffffff : Math.trunc((numer * 65536) / denom);
+}
+
+/** Each row's [left, right) of ovals already worked out, by rectangle size and oval size: they do not depend on the rectangle's place. */
+const ovalRowsMade = new Map<string, [number, number][]>();
+
+/**
+ * The rows of an oval of ovalWidth by ovalHeight in a rectangle: for an oval, its whole rectangle;
+ * for a rounded rectangle, its corners, with the oval's middle row repeated between them. Each row
+ * is [left, right), relative to the rectangle's top left and within it; a row whose ends meet is empty.
+ * Port: QuickDraw's PutOval, InitOval and BumpOval (as Apple's 1984 source of QuickDraw has them,
+ * DrawArc.a and PutOval.a), which work their way down the oval a row at a time. Each row's half
+ * width, k half pixels past the oval's center, grows while (k * ovalHeight / ovalWidth)², in 32.32
+ * fixed point, has an integer part below the row's r² - y², and shrinks while it is above, starting
+ * from the last row's k. So where several k give the same integer part (short, wide ovals), a row
+ * that grows stops at the first of them and one that shrinks at the last: no rule of the row alone
+ * gives the ROM's ovals, which an earlier rule of that kind missed at the ends of their top rows.
+ */
+function ovalRows(width: number, height: number, ovalWidth: number, ovalHeight: number): [number, number][] {
+	const key = `${width},${height},${ovalWidth},${ovalHeight}`;
+	const made = ovalRowsMade.get(key);
+	if (made !== undefined) {
+		return made;
 	}
-	if (h === 2) {
-		const d = Math.trunc(w / 15);
-		return [d, d];
+	// InitOval: the oval's size, pinned between 0 and the rectangle's.
+	const w = Math.min(Math.max(ovalWidth, 0), width);
+	const h = Math.min(Math.max(ovalHeight, 0), height);
+	// The edges in 16.16 fixed point, as numbers (exact well within a double's range).
+	const half = 0x8000;
+	let left = w * half;
+	let right = width * 0x10000 - w * half + half;
+	let ovalY = 1 - h;
+	let rSqYSq = 2 * h - 1;
+	// SQUARE, ODDNUM and ODDBUMP, 64-bit: (height / width)² and its multiples.
+	const ratio = BigInt(fixRatio(h, w));
+	let oddNum = ratio * ratio;
+	const oddBump = 2n * oddNum;
+	let square = 0n;
+	// PutOval works out only the rows of the corners: from the oval's top through half its height,
+	// and its last rows; the middle rows keep the middle's edges. (It reads the height as given.)
+	const skipTop = ovalHeight >> 1;
+	const skipBot = skipTop + height - ovalHeight;
+	const rows: [number, number][] = [];
+	for (let v = 0; v < height; v++) {
+		if (v < skipTop || v >= skipBot) {
+			// BumpOval.
+			const y = ovalY;
+			ovalY += 2;
+			const r = BigInt(rSqYSq);
+			while (square >> 32n < r) {
+				right += half;
+				left -= half;
+				square += oddNum;
+				oddNum += oddBump;
+			}
+			while (square >> 32n > r) {
+				right -= half;
+				left += half;
+				oddNum -= oddBump;
+				square -= oddNum;
+			}
+			rSqYSq -= 4 * (y + 1);
+		}
+		// DrawArc draws each row clipped to the rectangle: the rows of ovals one pixel tall reach a
+		// pixel past it at each end (the ratio's truncation keeps (k * h / w)² just under 1 at k = w).
+		rows.push([Math.max(0, Math.floor(left / 0x10000)), Math.min(width, Math.floor(right / 0x10000))]);
 	}
-	const insets: number[] = [];
-	for (let i = 0; i < h; i++) {
-		const y = 2 * i + 1 - h;
-		const limit = w * w * (h * h + 1 - y * y);
-		let x = Math.floor(Math.sqrt(limit) / h);
-		while (x > 0 && x * x * h * h > limit) {
-			x--;
-		}
-		while ((x + 1) * (x + 1) * h * h <= limit) {
-			x++;
-		}
-		if ((x - (w - 1)) % 2 !== 0) {
-			x--;
-		}
-		insets.push((w - 1 - x) / 2);
-	}
-	return insets;
+	ovalRowsMade.set(key, rows);
+	return rows;
 }
 
 /** The region of an oval inscribed in a rectangle. */
 export function ovalRegion(r: Rect): Region {
+	const width = r.right - r.left;
+	const height = r.bottom - r.top;
+	return rowsRegion(r, ovalRows(width, height, width, height));
+}
+
+/** A region of rows [left, right) relative to a rectangle's top left. */
+function rowsRegion(r: Rect, rows: [number, number][]): Region {
 	const bands: Band[] = [];
-	ovalInsets(r.right - r.left, r.bottom - r.top).forEach((d, i) => {
-		if (r.left + d < r.right - d) {
-			bands.push({ top: r.top + i, bottom: r.top + i + 1, xs: [r.left + d, r.right - d] });
+	rows.forEach(([left, right], i) => {
+		if (left < right) {
+			bands.push({ top: r.top + i, bottom: r.top + i + 1, xs: [r.left + left, r.left + right] });
 		}
 	});
 	return new Region().set(bands);
@@ -1358,26 +1401,9 @@ export function FillOval(r: Rect, pat: Pattern): void {
 // ---------------------------------------------------------------------------------------------
 // Rounded rectangles
 
-/**
- * A rounded rectangle: the corner oval's rows, with its edges pulled apart to the rectangle's width
- * and its middle row repeated to the rectangle's height.
- */
+/** A rounded rectangle: the corner oval's rows, pulled apart to the rectangle's width (PutOval). */
 function roundRectRegion(r: Rect, ovalWidth: number, ovalHeight: number): Region {
-	const width = Math.min(ovalWidth, r.right - r.left);
-	const height = Math.min(ovalHeight, r.bottom - r.top);
-	const insets = width <= 0 || height <= 0 ? [0] : ovalInsets(width, height);
-	const mid = Math.trunc(insets.length / 2);
-	const bands: Band[] = [];
-	for (let v = r.top; v < r.bottom; v++) {
-		const fromTop = v - r.top;
-		const fromBottom = r.bottom - 1 - v;
-		const k = fromTop < mid ? fromTop : fromBottom < insets.length - 1 - mid ? insets.length - 1 - fromBottom : mid;
-		const d = insets[k]!;
-		if (r.left + d < r.right - d) {
-			bands.push({ top: v, bottom: v + 1, xs: [r.left + d, r.right - d] });
-		}
-	}
-	return new Region().set(bands);
+	return rowsRegion(r, ovalRows(r.right - r.left, r.bottom - r.top, ovalWidth, ovalHeight));
 }
 
 export function StdRRect(verb: GrafVerb, r: Rect, ovalWidth: Integer, ovalHeight: Integer): void {

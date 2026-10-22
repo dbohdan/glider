@@ -151,8 +151,12 @@ function lineBreaks(text: Uint8Array, width: number, crOnly: boolean): number[] 
 				end++;
 				break;
 			}
+			// A line that reaches the rectangle's width goes back to its last word break; a word
+			// with none before it breaks only past the width. Seen in the oracle, in Chicago 12 at
+			// widths equal to their boxes: Glider's Configure puts "key." of "controlling key." (103
+			// pixels in 103) on the next line; the Room Editor's Go To Room keeps "rooms." (45 in 45).
 			const cw = TextWidth(text, end, 1);
-			if (!crOnly && w + cw > width && ch !== 0x20) {
+			if (!crOnly && w + cw >= width && ch !== 0x20 && (lastBreak > start || w + cw > width)) {
 				if (lastBreak > start) {
 					end = lastBreak;
 				} else if (end === start) {
@@ -178,7 +182,7 @@ function lineBreaks(text: Uint8Array, width: number, crOnly: boolean): number[] 
 /** Pascal `TECalText`: recalculates where lines start. */
 export function TECalText(te: TERec): void {
 	inPort(te, () => {
-		const starts = lineBreaks(te.hText.data, te.destRect.right - te.destRect.left - textInset, te.crOnly < 0);
+		const starts = lineBreaks(te.hText.data, te.destRect.right - te.destRect.left, te.crOnly < 0);
 		te.lineStarts = starts.length > 1 ? starts : [0, 0];
 	});
 }

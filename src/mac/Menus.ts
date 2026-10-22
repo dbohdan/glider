@@ -12,6 +12,7 @@ import { macRomanCode } from './MacRoman.ts';
 import { GetMainDevice } from './Color.ts';
 import { onDepthChange } from './Devices.ts';
 import { getHost, mouse, TickCount, tickTime } from './OS.ts';
+import { WaitMouseUp } from './Events.ts';
 import { bytesAt, DisposPtr, NewPtr } from './Memory.ts';
 import {
 	black,
@@ -1046,7 +1047,10 @@ async function trackMenus(): Promise<LongInt> {
 				hierItem = 0;
 			}
 		}
-		if (!mouse.button) {
+		// WaitMouseUp takes the mouse-up event as the button comes up, so the program never sees it.
+		// Seen in the oracle: after the Room Editor's Edit menu is let go with nothing chosen, its
+		// WaitNextEvent sleeps its 4 ticks rather than returning a mouse-up.
+		if (!WaitMouseUp()) {
 			break;
 		}
 		await getHost().sleep(tickTime(TickCount() + 1));

@@ -1,7 +1,7 @@
 // The game cases: the oracle's scripts (oracle/cases.ts) that the port replays, on each machine, with
 // the houses they play.
 
-import { blackAndWhiteScript, editorNewHouseScript, editorTryGliderScript, handsOffHouse, handsOffScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { blackAndWhiteScript, editorNewHouseScript, editorTourScript, editorTryGliderScript, handsOffHouse, handsOffScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 import type { Program } from './harness.ts';
@@ -18,6 +18,8 @@ export interface Case {
 	launchTick?: number;
 	/** The program the case runs; Glider by default. */
 	program?: Program;
+	/** Bundled files on the disk beside those every case of the program has. */
+	extraFiles?: string[];
 }
 
 /** A case on both machines: `name` on the Mac Plus, `nameColor` on the Mac II. */
@@ -67,4 +69,6 @@ export const gameCases: [MachineKind, Case][] = [
 	// Try Glider leaves the glider's every frame on the screen, as the original does: it never puts the background back.
 	['plus', { caseName: 'editorTryGlider', makeScript: () => editorTryGliderScript('plus'), what: "the Room Editor's Try Glider flies", program: 'editor' }],
 	['ii', { caseName: 'editorTryGliderColor', makeScript: () => editorTryGliderScript('ii'), what: "the Room Editor's Try Glider flies", program: 'editor' }],
+	['plus', { caseName: 'editorTour', makeScript: () => editorTourScript('plus'), what: "the Room Editor's rooms, dialogs and menus look", program: 'editor', extraFiles: ['The House (July 1991)'] }],
+	['ii', { caseName: 'editorTourColor', makeScript: () => editorTourScript('ii'), what: "the Room Editor's rooms, dialogs and menus look", program: 'editor', extraFiles: ['The House (July 1991)'] }],
 ];

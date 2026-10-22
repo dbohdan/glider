@@ -68,10 +68,6 @@ function lines(seed: number, pen: [number, number]): Uint8Array {
  * Tests fail when the count changes, so that a fix (or a regression) gets noticed.
  */
 export const knownDifferences: Record<string, number> = {
-	// The top rows of short, wide ovals; see ovalRegion.
-	ovals: 2,
-	bigOvals: 5,
-	roundRects: 4,
 	// Arithmetic modes other than transparent: colors matched through the ROM's inverse table.
 	'ii-colorArithmeticModes': 2304,
 };

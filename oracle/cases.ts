@@ -1154,3 +1154,62 @@ cases.handsOffSlowColor = (dir) => {
 	makeDisk(disk, gameFiles(handsOffHouse()), 'Glider 4.06');
 	return run(macII, handsOffScript(300, 60 * 60 * 15, false), disk, dir);
 };
+
+/**
+ * The Room Editor's disk: Glider's files as the game cases have them (the port's art and houses), the
+ * source release's unlocked working copy of The House, which the editor will open, and the editor.
+ */
+function editorDisk(disk: string): void {
+	const july = bundledFiles().find((f) => f.name === 'The House (July 1991)')!;
+	makeDisk(disk, [...gameFiles(), july, roomEditor104()], 'Room Editor', 8, 'root');
+}
+
+/** Pulls down a menu by its title's place and chooses an item (16 pixels each, from the bar's 20). */
+function menuItem(s: Script, title: number, item: number): Script {
+	return s.mouse(title, 10).wait(5).button(true).wait(20).mouse(title + 10, 12 + 16 * item).wait(20).button(false).wait(10);
+}
+
+/**
+ * A tour of the Room Editor with The House (July 1991): opening it, rooms, each dialog (each closed
+ * with Return), an object selected, the Edit menu, the About box, and Quit.
+ */
+export function editorTourScript(kind: 'plus' | 'ii'): Script {
+	// The Mac II's ADB mouse gives the button when the bus polls it, which decides how many of the
+	// editor's 6-tick main-loop passes (and so marquee steps) fall between the menus.
+	const s = new Script().speed(8).traceKeys().traceMouse();
+	const [dh, dv] = kind === 'plus' ? [0, 0] : [64, 69]; // the room's place on the screen
+	s.until(900);
+	// Standard File selects the file whose name begins with what is typed: "the house (".
+	for (const c of 'the house ') {
+		s.press(c === ' ' ? 'space' : c).wait(3);
+	}
+	s.press('9', 'shift');
+	s.wait(30).shot('selected').press('return').wait(180).shot('room1');
+	s.press('2', 'command').wait(120).shot('room2');
+	s.press('2', 'command').wait(120).shot('room3');
+	s.press('1', 'command').wait(120).shot('room2again');
+	s.press('1', 'command').wait(120);
+	s.click(338 + dh, 208 + dv).wait(60).shot('objectSelected');
+	s.press('i', 'command').wait(60).shot('objectInfo').press('return').wait(60).shot('afterObjectInfo');
+	s.press('r', 'command').wait(60).shot('background').press('return').wait(60);
+	menuItem(s, 204, 4).wait(60).shot('houseInfo').press('return').wait(60);
+	menuItem(s, 204, 6).wait(60).shot('roomCondition').press('return').wait(60);
+	menuItem(s, 138, 5).wait(60).shot('goToRoom').press('return').wait(90).shot('afterGoTo');
+	s.mouse(90, 10).wait(5).button(true).wait(30).shot('editMenu').mouse(90, 300).wait(10).button(false).wait(30);
+	menuItem(s, 20, 1).wait(60).shot('about').press('return').wait(60);
+	s.press('q', 'command').wait(120).shot('quit');
+	return s;
+}
+
+/** The Room Editor's tour on a Mac Plus. */
+cases.editorTour = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macPlus, editorTourScript('plus'), disk, dir);
+};
+/** The Room Editor's tour on a Mac II. */
+cases.editorTourColor = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macII, editorTourScript('ii'), disk, dir);
+};

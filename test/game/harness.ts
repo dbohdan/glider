@@ -89,9 +89,9 @@ const programs: Record<Program, { application: string; main: () => Promise<void>
  * screenshots on the host before running. `launchTick` is when Glider starts, as on a Mac that took
  * that long to start up; `house` replaces The House.
  */
-export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array, program: Program = 'glider'): GameRun {
+export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array, program: Program = 'glider', extraFiles: string[] = []): GameRun {
 	const volume = new Volume('Glider');
-	for (const f of bundledFiles().filter((f) => programs[program].files.has(f.name))) {
+	for (const f of bundledFiles().filter((f) => programs[program].files.has(f.name) || extraFiles.includes(f.name))) {
 		volume.put(f.name === 'The House' && house !== undefined ? { ...f, data: house } : f);
 	}
 	const host = new GameHost();

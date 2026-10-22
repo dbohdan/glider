@@ -23,7 +23,7 @@ if ('fourChannelsSaved' in job) {
 	parentPort!.postMessage(G.is4Channel);
 } else if ('index' in job) {
 	const [kind, c] = gameCases[job.index]!;
-	const run = bootGlider(kind, c.launchTick ?? 0, c.house?.(), c.program);
+	const run = bootGlider(kind, c.launchTick ?? 0, c.house?.(), c.program, c.extraFiles);
 	const script = c.makeScript();
 	const { shots, end } = replay(run, script, oracleTrace(oracleOutput(c.caseName), script, kind));
 	await runGlider(run, end + 1);

@@ -287,13 +287,14 @@ function withOwnerPort(c: ControlRecord, draw: () => void): void {
 	SetPort(save);
 }
 
-/** Pascal `DrawControls`: draws all of a window's visible controls, the last created first. */
+/**
+ * Pascal `DrawControls`: draws all of a window's visible controls, the last created first, down
+ * the control list, so that where they overlap the earliest are in front (Inside Macintosh I-322).
+ * Seen in the oracle: the Room Editor's Room Condition radio buttons overlap by 3 pixels, and the
+ * "g" of "Nothing" (item 6) stays over "Balloons" (item 7), whose erase would take its descender.
+ */
 export function DrawControls(theWindow: WindowRecord): void {
-	const all: ControlRecord[] = [];
 	for (let c = theWindow.controlList; c !== null; c = c.nextControl) {
-		all.push(c);
-	}
-	for (const c of all.reverse()) {
 		Draw1Control(c);
 	}
 }

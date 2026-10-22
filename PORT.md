@@ -214,9 +214,9 @@ do {
   - Not needed: a rebuilt 4.05. Where 4.06 differs, the oracle's copy gets 4.05's code instead (`switches405`); the Room Editor 1.04 likewise, if its switches ever show.
 - [x] **3. QuickDraw, black and white:** rectangles, regions, patterns, pen, lines, shapes, `CopyBits`, `CopyMask`, text, PICT playback.
   - [x] Picture oracle: test pictures drawn by the ROM and by the port, compared pixel by pixel (`test/quickdraw/`).
-  - [x] Rectangles, regions, patterns, pattern modes, lines, ovals (known gaps), rounded rectangles, polygons, region recording from lines, 1-bit `CopyBits` in `srcCopy`, `DrawPicture` for these.
+  - [x] Rectangles, regions, patterns, pattern modes, lines, ovals, rounded rectangles, polygons, region recording from lines, 1-bit `CopyBits` in `srcCopy`, `DrawPicture` for these.
   - [x] Text, `CopyMask` (with the Mac Plus ROM's word quirk and stretching), and the `CopyBits` modes and stretching Glider and the editor use, through their oracle cases.
-  - Left as known gaps, which neither program meets: arcs, the other `CopyBits` modes, the top rows of some short, wide ovals.
+  - Left as known gaps, which neither program meets: arcs, the other `CopyBits` modes.
 - [x] **4. Color QuickDraw:** 4-bit pixel maps, color tables, inverse tables, fore and back colors, colorizing, arithmetic modes used by Glider.
   - [x] Color ports, 4-bit pixel maps, the standard color table, RGB fore and back colors, pattern and text modes in color, transparent mode, version 2 pictures with pixel maps, `CopyBits` between depths and color tables.
   - [x] Pixel patterns (`ppat`, the desktop's), color icons (`cicn`, the editor's tools), color cursors, the Palette Manager as far as Glider uses it.
@@ -285,7 +285,6 @@ do {
 
 ## Open questions
 
-- The exact oval rule (see the journal): the original QuickDraw source (Computer History Museum, 2010) is under a non-commercial license, so it could only be read for the algorithm, not copied; not consulted so far.
 - Exact Color QuickDraw behavior for: inverse table matching, arithmetic modes other than transparent on regions that are not rectangles.
 - Effective device color table after the Palette Manager applies `pltt` 128.
 - Initial values of uninitialized Pascal globals; `Globals.ts` starts them at zero. The one that shows, `is4Channel` (the preference Glider writes instead of reading), is zero in the oracle on both machines: Sound Settings opens on 2-Channel at first.
@@ -344,11 +343,9 @@ Findings, all checked pixel by pixel against the Mac Plus ROM:
 - **Lines:** taken from top to bottom; along the major axis the minor coordinate steps after `(k + 1/2) * major / minor` pixels, a 16.16 number truncated for shallow lines and rounded up for steep lines and diagonals, and a pixel exactly at a step counts before it except on shallow lines going left.
   Thick pens spread each pixel of the one-pixel line over the pen rectangle.
 - **Region recording and polygons:** a non-horizontal edge splits each scan line at the leftmost pixel of the drawn line on the next scan line (going right) or the same scan line (going left); horizontal edges add nothing.
-- **Ovals:** a pixel is inside when its center satisfies `x²h² <= w²(h² + 1 - y²)` in half-pixel units, with special cases for ovals one or two pixels tall.
-  This matches 98.8% of rows and every size Glider draws; the top row of short, wide ovals and a row near the ends of some tall, narrow ones differ by a pixel.
-  The Mac Plus and the Mac II draw ovals identically. Executor's oval code (2019 and 2020) does not match either.
-  The exact rule probably needs the original algorithm (an incremental square-root scan, judging by the asymmetries); see open questions.
-- **Rounded rectangles** stretch the corner oval's edges, not its region: rows where a narrow corner oval's edges cross are empty in the oval but not in the rounded rectangle.
+- **Ovals:** QuickDraw's own incremental algorithm (InitOval, BumpOval, PutOval and DrawArc in Apple's 1984 QuickDraw source, read for the algorithm; the Mac Plus ROM's InitOval and BumpOval are the same code). Each row's half width grows or shrinks from the last row's until a 32.32 square's integer part meets the row's, so rows depend on the rows above them; and each row is clipped to the rectangle.
+  Matches the ROM for every oval and rounded rectangle in the test pictures. A rule of the row alone (`x²h² <= w²(h² + 1 - y²)`, used before) matched 98.8% of rows. The Mac Plus and the Mac II draw ovals identically. Executor's oval code (2019 and 2020) does not match either.
+- **Rounded rectangles** are the same algorithm with the corner oval's middle row repeated: rows where a narrow corner oval's edges cross are empty in the oval but not in the rounded rectangle.
 - Glider's title picture and all 13 black-and-white backgrounds draw identically to the ROM.
 
 Color QuickDraw, checked against the Mac II ROM the same way (Glider's color title is drawn into a 4-bit offscreen pixel map):
@@ -658,3 +655,11 @@ The port's SMS (`src/mac/SMS.ts`) runs the VBL task once a tick, catching up to 
 ### 2026-10-21 (a bundled house the player changes)
 
 - The browser kept only the high scores of a bundled house, so rooms changed in the Room Editor in an unlocked one (The House (July 1991), the Glass Houses, Hands-off House, House Full of Stuff 2) were gone on the next visit. A bundled house that differs from the game's copy in more than its scores (`onlyScoresChanged`) is now the player's, kept whole, exported whole, and imported whole; one only played is still kept as its scores, so an update to the game's copy shows. Reset Preferences and Scores… gives a changed house the scores it came with and keeps its rooms. Tested across page loads (`test/platform/storage.test.ts`).
+
+### 2026-10-22 (a tour of the Room Editor, and QuickDraw's own ovals)
+
+- A new case tours the Room Editor with The House (July 1991) on both Macs (`editorTour`, `editorTourColor`): the file chosen by typing its name in Standard File, rooms by ⌘1 and ⌘2, an object selected, Object Info, Background, House Info, Room Condition, Go To Room, the Edit menu held open, the About box, and Quit with its save alert. Every dialog closes with Return. Four things differed.
+- Room Condition's radio buttons overlap by three pixels, and the original keeps the descender of "Nothing"'s g over "Balloons". DrawControls draws the control list from its head, the newest control first, so the earliest end up in front (Inside Macintosh I-322); the port's comment said so, but its loop went the other way.
+- Go To Room keeps "rooms." (45 pixels of Chicago 12) on its line in a 45-pixel box, while Glider's Configure puts "key." of "controlling key." (103 in 103) on the next line. Breaking at the full width fixed the first and broke the second. The rule that fits both: a line that reaches the box's width goes back to its last word break; a word with no break before it breaks only past the width.
+- The shadow under room 3's table, a short, wide oval, had a pixel wrong at the ends of a row: the known gap in the port's oval rule, fitted to measurements in 2026-10. Apple's 1984 QuickDraw source (Computer History Museum) has the algorithm: InitOval and BumpOval work down the oval a row at a time, each row's half width growing or shrinking from the last row's until the integer part of a 32.32 square meets the row's. Where several widths share that integer part, a growing row stops at the first and a shrinking one at the last, which no rule of the row alone can give. The Mac Plus ROM's InitOval and BumpOval are the source's code byte for byte. Painting goes through DrawArc, which clips each row to the rectangle; without the clip, ovals one pixel tall came out a pixel too wide at each end, since the ratio's truncation leaves (k·h/w)² just under 1 at k = w. Written from the algorithm, the port's ovals and rounded rectangles now match the ROM's in every test picture, and the known differences for them are gone. The source's license is non-commercial: it was read, not copied, and stays out of the repository.
+- On the Mac II the marquee around the selected clock was a step off in the last screenshot, behind the Quit alert. The marquee steps once a main-loop pass (WaitNextEvent's 4-tick sleep and DoMarquee's Delay(2), 6 ticks idle), so its phase counts passes. Screenshots every tick after the About box, then the original's traps from the Edit menu on, showed one pass too many in the port: after the Edit menu is let go with nothing chosen, the original's WaitNextEvent sleeps, while the port's returned the button's mouse-up event at once. MenuSelect tracks the button with WaitMouseUp, which takes the mouse-up event from the queue; the port's only looked at the button. (The traps also showed that the original, like the port, reports the tool window's activate event before the main window's update.) The tour now traces the Mac II's mouse too, as the other mouse cases do.
