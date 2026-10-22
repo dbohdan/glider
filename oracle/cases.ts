@@ -1201,6 +1201,57 @@ export function editorTourScript(kind: 'plus' | 'ii'): Script {
 	return s;
 }
 
+/** Opens The House (July 1991) from the Room Editor's Standard File, by typing "the house (". */
+function openTheHouse(s: Script): Script {
+	s.until(900);
+	for (const c of 'the house ') {
+		s.press(c === ' ' ? 'space' : c).wait(3);
+	}
+	return s.press('9', 'shift').wait(30).press('return').wait(180);
+}
+
+/** Drags with the button down from one point to another, in steps of 3 ticks. */
+function drag(s: Script, from: [number, number], to: [number, number], steps = 8): Script {
+	s.mouse(...from).wait(5).button(true).wait(10);
+	for (let i = 1; i <= steps; i++) {
+		s.mouse(Math.round(from[0] + ((to[0] - from[0]) * i) / steps), Math.round(from[1] + ((to[1] - from[1]) * i) / steps)).wait(3);
+	}
+	return s.wait(10).button(false);
+}
+
+/**
+ * Editing a room of The House (July 1991): a table dragged off the tool window into room 1, dragged
+ * along, copied and pasted, deleted; another set of tools; a new room, which a full house refuses; Quit.
+ */
+export function editorEditScript(kind: 'plus' | 'ii'): Script {
+	const s = new Script().speed(8).traceKeys().traceMouse();
+	const [dh, dv] = kind === 'plus' ? [0, 0] : [64, 69]; // the room's place on the screen
+	const [th, tv] = [(kind === 'plus' ? 512 : 640) - 99, 40]; // the tool window's content
+	openTheHouse(s).shot('room1');
+	drag(s, [th + 21, tv + 71], [120 + dh, 110 + dv]).wait(60).shot('placed');
+	drag(s, [120 + dh, 110 + dv], [160 + dh, 90 + dv]).wait(60).shot('moved');
+	s.press('c', 'command').wait(30).press('v', 'command').wait(60).shot('pasted');
+	s.press('delete').wait(60).shot('cleared');
+	s.click(th + 39, tv + 14).wait(60).shot('toolSet');
+	// The house has its 40 rooms already: an alert says so.
+	s.press('k', 'command').wait(120).shot('newRoom').press('return').wait(60);
+	s.press('q', 'command').wait(120).shot('quit');
+	return s;
+}
+
+/** The Room Editor's editing on a Mac Plus. */
+cases.editorEdit = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macPlus, editorEditScript('plus'), disk, dir);
+};
+/** The Room Editor's editing on a Mac II. */
+cases.editorEditColor = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macII, editorEditScript('ii'), disk, dir);
+};
+
 /** The Room Editor's tour on a Mac Plus. */
 cases.editorTour = (dir) => {
 	const disk = dir + '.dsk';
