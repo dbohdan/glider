@@ -145,8 +145,9 @@ function FindPart(varCode: Integer, w: WindowRecord, pt: Point): Integer {
 
 function BuildRegions(w: WindowRecord, varCode: Integer): void {
 	// Port: the content in global coordinates, from portRect and portBits.bounds. (The code reads
-	// the bounds at the port's offset 8, which in a color port is grafVars; not yet measured how the
-	// Mac II's tool window, a color window, comes out right.)
+	// the bounds at the port's offset 8, which in a color port is grafVars; how the Mac II's tool
+	// window, a color window, comes out right is not known, but it does: a RAM dump of the window
+	// list in `editorWindowsColor` has exactly these regions.)
 	const r = { ...w.portRect };
 	OffsetRect(r, -w.portBits.bounds.left, -w.portBits.bounds.top);
 	RectRgn(w.contRgn, r);

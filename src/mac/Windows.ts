@@ -8,7 +8,7 @@
 
 import { GetMainDevice } from './Color.ts';
 import { clearDepthChangeHooks, onDepthChange } from './Devices.ts';
-import { activateEvt, type EventRecord, setWindowEventSource, updateEvt } from './Events.ts';
+import { activateEvt, type EventRecord, setWindowEventSource, updateEvt, WaitMouseUp } from './Events.ts';
 import { addressOf, forgetAddress, objectAt } from './Memory.ts';
 import { DrawPicture, type Picture } from './Picture.ts';
 import {
@@ -694,20 +694,28 @@ export function HiliteWindow(w: WindowRecord | null, fHilite: boolean): void {
 }
 
 /** Pascal `BringToFront`: moves a window to the front without changing its highlighting. */
-export function BringToFront(w: WindowRecord): void {
+/** Puts a window at the front of the window list, drawing nothing; false if it was there already. */
+function relinkToFront(w: WindowRecord): boolean {
 	if (windowList === w) {
-		return;
+		return false;
 	}
 	let t = windowList;
 	while (t !== null && t.nextWindow !== w) {
 		t = t.nextWindow;
 	}
 	if (t === null) {
-		return;
+		return false;
 	}
 	t.nextWindow = w.nextWindow;
 	w.nextWindow = windowList;
 	windowList = w;
+	return true;
+}
+
+export function BringToFront(w: WindowRecord): void {
+	if (!relinkToFront(w)) {
+		return;
+	}
 	if (w.visible) {
 		withDrawingPort(() => {
 			SetClip(grayRgn);
@@ -730,6 +738,16 @@ export function SelectWindow(w: WindowRecord): void {
 		curActivate = w;
 	}
 	BringToFront(w);
+	HiliteWindow(w, true);
+}
+
+/** The front window changes from active to w: their highlighting, and the activate events to come. */
+function activate(active: WindowRecord | null, w: WindowRecord): void {
+	if (active !== w) {
+		HiliteWindow(active, false);
+		curDeactive = active;
+		curActivate = w;
+	}
 	HiliteWindow(w, true);
 }
 
@@ -880,11 +898,21 @@ export function GetWindowPic(w: WindowRecord): Picture | null {
 // ---------------------------------------------------------------------------------------------
 // Moving and sizing
 
-/** Pascal `MoveWindow`: moves a window's top left corner to (hGlobal, vGlobal), copying its pixels. */
+/**
+ * Pascal `MoveWindow`: moves a window's top left corner to (hGlobal, vGlobal), copying its pixels.
+ * With front, a window behind others comes to the front as it moves: its pixels are taken from where
+ * they showed and put down above all the others, and only what was not on the screen is drawn again.
+ * Seen in the oracle (the Mac II ROM, traced and disassembled; `editorWindows`): DragWindow moves a
+ * window with front unless Command is down, and MoveWindow then highlights it and its pixels cover
+ * even the parts of the windows above it that their definitions never draw (the Room Editor's tool
+ * window's shadow corner), which bringing it forward after the move would have erased.
+ */
 export function MoveWindow(w: WindowRecord, hGlobal: Integer, vGlobal: Integer, front: boolean): void {
 	const save = thePort;
 	const dh = hGlobal + w.portBits.bounds.left - w.portRect.left;
 	const dv = vGlobal + w.portBits.bounds.top - w.portRect.top;
+	const oldFront = FrontWindow();
+	const toFront = front && oldFront !== w;
 	let movePart: Region | null = null;
 	let behindPart: Region | null = null;
 	if (w.visible) {
@@ -894,12 +922,19 @@ export function MoveWindow(w: WindowRecord, hGlobal: Integer, vGlobal: Integer, 
 		movePart = new Region();
 		SectRgn(thePort.clipRgn, w.strucRgn, movePart);
 		behindPart = copyOf(movePart);
+		if (toFront) {
+			relinkToFront(w);
+		}
 		const from = w.strucRgn.rgnBBox;
 		const to = { top: from.top + dv, left: from.left + dh, bottom: from.bottom + dv, right: from.right + dh };
 		OffsetRgn(movePart, dh, dv);
+		ClipRect(screenBits.bounds);
+		clipAbove(w);
 		SectRgn(movePart, thePort.clipRgn, movePart);
 		ClipRect(screenBits.bounds);
 		CopyBits(thePort.portBits, thePort.portBits, from, to, srcCopy, movePart);
+	} else if (toFront) {
+		relinkToFront(w);
 	}
 	OffsetRgn(w.strucRgn, dh, dv);
 	OffsetRgn(w.contRgn, dh, dv);
@@ -914,16 +949,19 @@ export function MoveWindow(w: WindowRecord, hGlobal: Integer, vGlobal: Integer, 
 		SectRgn(thePort.clipRgn, updatePart, updatePart);
 		DiffRgn(behindPart, movePart, behindPart);
 		DiffRgn(behindPart, updatePart, behindPart);
-		PaintOne(w, updatePart);
 		PaintBehind(w.nextWindow, behindPart);
+		if (toFront) {
+			CalcVisBehind(w, copyOf(grayRgn));
+			activate(oldFront, w);
+		}
+		PaintOne(w, updatePart);
 		CalcVisBehind(w, updatePart);
 		if (w.nextWindow !== null) {
 			CalcVisBehind(w.nextWindow, behindPart);
 			CalcVisBehind(w.nextWindow, movePart);
 		}
-	}
-	if (front) {
-		SelectWindow(w);
+	} else if (toFront) {
+		activate(oldFront, w);
 	}
 	SetPort(save);
 }
@@ -1395,13 +1433,24 @@ function pinned(pt: Point, r: Rect): Point {
 	return { v: Math.min(Math.max(pt.v, r.top), r.bottom - 1), h: Math.min(Math.max(pt.h, r.left), r.right - 1) };
 }
 
+/** A pattern moved so that its top left is at (h, v) rather than at the port's origin. */
+function patternFrom(pat: Pattern, h: Integer, v: Integer): Pattern {
+	return Array.from({ length: 8 }, (_, y) => {
+		const row = pat[(y - v) & 7]!;
+		const by = h & 7;
+		return ((row >> by) | (row << (8 - by))) & 0xff;
+	});
+}
+
 /**
  * Pascal `DragGrayRgn`: drags a gray outline of a region (in global coordinates) in the Window
  * Manager's port while the button is down. The mouse is pinned into limitRect; outside slopRect the
  * outline goes away. Returns how far the mouse moved, the vertical distance in the high word, or
  * $80008000 if it ended outside slopRect.
- * Port: drawn as Inside Macintosh I describes it (the frame of the region in the gray DragPattern,
- * pattern mode XOR, clipped to the gray region); the outline's pixels are not yet measured.
+ * Port: drawn as Inside Macintosh I describes it: the frame of the region in the gray DragPattern,
+ * pattern mode XOR, clipped to the gray region. The pattern starts at the outline's top left, so its
+ * gray moves with it: seen in the oracle, where the Room Editor's tool window and room window
+ * (`editorWindows`) have their outlines' gray dots one pixel off the screen's gray.
  */
 export async function DragGrayRgn(theRgn: Region, startPt: Point, limitRect: Rect, slopRect: Rect, axis: Integer, actionProc: (() => void) | null): Promise<LongInt> {
 	const outline = copyOf(theRgn);
@@ -1411,9 +1460,9 @@ export async function DragGrayRgn(theRgn: Region, startPt: Point, limitRect: Rec
 			const clip = copyOf(thePort.clipRgn);
 			SetClip(GetGrayRgn());
 			PenNormal();
-			PenPat(gray);
-			PenMode(patXor);
 			OffsetRgn(outline, at.h - startPt.h, at.v - startPt.v);
+			PenPat(patternFrom(gray, outline.rgnBBox.left, outline.rgnBBox.top));
+			PenMode(patXor);
 			FrameRgn(outline);
 			OffsetRgn(outline, startPt.h - at.h, startPt.v - at.v);
 			PenNormal();
@@ -1457,21 +1506,27 @@ export async function DragGrayRgn(theRgn: Region, startPt: Point, limitRect: Rec
 
 /**
  * Pascal `DragWindow`: drags a window's outline (DragGrayRgn) and moves the window where the button
- * comes up, within boundsRect. A window that is not active becomes active, unless the Command key
- * was down.
- * Port: the order of the move and the activation is Inside Macintosh's, not measured.
+ * comes up, within boundsRect but below the menu bar. Port: as the Mac II ROM's code has it, read in
+ * a disassembly, rather than as Inside Macintosh puts it: nothing happens if the button is up
+ * already; a window that did not move is selected, unless Command is down; one that moved goes
+ * where it was dragged and, unless Command is down, to the front (MoveWindow's front), not selected.
  */
 export async function DragWindow(w: WindowRecord, startPt: Point, boundsRect: Rect): Promise<void> {
+	if (!WaitMouseUp()) {
+		return;
+	}
+	const limit = { ...boundsRect, top: Math.max(boundsRect.top, mBarHeight + 4) };
 	const commandDown = (currentModifiers() & cmdKeyBit) !== 0;
-	const moved = await DragGrayRgn(w.strucRgn, startPt, boundsRect, boundsRect, 0, null);
-	if (moved !== (0x80008000 | 0) && moved !== 0) {
+	const moved = await DragGrayRgn(copyOf(w.strucRgn), startPt, limit, limit, 0, null);
+	if (moved === 0) {
+		if (!commandDown) {
+			SelectWindow(w);
+		}
+	} else if ((moved & 0xffff) !== 0x8000) {
 		const dv = moved >> 16;
 		const dh = (moved << 16) >> 16;
 		const content = w.contRgn.rgnBBox;
-		MoveWindow(w, content.left + dh, content.top + dv, false);
-	}
-	if (!commandDown && w !== FrontWindow()) {
-		SelectWindow(w);
+		MoveWindow(w, content.left + dh, content.top + dv, !commandDown);
 	}
 }
 

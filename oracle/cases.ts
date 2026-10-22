@@ -1239,6 +1239,49 @@ export function editorEditScript(kind: 'plus' | 'ii'): Script {
 	return s;
 }
 
+/**
+ * The Room Editor's windows: the tool window dragged by its bar (a screenshot with the button held,
+ * for DragGrayRgn's outline), its close box held and let go, the tool window shown again (⌘T), and on
+ * the Mac II the room's window dragged by its title bar.
+ */
+export function editorWindowsScript(kind: 'plus' | 'ii'): Script {
+	const s = new Script().speed(8).traceKeys().traceMouse();
+	const [th, tv] = [(kind === 'plus' ? 512 : 640) - 99, 40]; // the tool window's content
+	openTheHouse(s).shot('room1');
+	// The bar is the 10 pixels above the content; its close box is 8 to 15 pixels along it.
+	const bar: [number, number] = [th + 40, tv - 5];
+	const to: [number, number] = [bar[0] - 120, bar[1] + 60];
+	s.mouse(...bar).wait(5).button(true).wait(10);
+	for (let i = 1; i <= 8; i++) {
+		s.mouse(Math.round(bar[0] + ((to[0] - bar[0]) * i) / 8), Math.round(bar[1] + ((to[1] - bar[1]) * i) / 8)).wait(3);
+	}
+	s.wait(20).shot('dragging').button(false).wait(60).shot('toolMoved');
+	const close: [number, number] = [th + 10 - 120, tv - 6 + 60];
+	s.mouse(...close).wait(5).button(true).wait(20).shot('closeHeld').button(false).wait(60).shot('toolClosed');
+	s.press('t', 'command').wait(60).shot('toolShown');
+	if (kind === 'ii') {
+		s.mouse(320, 59).wait(5).button(true).wait(10);
+		for (let i = 1; i <= 8; i++) {
+			s.mouse(320 - 4 * i, 59 - 3 * i).wait(3);
+		}
+		s.wait(20).shot('mainDragging').button(false).wait(90).shot('mainMoved');
+	}
+	return s;
+}
+
+/** The Room Editor's windows on a Mac Plus. */
+cases.editorWindows = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macPlus, editorWindowsScript('plus'), disk, dir);
+};
+/** The Room Editor's windows on a Mac II. */
+cases.editorWindowsColor = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macII, editorWindowsScript('ii'), disk, dir);
+};
+
 /** The Room Editor's editing on a Mac Plus. */
 cases.editorEdit = (dir) => {
 	const disk = dir + '.dsk';

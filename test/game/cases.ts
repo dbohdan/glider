@@ -1,7 +1,7 @@
 // The game cases: the oracle's scripts (oracle/cases.ts) that the port replays, on each machine, with
 // the houses they play.
 
-import { blackAndWhiteScript, editorNewHouseScript, editorEditScript, editorTourScript, editorTryGliderScript, handsOffHouse, handsOffScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { blackAndWhiteScript, editorNewHouseScript, editorEditScript, editorTourScript, editorWindowsScript, editorTryGliderScript, handsOffHouse, handsOffScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 import type { Program } from './harness.ts';
@@ -73,4 +73,6 @@ export const gameCases: [MachineKind, Case][] = [
 	['ii', { caseName: 'editorTourColor', makeScript: () => editorTourScript('ii'), what: "the Room Editor's rooms, dialogs and menus look", program: 'editor', extraFiles: ['The House (July 1991)'] }],
 	['plus', { caseName: 'editorEdit', makeScript: () => editorEditScript('plus'), what: "the Room Editor's objects drag, copy and clear", program: 'editor', extraFiles: ['The House (July 1991)'] }],
 	['ii', { caseName: 'editorEditColor', makeScript: () => editorEditScript('ii'), what: "the Room Editor's objects drag, copy and clear", program: 'editor', extraFiles: ['The House (July 1991)'] }],
+	['plus', { caseName: 'editorWindows', makeScript: () => editorWindowsScript('plus'), what: "the Room Editor's windows drag and close", program: 'editor', extraFiles: ['The House (July 1991)'] }],
+	['ii', { caseName: 'editorWindowsColor', makeScript: () => editorWindowsScript('ii'), what: "the Room Editor's windows drag and close", program: 'editor', extraFiles: ['The House (July 1991)'] }],
 ];
