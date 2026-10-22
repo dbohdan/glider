@@ -10,6 +10,7 @@ import { getHost } from './OS.ts';
 import { DrawPicture, type Picture } from './Picture.ts';
 import {
 	type CIcon,
+	EraseRect,
 	FrameRect,
 	FrameRoundRect,
 	GlobalToLocal,
@@ -30,7 +31,7 @@ import { ObscureCursor } from './Cursors.ts';
 import { Delay, SysBeep } from './OSUtils.ts';
 import { GetCIcon, GetIcon, GetPicture } from './ToolUtils.ts';
 import { TEActivate, TEAutoView, TEClick, TEDeactivate, TEIdle, TEKey, TENew, TERec, TESetSelect, TETextBox, teFlushDefault, TECalText, TEUpdate } from './TextEdit.ts';
-import { BeginUpdate, CloseWindow, dBoxProc, dialogKind, EndUpdate, eventWindow, FindWindow, FrontWindow, GetWindowList, inContent, inFront, newWindow, SetWinColor, ShowWindow, WindowRecord } from './Windows.ts';
+import { BeginUpdate, CloseWindow, dBoxProc, InvalRect, dialogKind, EndUpdate, eventWindow, FindWindow, FrontWindow, GetWindowList, inContent, inFront, newWindow, SetWinColor, ShowWindow, WindowRecord } from './Windows.ts';
 import { type Integer, type LongInt, type Rect, type Ref, ref } from './Types.ts';
 
 /** Item types. */
@@ -370,18 +371,37 @@ function setEditField(d: DialogRecord, index: number): void {
 	}
 }
 
-/** Pascal `HideDItem`: moves the item far to the right, where it cannot be seen. */
+/**
+ * Pascal `HideDItem`: moves the item far to the right, where it cannot be seen. As the Mac Plus ROM
+ * does it (at $14F92, read in a disassembly): the item's rectangle, with an edit text item's frame
+ * (3 pixels out) or the default item's outline (4), is erased and invalidated, and a hidden current
+ * edit text item leaves the dialog with none. Seen in the oracle: the Room Editor's Object Info sets
+ * a field's text, which draws it, then hides it, and nothing of it stays.
+ */
 export function HideDItem(theDialog: DialogRecord, itemNo: Integer): void {
-	const it = theDialog.items[itemNo - 1];
+	const index = itemNo - 1;
+	const it = theDialog.items[index];
 	if (it === undefined || it.rect.left > 8192) {
 		return;
 	}
+	const inset = (it.type & 0x7f) & editText ? -3 : itemNo === theDialog.aDefItem ? -4 : 0;
+	const shown = { ...it.rect };
+	InsetRect(shown, inset, inset);
+	if (index === theDialog.editField && theDialog.textH !== null) {
+		TEDeactivate(theDialog.textH);
+		theDialog.editField = -1;
+	}
+	const save = thePort;
+	SetPort(theDialog);
+	EraseRect(shown);
 	it.rect.left += 16384;
 	it.rect.right += 16384;
 	if (it.handle instanceof ControlRecord) {
 		it.handle.contrlRect.left += 16384;
 		it.handle.contrlRect.right += 16384;
 	}
+	InvalRect(shown);
+	SetPort(save);
 }
 
 export function ShowDItem(theDialog: DialogRecord, itemNo: Integer): void {

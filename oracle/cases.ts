@@ -1347,6 +1347,41 @@ export function editorSaveScript(kind: 'plus' | 'ii'): Script {
 	return s;
 }
 
+/**
+ * Objects and rooms in the Room Editor: room 1's table selected and stretched by its handle, Tab to
+ * the next object and its Object Info with a value typed, the arrow keys to the next room and back,
+ * Go To Room with a number typed, and Quit.
+ */
+export function editorObjectsScript(kind: 'plus' | 'ii'): Script {
+	const s = new Script().speed(8).traceKeys().traceMouse();
+	const [dh, dv] = kind === 'plus' ? [0, 0] : [64, 69]; // the room's place on the screen
+	openTheHouse(s);
+	// The table is (223, 186)-(232, 356); its handle is 4 pixels past its right end.
+	s.click(270 + dh, 227 + dv).wait(60).shot('tableSelected');
+	drag(s, [360 + dh, 227 + dv], [410 + dh, 227 + dv]).wait(60).shot('stretched');
+	s.press('tab').wait(60).shot('tabbed');
+	s.press('i', 'command').wait(60).shot('objectInfo');
+	s.type('150').wait(30).shot('typed').press('return').wait(60).shot('afterInfo');
+	s.press('right').wait(120).shot('nextRoom').press('left').wait(120).shot('backAgain');
+	menuItem(s, 138, 5).wait(60);
+	s.type('12').wait(30).shot('goTo').press('return').wait(120).shot('room12');
+	s.press('q', 'command').wait(120).shot('quit');
+	return s;
+}
+
+/** The Room Editor's objects on a Mac Plus. */
+cases.editorObjects = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macPlus, editorObjectsScript('plus'), disk, dir);
+};
+/** The Room Editor's objects on a Mac II. */
+cases.editorObjectsColor = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macII, editorObjectsScript('ii'), disk, dir);
+};
+
 /** The Room Editor's saving on a Mac Plus. */
 cases.editorSave = (dir) => {
 	const disk = dir + '.dsk';

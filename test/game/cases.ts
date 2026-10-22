@@ -1,7 +1,7 @@
 // The game cases: the oracle's scripts (oracle/cases.ts) that the port replays, on each machine, with
 // the houses they play.
 
-import { blackAndWhiteScript, editorNewHouseScript, editorEditScript, editorHelpScript, editorSaveScript, editorTourScript, editorWindowsScript, editorTryGliderScript, handsOffHouse, handsOffScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
+import { blackAndWhiteScript, editorNewHouseScript, editorEditScript, editorHelpScript, editorObjectsScript, editorSaveScript, editorTourScript, editorWindowsScript, editorTryGliderScript, handsOffHouse, handsOffScript, everyTickScript, firstRoomScript, houseEnds, houseEndScript, houseFrom, houseOfOneRoom, houseWith, longNameScript, maskRooms, interfaceScript, loadHouseScript, mouseScript, playScript, repeatScript, roomStarts, savedGameScript, settingsScript, steerScript, tourScript, wanderScript } from '../../oracle/cases.ts';
 import type { Script } from '../../oracle/Script.ts';
 import type { MachineKind } from '../../src/platform/Machine.ts';
 import type { Program } from './harness.ts';
@@ -79,4 +79,6 @@ export const gameCases: [MachineKind, Case][] = [
 	['ii', { caseName: 'editorHelpColor', makeScript: () => editorHelpScript('ii'), what: "the Room Editor's help window looks and scrolls", program: 'editor', extraFiles: ['The House (July 1991)'] }],
 	['plus', { caseName: 'editorSave', makeScript: () => editorSaveScript('plus'), what: "the Room Editor's house saves and opens again", program: 'editor', extraFiles: ['The House (July 1991)'] }],
 	['ii', { caseName: 'editorSaveColor', makeScript: () => editorSaveScript('ii'), what: "the Room Editor's house saves and opens again", program: 'editor', extraFiles: ['The House (July 1991)'] }],
+	['plus', { caseName: 'editorObjects', makeScript: () => editorObjectsScript('plus'), what: "the Room Editor's objects stretch, Object Info takes a value, and rooms change", program: 'editor', extraFiles: ['The House (July 1991)'] }],
+	['ii', { caseName: 'editorObjectsColor', makeScript: () => editorObjectsScript('ii'), what: "the Room Editor's objects stretch, Object Info takes a value, and rooms change", program: 'editor', extraFiles: ['The House (July 1991)'] }],
 ];
