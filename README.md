@@ -137,7 +137,7 @@ The port:
 ## Status
 
 The game is complete and matches the original on both machines.
-The Room Editor is translated and runs (`?startup=room-editor`); its rooms, dialogs, menus, editing, windows, Try Glider, and help window match the original in the cases checked so far. The roadmap is in [`PORT.md`](PORT.md).
+The Room Editor is translated and runs (`?startup=room-editor`); its rooms, dialogs, menus, editing, saving, windows, Try Glider, and help window match the original on both Macs in the cases checked so far. The roadmap is in [`PORT.md`](PORT.md).
 
 ## Credits and licenses
 

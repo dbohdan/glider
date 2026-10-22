@@ -256,7 +256,7 @@ do {
   - [x] Glider for Windows' colors on the Mac II's screen, with a 16-color driver and in 256 colors (`src/platform/WindowsColors.ts`), from the Display & Keyboard submenu (once Machine).
   - [x] Its brushes: the tables, shelves and cabinets Glider draws in code, filled with the checkerboards Windows dithers brown and light brown into, and their light brown highlights in gray (the nearest of the 16 to Windows' static gray).
   - Out of scope: Glider/WIN's art, its own behaviors (the planes' banners, flight recording, relinking houses), and its Windows 3.1 interface. Its art is the Mac's 4.04 sheet with new sprites for those behaviors (docs/versions.md), so without them it brings little the colors do not, and they would be new code from a release with no source, with a second user interface around them.
-- [ ] **12. Room Editor.**
+- [x] **12. Room Editor.** Paths no case takes yet (cutting and pasting rooms, Save As, changing the keys in Customize Keys, a house's first file) run the translated code unchecked against the oracle.
   - [x] Translated, unit by unit, into `src/editor/` (10,970 lines from 9,750 of Pascal), and started with `?startup=room-editor`.
   - [x] Oracle cases on the Room Editor 1.04 (`editorBoot`, `editorNewHouse`), with the files at the disk's root; the game harness runs either program (`program: 'editor'`).
   - [x] A new house's first room matches on both Macs: Open House, Room Background Info, the room and the tool window (`editorNewHouse`).
