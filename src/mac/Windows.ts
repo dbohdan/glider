@@ -836,16 +836,20 @@ export function HideWindow(w: WindowRecord): void {
 	if (!w.visible) {
 		return;
 	}
-	if (w === FrontWindow()) {
-		const next = firstVisible(w.nextWindow);
-		if (next !== null) {
-			SelectWindow(next);
-		} else {
-			curDeactive = w;
-		}
-		w.hilited = false;
-	}
+	// The window goes first, and the next one, now in front, becomes active where it is: the window
+	// list keeps its order (the Mac Plus ROM's HideWindow calls ShowHide, then highlights; traced in
+	// the oracle as Standard File's Save dialog closed).
+	const wasFront = w === FrontWindow();
 	ShowHide(w, false);
+	if (wasFront) {
+		w.hilited = false;
+		curDeactive = w;
+		const next = FrontWindow();
+		if (next !== null) {
+			HiliteWindow(next, true);
+			curActivate = next;
+		}
+	}
 }
 
 /** Pascal `ShowWindow`: if the window becomes the front window, it is highlighted and activated. */
@@ -1088,6 +1092,29 @@ export function PaintOne(w: WindowRecord | null, clobberedRgn: Region): void {
 
 /** Pascal `PaintBehind`: PaintOne for startWindow, the windows behind it, and the desktop. */
 export function PaintBehind(startWindow: WindowRecord | null, clobberedRgn: Region): void {
+	if (!hasColorQD) {
+		// The Mac Plus ROM's PaintBehind ($4113A2, read in a disassembly) first erases to white all of
+		// the clobbered region the windows from startWindow on cover, frames included, then has each
+		// window draw its frame; so a frame's pixels its definition never draws come out white.
+		// Seen in the oracle: the Room Editor's tool window's shadow corner, under Standard File's
+		// Save dialog, turns white as the dialog goes. The Mac II's ROM leaves them as they were.
+		withDrawingPort(() => {
+			ClipRect(screenBits.bounds);
+			clipAbove(startWindow);
+			SectRgn(thePort.clipRgn, clobberedRgn, thePort.clipRgn);
+			const covered = new Region();
+			for (let w = startWindow; w !== null; w = w.nextWindow) {
+				if (w.visible) {
+					UnionRgn(covered, w.strucRgn, covered);
+				}
+			}
+			SectRgn(thePort.clipRgn, covered, thePort.clipRgn);
+			PenNormal();
+			PenPat(white);
+			PaintRect(screenBits.bounds);
+			PenNormal();
+		});
+	}
 	const rh = copyOf(clobberedRgn);
 	const test = new Region();
 	for (let w = startWindow; w !== null; w = w.nextWindow) {

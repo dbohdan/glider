@@ -1369,6 +1369,39 @@ export function editorObjectsScript(kind: 'plus' | 'ii'): Script {
 	return s;
 }
 
+/**
+ * Rooms in the Room Editor, in The House (July 1991): room 2 cut (⌘X) and pasted (⌘V), the house saved
+ * under another name (File's Save As…, Standard File's Save dialog), a key changed in Customize Keys
+ * (the left arrow's icon clicked, then A). (Quit, the house saved, goes straight to the Finder.)
+ */
+export function editorRoomsScript(_kind: 'plus' | 'ii'): Script {
+	const s = new Script().speed(8).traceKeys().traceMouse();
+	openTheHouse(s);
+	s.press('2', 'command').wait(120).shot('room2');
+	s.press('x', 'command').wait(120).shot('cut');
+	s.press('v', 'command').wait(120).shot('pasted');
+	menuItem(s, 52, 6).wait(90).shot('saveAs');
+	s.type('Test House').wait(30).shot('named').press('return').wait(180).shot('saved');
+	s.mouse(138, 10).wait(5).button(true).wait(20).mouse(150, 44).wait(20).mouse(260, 44).wait(20).mouse(300, 44).wait(20);
+	s.mouse(300, 124).wait(30).button(false).wait(60).shot('customizeKeys');
+	s.click(147, 94).wait(30).shot('iconClicked').press('a').wait(30).shot('keyChanged');
+	s.press('return').wait(60).shot('afterKeys');
+	return s;
+}
+
+/** The Room Editor's rooms on a Mac Plus. */
+cases.editorRooms = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macPlus, editorRoomsScript('plus'), disk, dir, [':Test House']);
+};
+/** The Room Editor's rooms on a Mac II. */
+cases.editorRoomsColor = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macII, editorRoomsScript('ii'), disk, dir, [':Test House']);
+};
+
 /** The Room Editor's objects on a Mac Plus. */
 cases.editorObjects = (dir) => {
 	const disk = dir + '.dsk';

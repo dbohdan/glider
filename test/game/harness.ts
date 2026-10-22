@@ -79,9 +79,22 @@ const oracleDiskFiles = new Set(['Glider 4.05', 'Color Art', 'B&W Art', 'The Hou
 /** The programs a case runs: Glider, or the Room Editor, beside the same files. */
 export type Program = 'glider' | 'editor';
 
-const programs: Record<Program, { application: string; main: () => Promise<void>; files: Set<string> }> = {
-	glider: { application: 'Glider 4.05', main: gliderMain, files: oracleDiskFiles },
-	editor: { application: 'Room Editor 1.03', main: editorMain, files: new Set([...oracleDiskFiles, 'Room Editor 1.03']) },
+/**
+ * The programs, and the names the oracle's disks give files: the editor's disk names its programs
+ * "Glider 4.06" and "Room Editor" (the boot blocks start an application of 15 characters at most),
+ * which its Save dialog lists.
+ */
+const programs: Record<Program, { application: string; main: () => Promise<void>; files: Set<string>; names: Map<string, string> }> = {
+	glider: { application: 'Glider 4.05', main: gliderMain, files: oracleDiskFiles, names: new Map() },
+	editor: {
+		application: 'Room Editor',
+		main: editorMain,
+		files: new Set([...oracleDiskFiles, 'Room Editor 1.03']),
+		names: new Map([
+			['Glider 4.05', 'Glider 4.06'],
+			['Room Editor 1.03', 'Room Editor'],
+		]),
+	},
 };
 
 /**
@@ -92,7 +105,8 @@ const programs: Record<Program, { application: string; main: () => Promise<void>
 export function bootGlider(kind: MachineKind, launchTick = 0, house?: Uint8Array, program: Program = 'glider', extraFiles: string[] = []): GameRun {
 	const volume = new Volume('Glider');
 	for (const f of bundledFiles().filter((f) => programs[program].files.has(f.name) || extraFiles.includes(f.name))) {
-		volume.put(f.name === 'The House' && house !== undefined ? { ...f, data: house } : f);
+		const named = { ...f, name: programs[program].names.get(f.name) ?? f.name };
+		volume.put(f.name === 'The House' && house !== undefined ? { ...named, data: house } : named);
 	}
 	const host = new GameHost();
 	host.wakeOnInput = true;
