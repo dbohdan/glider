@@ -2038,15 +2038,27 @@ function charCode(ch: string | number): number {
 	return typeof ch === 'number' ? ch : encodeMacRoman(ch)[0]!;
 }
 
+/** Bold, in a text face. */
+const boldFace = 1;
+
+/**
+ * How much wider the port's face makes each character: a pixel for bold, as no font the port has
+ * gives another (their 'FOND's style properties are 0). Seen in the oracle (the `boldText` picture).
+ */
+function faceExtra(): Integer {
+	return thePort.txFace & boldFace ? 1 : 0;
+}
+
 export function CharWidth(ch: string | number): Integer {
-	return glyphOf(portStrike(), charCode(ch)).width;
+	return glyphOf(portStrike(), charCode(ch)).width + faceExtra();
 }
 
 export function TextWidth(text: Uint8Array, firstByte: Integer, byteCount: Integer): Integer {
 	const f = portStrike();
+	const extra = faceExtra();
 	let w = 0;
 	for (let i = firstByte; i < firstByte + byteCount; i++) {
-		w += glyphOf(f, text[i]!).width;
+		w += glyphOf(f, text[i]!).width + extra;
 	}
 	return w;
 }
@@ -2061,17 +2073,20 @@ export function StringWidth(s: string): Integer {
  * Port: as in QuickDraw, the characters are first drawn into a buffer that covers their advance
  * widths, from the font's ascent to its descent, and the buffer is then transferred in the text mode,
  * so that copy modes fill that box. On Color QuickDraw the buffer begins kernMax pixels left of the
- * pen. Spaces are never drawn, even when the font draws a missing character in their place.
- * (All seen in the oracle.)
+ * pen. Spaces are never drawn, even when the font draws a missing character in their place. Bold
+ * draws each glyph again a pixel to the right, and each character takes a pixel more. (All seen in
+ * the oracle.)
  */
 export function StdText(text: Uint8Array): void {
 	const port = thePort;
 	const f = portStrike();
 	const start = port.pnLoc.h;
 	const v = port.pnLoc.v;
+	const extra = faceExtra();
+	const smear = port.txFace & boldFace ? 1 : 0;
 	let width = 0;
 	for (const ch of text) {
-		width += glyphOf(f, ch).width;
+		width += glyphOf(f, ch).width + extra;
 	}
 	port.pnLoc = { h: start + width, v };
 	if (port.pnVis < 0 || width <= 0) {
@@ -2090,15 +2105,18 @@ export function StdText(text: Uint8Array): void {
 		if (ch !== 0x20) {
 			for (let y = 0; y < height && y < f.fRectHeight; y++) {
 				for (let i = 0; i < g.imageWidth; i++) {
-					const x = pen + g.imageOffset + i;
 					const col = g.locStart + i;
-					if (x >= 0 && x < bufferWidth && (f.bitImage[y * fontRowBytes + (col >> 3)]! >> (7 - (col & 7))) & 1) {
-						buffer[y * bufferWidth + x] = 1;
+					if ((f.bitImage[y * fontRowBytes + (col >> 3)]! >> (7 - (col & 7))) & 1) {
+						for (let x = pen + g.imageOffset + i, last = x + smear; x <= last; x++) {
+							if (x >= 0 && x < bufferWidth) {
+								buffer[y * bufferWidth + x] = 1;
+							}
+						}
 					}
 				}
 			}
 		}
-		pen += g.width;
+		pen += g.width + extra;
 	}
 	transferBuffer(buffer, { top, left, bottom: top + height, right: left + bufferWidth }, port.txMode);
 }

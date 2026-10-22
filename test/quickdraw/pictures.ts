@@ -237,6 +237,31 @@ export const testPictures: Record<string, () => Uint8Array> = {
 		return p.toBytes();
 	},
 
+	/**
+	 * Bold text (the Room Editor's help is Geneva 9 and 12 bold) beside plain, in Geneva 9 and 12 and
+	 * Chicago 12, in srcOr and srcCopy over half black; and runs of one letter, whose spacing shows
+	 * each character's width.
+	 */
+	boldText() {
+		const p = picture();
+		p.rect('paint', rect(256, 104, 512, 342));
+		const sample = 'Shortcuts: the left and right arrow keys, Tab, ALL 12 Wq.';
+		let y = 30;
+		for (const [font, size] of [[3, 9], [3, 12], [0, 12]] as const) {
+			for (const face of [0, 1]) {
+				for (const mode of [1, 0]) {
+					p.txFont(font).txSize(size).txFace(face).txMode(mode).text({ v: y, h: 4 + (mode === 0 ? 3 : 0) }, sample);
+					y += size + 6;
+				}
+			}
+		}
+		for (const [font, size] of [[3, 9], [3, 12], [0, 12]] as const) {
+			p.txFont(font).txSize(size).txFace(1).txMode(1).text({ v: y, h: 4 }, 'lllllllll iiiii WWWW mmmm .....');
+			y += size + 6;
+		}
+		return p.toBytes();
+	},
+
 	/** Text in the System font and Glider's fonts, in source text modes over half black. */
 	text() {
 		const p = picture();
@@ -331,6 +356,25 @@ function colorPicture(): PictWriter {
 
 /** Pictures drawn in color, as on a Mac II. */
 export const colorPictures: Record<string, () => Uint8Array> = {
+	/** Bold and plain text in red and blue, as the Room Editor's help has it, in srcOr and srcCopy. */
+	colorBoldText() {
+		const p = colorPicture();
+		p.rect('paint', rect(256, 104, 512, 342));
+		const sample = 'Shortcuts: the left and right arrow keys, Tab, ALL 12 Wq.';
+		let y = 30;
+		for (const color of [rgbColors.red, rgbColors.blue]) {
+			for (const [font, size] of [[3, 9], [3, 12]] as const) {
+				for (const face of [0, 1]) {
+					for (const mode of [1, 0]) {
+						p.rgbFgColor(color).txFont(font).txSize(size).txFace(face).txMode(mode).text({ v: y, h: 4 + (mode === 0 ? 3 : 0) }, sample);
+						y += size + 4;
+					}
+				}
+			}
+		}
+		return p.toBytes();
+	},
+
 	/** Pattern modes with colors. */
 	colorPatternModes() {
 		const p = colorPicture();

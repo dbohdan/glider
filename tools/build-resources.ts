@@ -57,7 +57,7 @@ export function bundledFiles(): MacFile[] {
 
 /**
  * The port's System file: what Glider uses of the System's resources, made by the port. The system
- * font is Ozma (Chicago 12's glyphs), the application font Glinda (Geneva 9's); the desktop pattern
+ * font is Ozma (Chicago 12's glyphs), the application font Glinda (Geneva 9's and 12's); the desktop pattern
  * is 50% gray, and solid gray on a color screen.
  */
 export function systemFork(): ResourceFork {
@@ -65,10 +65,13 @@ export function systemFork(): ResourceFork {
 	const ozma = bdfToFontResource(readBdf(readFileSync(join(root, 'assets/fonts/Ozma-12.bdf'), 'latin1')));
 	rf.put({ type: 'FONT', id: 0, name: 'Chicago', attrs: 0, data: new Uint8Array(0) });
 	rf.put({ type: 'FONT', id: 12, name: null, attrs: 0, data: ozma });
-	// The application font, Geneva (family 3), in the size the desktop names its icons in.
-	const glinda = bdfToFontResource(readBdf(readFileSync(join(root, 'assets/fonts/Glinda-9.bdf'), 'latin1')));
+	// The application font, Geneva (family 3), in the size the desktop names its icons in, and in the
+	// size of the Room Editor's help text.
 	rf.put({ type: 'FONT', id: 3 * 128, name: 'Geneva', attrs: 0, data: new Uint8Array(0) });
-	rf.put({ type: 'FONT', id: 3 * 128 + 9, name: null, attrs: 0, data: glinda });
+	for (const size of [9, 12]) {
+		const glinda = bdfToFontResource(readBdf(readFileSync(join(root, `assets/fonts/Glinda-${size}.bdf`), 'latin1')));
+		rf.put({ type: 'FONT', id: 3 * 128 + size, name: null, attrs: 0, data: glinda });
+	}
 	const gray = [0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55, 0xaa, 0x55];
 	rf.put({ type: 'PAT ', id: 16, name: null, attrs: 0, data: new Uint8Array(gray) });
 	// The scroll bars' track (CDEF 1): System 6.0.8's PAT 17.

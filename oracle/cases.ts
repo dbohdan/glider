@@ -1282,6 +1282,28 @@ cases.editorWindowsColor = (dir) => {
 	return run(macII, editorWindowsScript('ii'), disk, dir);
 };
 
+/** The Room Editor's help window (About™ 2.1): its text, scrolled, its icons, and OK. */
+export function editorHelpScript(_kind: 'plus' | 'ii'): Script {
+	const s = new Script().speed(8).traceKeys().traceMouse();
+	openTheHouse(s);
+	menuItem(s, 204, 9).wait(90).shot('help');
+	s.press('return').wait(60).shot('afterHelp');
+	return s;
+}
+
+/** The Room Editor's help on a Mac Plus. */
+cases.editorHelp = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macPlus, editorHelpScript('plus'), disk, dir);
+};
+/** The Room Editor's help on a Mac II. */
+cases.editorHelpColor = (dir) => {
+	const disk = dir + '.dsk';
+	editorDisk(disk);
+	return run(macII, editorHelpScript('ii'), disk, dir);
+};
+
 /** The Room Editor's editing on a Mac Plus. */
 cases.editorEdit = (dir) => {
 	const disk = dir + '.dsk';
