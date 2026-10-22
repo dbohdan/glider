@@ -277,6 +277,7 @@ do {
   - [x] Scaling (integer factors, and the largest that fits) from another Options submenu; up to 400% of the page's size, those that do not fit the window dimmed, as the Art submenu dims art of the other kind.
   - [x] Switching art from an Options submenu: the art files on the volume (the game's, and imported ones such as More Glider's Improved Art), color and black and white in one menu, those of the other kind dimmed.
     Glider 4.05 opens its art by the name in its preferences, so a change restarts it.
+  - [ ] Gamepads (the browser's Gamepad API): the D-pad or left stick as the left and right keys, two buttons as the energy and band keys, as Customize Keys has set them, so that Glider reads them as the keys it already knows; a third button for Tab (pause). Glider's own "Joystick" control is a mouse used as a joystick (the mouse put back in the middle each frame), not a gamepad.
   - [ ] Phones, as a second tier: a virtual mouse on the touch screen is little code, but making it pleasant to steer with is a sidequest of its own.
   - [x] A "Bass Beat" checkbox in the Sound Settings dialog, as in Glider for Windows, whose dialog has "Object", "Music" and "Bass Beat" under "Sounds To Play".
     On the Mac, Music covers both the jingle on entering a room and the bass during play; the checkbox would split off the bass.
