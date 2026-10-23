@@ -14,7 +14,7 @@ It was made by porting the [original source code](https://github.com/softdorothy
 It is a source port rather than an emulator.
 No Mac ROM is required to run it.
 
-The port was directed by a human and implemented by Claude Opus 5.5.
+The port was directed by a human, implemented by Claude Opus 5.5, and designed by both.
 It includes the houses, art, and sounds from the open-source release of Glider 4.05.
 Moreover, it includes the Room Editor.
 
@@ -37,12 +37,21 @@ The default key settings for Glider are (⌘ is Command on a Mac and Control els
 
 Configure… in the Options menu changes the keys.
 When mouse controls are enabled, a click on the game screen in your browser captures the pointer and Escape releases it.
-Options > Controls also has two controls the original does not:
 
-- Gamepad: a gamepad your browser knows (most do, after you press one of its buttons). The D-pad or the left stick flies, the bottom and left face buttons boost, the right and top ones fire bands, and Start pauses.
-- Virtual Gamepad: left, right, boost, band, and pause buttons beside the game screen, for touch screens; they take clicks too. Configure… puts the arrows on the left or the right.
+The Joystick control option is for old-school Macintosh joysticks that acts as a mouse, like the [Gravis MouseStick](https://www.computinghistory.org.uk/det/6748/Gravis-MouseStick/).
+It is not for modern gamepads.
 
-The keys work with both.
+Options > Controls adds two new control methods:
+
+- Gamepad: play with a gamepad that your browser supports through the [Gamepad API](https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API).
+  You may need to press a button for the gamepad to be recognized.
+  The gamepad has a fixed control configuration.
+  The D-pad or the left stick directs flight, the bottom and left face buttons boost, the right and top face buttons fire bands, and Start pauses.
+- Virtual Gamepad: displays virtual buttons beside the game screen for touch screens.
+  The buttons can be clicked, too.
+  Configure… lets you change whether the arrows are on on the left or the right.
+
+The keyboards keys also work with both of these options.
 For more about the controls, see Glider's own Help screens (also in the Options menu).
 
 Quitting Glider goes to a Finder-esque desktop with three icons: Glider, the Room Editor, and a link to the source code repository.
