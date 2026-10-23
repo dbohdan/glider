@@ -278,7 +278,13 @@ do {
   - [x] Switching art from an Options submenu: the art files on the volume (the game's, and imported ones such as More Glider's Improved Art), color and black and white in one menu, those of the other kind dimmed.
     Glider 4.05 opens its art by the name in its preferences, so a change restarts it.
   - [ ] Gamepads (the browser's Gamepad API): the D-pad or left stick as the left and right keys, two buttons as the energy and band keys, as Customize Keys has set them, so that Glider reads them as the keys it already knows; a third button for Tab (pause). Glider's own "Joystick" control is a mouse used as a joystick (the mouse put back in the middle each frame), not a gamepad.
-  - [ ] Phones, as a second tier: a virtual mouse on the touch screen is little code, but making it pleasant to steer with is a sidequest of its own.
+  - [ ] Phones and tablets, as a second tier. Touch is the mouse everywhere but in play: a finger down is the button down, so menus open, track and choose by press, drag and release, as System 6's do (a tap opens and closes one with nothing chosen), and a text field being edited brings up the device's keyboard through a hidden input. In play, five keys drawn in the page's margins, never over the Mac's screen (at the sides in landscape, below in portrait):
+    ```
+    [  ,  ] [  .  ]    [  Return  ] [  Space  ]
+
+                [ Tab ]
+    ```
+    Each presses the key Customize Keys has set for left, right, energy and band, and is labelled with it (`, . Return Space` are Glider's own defaults, `DefaultControls`; the preferences it ships with set the arrows), so that Glider reads keys it already knows, as with gamepads. Tab pauses, and the pause shows the menu bar, which reaches Save Game, End Game and Quit. Fingers are followed one by one (`pointerId`), since play holds a direction and energy at once. Configure gets "Virtual keys: None / Steering left / Steering right" (the last for left-handed players, the pairs swapped), as Bass Beat joined Sound Settings; the first launch on a touch screen (`(pointer: coarse)`) chooses Steering left and a keyboard control, so that a phone does not start unplayable. Preferences are kept per browser, so the choice is per device.
   - [x] A "Bass Beat" checkbox in the Sound Settings dialog, as in Glider for Windows, whose dialog has "Object", "Music" and "Bass Beat" under "Sounds To Play".
     On the Mac, Music covers both the jingle on entering a room and the bass during play; the checkbox would split off the bass.
     It is on by default, as the Mac plays it; Glider for Windows had it off by default (`docs/versions.md`).
