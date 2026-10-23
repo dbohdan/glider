@@ -43,7 +43,12 @@ export function keepDisplay(display: Display): boolean {
 	return keep(displayKey, display);
 }
 
-/** The scale: whole device pixels per Mac pixel, 0 for the largest that fits, −1 for the largest whole number that fits. */
+/**
+ * The scale: whole device pixels per Mac pixel, 0 for the largest that fits, −1 for the largest
+ * whole number that fits. Unless chosen, the largest that fits on a touch screen, whose pixels are
+ * small enough that a fractional scale looks sharp; elsewhere the largest whole number, as at 1
+ * device pixel to a CSS pixel a fractional scale blurs text.
+ */
 export function chosenScale(params: URLSearchParams): number {
 	for (const v of [params.get('scale'), stored(scaleKey)]) {
 		const n = Number(v);
@@ -51,7 +56,7 @@ export function chosenScale(params: URLSearchParams): number {
 			return n;
 		}
 	}
-	return 0;
+	return matchMedia('(pointer: coarse)').matches ? 0 : -1;
 }
 
 export function keepScale(factor: number): boolean {

@@ -18,6 +18,7 @@ import {
 	type Integer,
 	type MenuHandle,
 	NewMenu,
+	SetItem,
 	SetItemCmd,
 	SetItemMark,
 } from '../mac/Toolbox.ts';
@@ -208,7 +209,9 @@ export function RefreshScales(): void {
 	while (CountMItems(menu) > 0) {
 		DelMenuItem(menu, 1);
 	}
-	AppendMenu(menu, 'Largest That Fits;Largest That Fits (Integer);(-');
+	// The second's title is set apart: AppendMenu reads "(" as a metacharacter, which dims the item.
+	AppendMenu(menu, 'Largest That Fits;Largest That Fits;(-');
+	SetItem(menu, 2, 'Largest That Fits (Integer)');
 	const scales = host.scales();
 	if (scales.length > 0) {
 		AppendMenu(menu, scales.map((s) => s.name).join(';'));

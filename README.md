@@ -38,7 +38,7 @@ The default key settings for Glider are (⌘ is Command on a Mac and Control els
 Configure… in the Options menu changes the keys.
 When mouse controls are enabled, a click on the game screen in your browser captures the pointer and Escape releases it.
 
-The Joystick control option is for old-school Macintosh joysticks that acts as a mouse, like the [Gravis MouseStick](https://www.computinghistory.org.uk/det/6748/Gravis-MouseStick/).
+The Joystick control option is for old-school Macintosh joysticks that act as a mouse, like the [Gravis MouseStick](https://www.computinghistory.org.uk/det/6748/Gravis-MouseStick/).
 It is not for modern gamepads.
 
 Options > Controls adds two new control methods:
@@ -52,7 +52,7 @@ Options > Controls adds two new control methods:
   Configure… lets you change whether the arrows are on the left, on the right, or apart.
   Apart puts ← and band on the left and boost and → on the right; a thumb on the gap between two buttons presses both.
 
-The keyboards keys also work with both of these options.
+The keyboard's keys also work with both of these options.
 For more about the controls, see Glider's own Help screens (also in the Options menu).
 
 Quitting Glider goes to a Finder-esque desktop with three icons: Glider, the Room Editor, and a link to the source code repository.
@@ -78,7 +78,8 @@ The port adds several features to Glider 4.05.
   The options are: a black-and-white Mac Plus (512&times;342) with its own keyboard, a Mac II in 16 colors or in black and white (640&times;480), or the visuals of _Glider for Windows_ (1994) in 16- or 256-color mode with the rest from the Mac II.
   Switching between color and B&W quits and restarts the game.
   You will be prompted to save like when you choose Quit in the menu.
-- Options > Scale: the largest size that fits the window by default, or the largest whole number of pixels per Mac pixel, or a size you choose.
+- Options > Scale: the largest size that fits the window, the largest whole number of pixels per Mac pixel that fits, or a size you choose.
+  The default is the largest size that fits on touch screens and the largest whole number elsewhere.
   A size between whole numbers is drawn sharp: each Mac pixel enlarged to the next whole number, then shrunk smoothly to fit.
   Sizes that do not fit are dimmed.
 - Options > Art: choose the art files on the disk, the original's and any you import.
