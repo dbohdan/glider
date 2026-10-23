@@ -53,6 +53,7 @@ Options > Controls adds two new control methods:
   Apart puts ← and band on the left and boost and → on the right; a thumb on the gap between two buttons presses both.
 
 The keyboard's keys also work with both of these options.
+The Room Editor's Controls submenu (in Special) has Gamepad too, for its test flights (Try Glider).
 For more about the controls, see Glider's own Help screens (also in the Options menu).
 
 Quitting Glider goes to a Finder-esque desktop with three icons: Glider, the Room Editor, and a link to the source code repository.

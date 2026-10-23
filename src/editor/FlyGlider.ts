@@ -105,6 +105,7 @@ import {
 	lightIt,
 	litSwt,
 	macTsh,
+	iGamepad,
 	maxThrust,
 	mirror,
 	mouseSlop,
@@ -143,6 +144,8 @@ import {
 	zapIt,
 } from './Globals.ts';
 import { DoRandom, SpinBall } from './Utilities.ts';
+import { PadInput } from './Additions.ts';
+import { thrustOf } from '../additions/Pads.ts';
 import { DrawAllObjects, LoadABackground } from './Drawing.ts';
 import { AutoHideShow } from './ObjectStuff.ts';
 
@@ -1362,6 +1365,54 @@ function GetInput(): void {
 				}
 			}
 			break; // end - relMouse
+
+		// Port: the additions' Gamepad (Additions.ts), as Glider has it: Hold Keyboard's steering at the
+		// gamepad's thrust (a stick's in proportion), and the keys as Hold Keyboard reads them.
+		case iGamepad: {
+			GetKeys(theKeys);
+			const pad = PadInput();
+			let thrust = thrustOf(pad.steer, maxThrust);
+			if (thrust === 0 && theKeys[G.leftKey]) {
+				thrust = -maxThrust;
+			} else if (thrust === 0 && theKeys[G.rightKey]) {
+				thrust = maxThrust;
+			}
+			if (thrust < 0) {
+				if (theGlider.isRight) {
+					theGlider.isForward = false;
+					theGlider.srcNum = 1;
+				} else {
+					theGlider.isForward = true;
+					theGlider.srcNum = 2;
+				}
+				theGlider.forVel = thrust;
+			} else if (thrust > 0) {
+				if (theGlider.isRight) {
+					theGlider.isForward = true;
+					theGlider.srcNum = 0;
+				} else {
+					theGlider.isForward = false;
+					theGlider.srcNum = 3;
+				}
+				theGlider.forVel = thrust;
+			} else {
+				theGlider.isForward = true;
+				theGlider.srcNum = theGlider.isRight ? 0 : 2;
+				theGlider.forVel = 0;
+			}
+
+			if ((theKeys[G.bandKey] || pad.band) && !G.bandBorne) {
+				FireBand();
+			}
+			if (theKeys[G.energyKey] || pad.energy) {
+				if ((theGlider.isRight && theGlider.isForward) || (!theGlider.isRight && !theGlider.isForward)) {
+					PushIt(16);
+				} else {
+					PushIt(-16);
+				}
+			}
+			break;
+		}
 
 		default:
 	} // case

@@ -96,6 +96,7 @@ import {
 	saveNoQuitID,
 } from './Globals.ts';
 import { GenericAlert, SpinBall } from './Utilities.ts';
+import { OriginalControl, SaveWebPrefs } from './Additions.ts';
 
 /** Port: a var parameter that is one of G's variables. */
 function varOf<K extends keyof typeof G>(key: K): Ref<(typeof G)[K]> {
@@ -593,7 +594,7 @@ export async function SavePrefs(): Promise<void> {
 		// with theirPrefs^^ do: the record is read, changed, and written back to the resource's bytes.
 		const prefs = readLayout(prefType, theirPrefs.data, 0);
 		prefs.resName = G.resourceName;
-		prefs.controlIs = G.controlMethod;
+		prefs.controlIs = OriginalControl(G.controlMethod); // Port: one the original knows (Additions.ts)
 		prefs.leftIs = G.leftKey;
 		prefs.rightIs = G.rightKey;
 		prefs.energyIs = G.energyKey;
@@ -621,4 +622,6 @@ export async function SavePrefs(): Promise<void> {
 	}
 	HUnlock(theirPrefs);
 	ReleaseResource(theirPrefs);
+	// Port: and the port's additions' own preferences (Additions.ts).
+	SaveWebPrefs();
 }

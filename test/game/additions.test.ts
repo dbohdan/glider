@@ -2,7 +2,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { padGame, startsInFourChannels } from './harness.ts';
+import { editorPadFlight, padGame, startsInFourChannels } from './harness.ts';
 import { iVirtualPad } from '../../src/glider/Globals.ts';
 import { type GamepadLike, noPad, readGamepads, thrustOf } from '../../src/additions/Pads.ts';
 
@@ -42,3 +42,13 @@ test("the gamepads' standard mapping: the D-pad steers at full thrust, the stick
 	assert.equal(thrustOf(-0.5, 5), -3);
 	assert.equal(thrustOf(1, 5), 5);
 });
+
+test("the Room Editor's Controls has Gamepad, which flies its test flights", async () => {
+	const flight = await editorPadFlight();
+	assert.deepEqual(flight.items, ['Hold Keyboard', 'Drop Keyboard', 'Absolute Mouse', 'Joystick (Mouse)', 'Gamepad', '-', 'Configure']);
+	assert.equal(flight.gamepadOn, true);
+	const [before, right, left] = flight.lefts;
+	assert.ok(right > before, `steered right from ${before} to ${right}`);
+	assert.ok(left < right, `steered left from ${right} to ${left}`);
+});
+

@@ -49,7 +49,7 @@ import {
 	iPaste,
 	iPrevRoom,
 	iQuit,
-	iRelMouse,
+	iLastControl,
 	iRestoreDeep,
 	iRoomBack,
 	iRoomCond,
@@ -65,6 +65,7 @@ import {
 	mWindows,
 	noFileOpen,
 } from './Globals.ts';
+import { UsePads } from './Additions.ts';
 import { Deselect, DoAbout, DoCustomizeKeys, UpdateMenuItems } from './Utilities.ts';
 import { DrawAllObjects, DrawRoomNum, LoadABackground } from './Drawing.ts';
 import { DeleteRoom, DoHouseInfo, ErrorCheckHouse, InsertRoom } from './HouseStuff.ts';
@@ -633,12 +634,14 @@ export async function HandleMenu(theMenu: Integer, theItem: Integer): Promise<vo
 			break;
 
 		case mControls:
-			if (theItem >= iHoldKey && theItem <= iRelMouse) {
-				for (i = iHoldKey; i <= iRelMouse; i++) {
+			// Port: to iLastControl, not iRelMouse: the additions' Gamepad follows Joystick.
+			if (theItem >= iHoldKey && theItem <= iLastControl) {
+				for (i = iHoldKey; i <= iLastControl; i++) {
 					CheckItem(GetMenu(mControls)!, i, false);
 				}
 				CheckItem(GetMenu(mControls)!, theItem, true);
 				G.controlMethod = theItem;
+				UsePads(); // Port: the additions' gamepad
 			} else if (theItem === iConfigure) {
 				await DoCustomizeKeys();
 			}

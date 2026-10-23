@@ -9,10 +9,62 @@ import { CountMItems, GetItem, GetMenu, GetResource, hostKeyDown, hostKeyUp, key
 import type { MachineKind } from '../../src/platform/Machine.ts';
 import { oracleOutput } from '../toolbox/machine.ts';
 import { gameCases } from './cases.ts';
-import { bootGlider, type CaseRun, oracleTrace, type PadGame, replay, runGlider } from './harness.ts';
+import { bootGlider, type CaseRun, type EditorPadFlight, oracleTrace, type PadGame, replay, runGlider } from './harness.ts';
+import { G as editorG, iGamepad as editorGamepad, mControls as editorControls } from '../../src/editor/Globals.ts';
+import { HandleMenu } from '../../src/editor/TheMenus.ts';
 
-const job = workerData as { index: number } | { kind: MachineKind; tick: number; withCursor: boolean } | { fourChannelsSaved: true; additions: boolean } | { padGame: true };
-if ('padGame' in job) {
+const job = workerData as { index: number } | { kind: MachineKind; tick: number; withCursor: boolean } | { fourChannelsSaved: true; additions: boolean } | { padGame: true } | { editorPadFlight: true };
+if ('editorPadFlight' in job) {
+	// The Room Editor on a Mac Plus, with the page's gamepad: Gamepad chosen in Controls, a new house
+	// (as editorNewHouseScript makes it), Try Glider, and the glider, once it has come in, steered
+	// right, then left.
+	let pad: PadState = noPad;
+	let gamepadOn = false;
+	setAdditionsHost({
+		display: 'plus',
+		changesAtOnce: () => true,
+		setDisplay: () => {},
+		restartOn: () => {},
+		scales: () => [],
+		scale: 0,
+		setScale: () => {},
+		pads: {
+			touchScreen: false,
+			gamepad: () => pad,
+			virtualPad: () => noPad,
+			use: (gamepad) => {
+				gamepadOn = gamepad;
+			},
+		},
+	});
+	const run = bootGlider('plus', 0, undefined, 'editor');
+	const h = run.host;
+	const click = (t: number, x: number, y: number): void => {
+		h.mouseAt(t, x, y).buttonAt(t + 2, true).buttonAt(t + 6, false);
+	};
+	const lefts: number[] = [];
+	h.at(880, () => void HandleMenu(editorControls, editorGamepad));
+	click(900, 380, 221); // New House
+	click(1020, 333, 221); // Room Background Info's Okay
+	h.mouseAt(1140, 138, 10).buttonAt(1145, true).mouseAt(1165, 150, 28).buttonAt(1185, false); // Special > Try Glider
+	h.mouseAt(1215, 200, 140);
+	click(1245, 200, 140); // the glider dropped there
+	for (const [tick, steer] of [
+		[1400, 1],
+		[1440, -1],
+		[1480, 0],
+	] as const) {
+		h.at(tick, () => {
+			lefts.push(editorG.theGlider.destRect.left);
+			pad = { ...noPad, steer };
+		});
+	}
+	await runGlider(run, 1490);
+	const controls = GetMenu(editorControls)!;
+	const items = Array.from({ length: CountMItems(controls) }, (_, k) => GetItem(controls, k + 1));
+	const result: EditorPadFlight = { items, gamepadOn, lefts: lefts as EditorPadFlight['lefts'] };
+	parentPort!.postMessage(result);
+} else if ('padGame' in job) {
 	// A game on a touch screen, with the virtual gamepad: the keyboard alert dismissed, a game
 	// begun (⌘N), the glider steered right as it comes in, then left, then the pause button pressed.
 	let pad: PadState = noPad;

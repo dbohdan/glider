@@ -189,6 +189,21 @@ export function padGame(): Promise<PadGame> {
 	return inWorker({ padGame: true });
 }
 
+/** What a test flight in the Room Editor with the gamepad showed (editorPadFlight in caseWorker.ts). */
+export interface EditorPadFlight {
+	/** The Controls submenu's items. */
+	items: string[];
+	/** Whether the editor asked the page to read the gamepad. */
+	gamepadOn: boolean;
+	/** The glider's left edge as the gamepad starts steering right, then left, then after. */
+	lefts: [number, number, number];
+}
+
+/** Chooses Gamepad in the Room Editor's Controls submenu and flies a new house's first room with it. */
+export function editorPadFlight(): Promise<EditorPadFlight> {
+	return inWorker({ editorPadFlight: true });
+}
+
 function inWorker<T>(job: object): Promise<T> {
 	return new Promise((resolve, reject) => {
 		const worker = new Worker(new URL('./caseWorker.ts', import.meta.url), { workerData: job });

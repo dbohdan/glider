@@ -119,12 +119,13 @@ async function start(): Promise<void> {
 		RefreshScales();
 	});
 	attachInput({ screen: canvas, scale: () => scale, plusKeyboard: kind === 'plus', width: machine.width, height: machine.height, capture: wantsMouseCapture, wake: () => host.wake(), textField: textFieldActive });
-	// Glider's gamepads, with its Configure dialog's icons on the virtual one's buttons.
+	// The gamepads, for Glider and the Room Editor's test flights; the virtual one, Glider's only, with
+	// its Configure dialog's icons on the buttons.
 	const gliderFile = volume.list().find((f) => f.name === 'Glider 4.05');
 	const gliderRsrc = !onDesktop && !onEditor && gliderFile !== undefined ? parseResourceFork(gliderFile.rsrc) : null;
 	const icon = (id: number): IconBits | undefined => gliderRsrc?.get('ICON', id)?.data;
 	const pads =
-		gliderRsrc === null
+		onDesktop
 			? undefined
 			: new BrowserPads({
 					icons: { left: icon(980), right: icon(981), energy: icon(982), band: icon(983) },

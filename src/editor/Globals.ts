@@ -80,7 +80,19 @@ export const iHoldKey = 1;
 export const iDropKey = 2;
 export const iAbsMouse = 3;
 export const iRelMouse = 4;
-export const iConfigure = 6;
+// Port: `let`, not `const`: the port's additions insert Gamepad after Joystick, which moves Configure
+// down (addControlItems).
+export let iConfigure = 6;
+/** Port: the last control method's item: Joystick, or with the additions, Gamepad. */
+export let iLastControl = iRelMouse;
+/** Port: the additions' Gamepad (Additions.ts), the item after Joystick and its control method. */
+export const iGamepad = 5;
+
+/** Port: makes room in the Controls submenu for the additions' control methods. */
+export function addControlItems(by: number): void {
+	iLastControl += by;
+	iConfigure += by;
+}
 
 export const editToObject = 1;
 export const editToRoom = 2;

@@ -178,6 +178,7 @@ import {
 	upStar,
 } from './Globals.ts';
 import { GenericAlert, SpinBall } from './Utilities.ts';
+import { SetUpAdditions } from './Additions.ts';
 import { FlushRoom } from './RoomStuff.ts';
 
 //=================================
@@ -1011,6 +1012,8 @@ export async function InitVariables(): Promise<void> {
 	await SetUpOffMask();
 	SpinBall();
 	await GetPrefs();
+	// Port: the additions' Gamepad in Controls, and its choice from their preferences, after the editor's own.
+	SetUpAdditions();
 	SpinBall();
 	await LoadPICTs();
 	// Port: the additions' Art submenu checks the art the editor opened, now that it has (its menus come first).
