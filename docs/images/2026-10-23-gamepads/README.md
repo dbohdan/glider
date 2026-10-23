@@ -42,3 +42,15 @@ Two control methods the port adds to Glider, in its Controls submenu after Joyst
 
 ![Configure with three sides](10-configure-arrows-apart-mac-plus.png)
 
+**11.** Looks to try, from Options > Look, on a Mac Plus at 4.5 device pixels to a Mac pixel, crops at full resolution. Sharp; Smooth, plain bilinear, soft everywhere; Soft (CRT), enlarged once across and fully down before the browser smooths it, so the title's dithered checks blend along each row while rows stay crisp (it shows best on a real screen, in motion); Sharp and Soft with scanlines; and Soft with all four touches: scanlines, glow, rounded corners (out of the crop), and a bluish phosphor tint.
+
+![Six looks on a Mac Plus](11-looks-mac-plus.png)
+
+**12.** The same on a Mac II, at 3.2 device pixels to a Mac pixel, fractional: the menu bar's Chicago and the window's colored frame.
+
+![Six looks on a Mac II](12-looks-mac-ii.png)
+
+**13.** The Look submenu: one way to enlarge, checked, then the touches, each checked when on.
+
+![The Look submenu](13-look-submenu.png)
+

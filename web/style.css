@@ -24,9 +24,42 @@ body {
 	touch-action: none;
 }
 
-/* At a fractional scale the canvas is drawn at the next whole one and shrunk smoothly (main.ts). */
+/* At a fractional scale the canvas is drawn at the next whole one and shrunk smoothly (Look.ts). */
 .screen.smooth {
 	image-rendering: auto;
+}
+
+/*
+ * The screen's looks (Look.ts): the frame clips the screen to rounded corners; over the screen, a
+ * blurred copy lightens it (glow), and a phosphor's white multiplies it (tint).
+ */
+.screen-frame {
+	position: relative;
+	overflow: hidden;
+	isolation: isolate;
+	line-height: 0;
+}
+
+.screen-frame > .screen {
+	display: block;
+}
+
+.screen-glow, .screen-tint {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.screen-glow {
+	mix-blend-mode: screen;
+}
+
+.screen-tint {
+	mix-blend-mode: multiply;
+}
+
+.screen-glow[hidden], .screen-tint[hidden] {
+	display: none;
 }
 
 /* The text field a touch screen's keyboard types into, off the screen. 16px keeps iOS from zooming to it. */

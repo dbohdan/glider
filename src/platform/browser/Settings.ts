@@ -3,11 +3,12 @@
 // so the browser keeps them (localStorage), for this browser only; the address's `machine` and
 // `scale` parameters win over them.
 
-import type { Display } from '../../additions/Additions.ts';
+import { type Display, type Look, plainLook } from '../../additions/Additions.ts';
 
 const displays: Display[] = ['plus', 'ii', 'ii-bw', 'win-16', 'win-256'];
 const displayKey = 'glider4.display';
 const scaleKey = 'glider4.scale';
+const lookKey = 'glider4.look';
 
 function stored(key: string): string | null {
 	try {
@@ -61,4 +62,28 @@ export function chosenScale(params: URLSearchParams): number {
 
 export function keepScale(factor: number): boolean {
 	return keep(scaleKey, String(factor));
+}
+
+/** How the screen is shown: the one kept, else plain sharp pixels. */
+export function chosenLook(): Look {
+	try {
+		const kept = JSON.parse(stored(lookKey) ?? 'null') as Partial<Look> | null;
+		if (kept !== null && typeof kept === 'object') {
+			const look = { ...plainLook };
+			if (kept.enlarge === 'sharp' || kept.enlarge === 'smooth' || kept.enlarge === 'soft') {
+				look.enlarge = kept.enlarge;
+			}
+			for (const t of ['scanlines', 'glow', 'corners', 'tint'] as const) {
+				look[t] = kept[t] === true;
+			}
+			return look;
+		}
+	} catch {
+		// not JSON: the plain look
+	}
+	return { ...plainLook };
+}
+
+export function keepLook(look: Look): boolean {
+	return keep(lookKey, JSON.stringify(look));
 }

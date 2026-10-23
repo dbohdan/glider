@@ -16,7 +16,8 @@ import { loadVolume, type VolumeManifest } from '../../mac/Volume.ts';
 import { bootMachine, type MachineKind } from '../Machine.ts';
 import { renderScreen } from '../Screen.ts';
 import { type RGB8, windowsBrushes, windowsColors } from '../WindowsColors.ts';
-import { chosenDisplay, chosenScale, keepDisplay, keepScale } from './Settings.ts';
+import { chosenDisplay, chosenLook, chosenScale, keepDisplay, keepLook, keepScale } from './Settings.ts';
+import { ScreenView } from './Look.ts';
 import { beep } from './Beep.ts';
 import { BrowserHost } from './Clock.ts';
 import { attachInput } from './Input.ts';
@@ -94,38 +95,19 @@ async function start(): Promise<void> {
 	setBeeper(beep);
 	const sound = new BrowserSound();
 
-	const canvas = document.createElement('canvas');
-	canvas.width = machine.width;
-	canvas.height = machine.height;
-	canvas.className = 'screen';
-	document.body.append(canvas);
-	const ctx = canvas.getContext('2d')!;
-	const image = ctx.createImageData(machine.width, machine.height);
-	// At a scale of whole device pixels the browser enlarges the canvas pixel for pixel. At any other,
-	// the screen is drawn at the next whole scale with its pixels kept sharp, and the browser shrinks
-	// that smoothly to the size that fits ("sharp bilinear"): nearest-neighbor at a fractional
-	// scale would make some Mac pixels a device pixel wider than others, and Glider's gray dithers
-	// would show stripes. The screen itself is the Mac's, pixel for pixel, either way.
-	const source = document.createElement('canvas');
-	source.width = machine.width;
-	source.height = machine.height;
-	const sourceCtx = source.getContext('2d')!;
-	let prescale = 1;
+	// The screen as the chosen look shows it (Look.ts); sharp pixels unless another is chosen.
+	const view = new ScreenView(machine.width, machine.height, params);
+	let look = chosenLook();
+	view.setLook(look);
+	document.body.append(view.element);
+	const canvas = view.canvas;
+	const image = new ImageData(machine.width, machine.height);
 	let scale = 1;
 	const layout = (): void => {
 		const ratio = window.devicePixelRatio || 1;
 		const factor = scaleChoice === 0 ? fitFactor(machine.width, machine.height, false) : scaleChoice === -1 ? fitFactor(machine.width, machine.height) : Math.min(scaleChoice, fitFactor(machine.width, machine.height));
 		scale = factor / ratio;
-		const whole = Number.isInteger(factor);
-		const next = whole ? 1 : Math.ceil(factor);
-		if (next !== prescale) {
-			prescale = next;
-			canvas.width = machine.width * prescale;
-			canvas.height = machine.height * prescale;
-		}
-		canvas.classList.toggle('smooth', !whole);
-		canvas.style.width = `${machine.width * scale}px`;
-		canvas.style.height = `${machine.height * scale}px`;
+		view.place(factor);
 		// The screen centered in the room the gamepad leaves: it takes the sides alike, or the bottom.
 		document.body.style.paddingBottom = `${padRoom().height}px`;
 	};
@@ -157,13 +139,7 @@ async function start(): Promise<void> {
 		pads?.poll();
 		sound.update();
 		renderScreen(machine, image.data, true, substitute);
-		if (prescale === 1) {
-			ctx.putImageData(image, 0, 0);
-		} else {
-			sourceCtx.putImageData(image, 0, 0);
-			ctx.imageSmoothingEnabled = false;
-			ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
-		}
+		view.draw(image);
 		requestAnimationFrame(frame);
 	};
 	requestAnimationFrame(frame);
@@ -210,6 +186,14 @@ async function start(): Promise<void> {
 			layout();
 		},
 		pads,
+		get look() {
+			return look;
+		},
+		setLook: (l) => {
+			look = l;
+			keepLook(l);
+			view.setLook(l);
+		},
 	};
 	setAdditionsHost(additions);
 

@@ -1,7 +1,8 @@
 // Port: the port's additions that every program on its Mac has (PORT.md, decision 14), made of the
 // Menu Manager's own parts: the Display & Keyboard submenu (the Mac Plus, the Mac II in color or
-// black and white, and the Mac II's screen as Glider for Windows draws it), Scale, and, for the
-// programs that open an art file, Art. Glider puts them in its Options menu (src/glider/Additions.ts);
+// black and white, and the Mac II's screen as Glider for Windows draws it), Scale, Look (how the
+// page shows the screen: sharp, smooth, or soft as on a CRT, with scanlines and other touches),
+// and, for the programs that open an art file, Art. Glider puts them in its Options menu (src/glider/Additions.ts);
 // the desktop and the Room Editor, which have none, get an Options menu of them (AddOptionsMenu).
 //
 // The additions are on only when the page gives a host (setAdditionsHost). The tests boot the
@@ -45,7 +46,37 @@ export interface AdditionsHost {
 	setScale(factor: number): void;
 	/** The page's gamepads, for Glider's Gamepad and Virtual Gamepad controls; none without them. */
 	readonly pads?: PadsHost;
+	/** How the page shows the screen, if it offers looks. */
+	readonly look?: Look;
+	setLook?(look: Look): void;
 }
+
+/**
+ * How the page shows the Mac's screen: enlarged sharp, smooth (bilinear), or soft across and sharp
+ * down as on a CRT; with scanlines, a glow, rounded corners, a phosphor's tint, each or none.
+ */
+export interface Look {
+	enlarge: 'sharp' | 'smooth' | 'soft';
+	scanlines: boolean;
+	glow: boolean;
+	corners: boolean;
+	tint: boolean;
+}
+
+export const plainLook: Look = { enlarge: 'sharp', scanlines: false, glow: false, corners: false, tint: false };
+
+// The looks, in the Look submenu: one way to enlarge, then touches to add.
+const enlargements: [Look['enlarge'], string][] = [
+	['sharp', 'Sharp'],
+	['smooth', 'Smooth'],
+	['soft', 'Soft (CRT)'],
+];
+const touches: ['scanlines' | 'glow' | 'corners' | 'tint', string][] = [
+	['scanlines', 'Scanlines'],
+	['glow', 'Glow'],
+	['corners', 'Rounded Corners'],
+	['tint', 'Phosphor Tint'],
+];
 
 /**
  * Where the virtual gamepad's arrows are: on the screen's left or right, energy and band on the
@@ -93,6 +124,7 @@ export const mOptions = 199; // Menu IDs, apart from the programs' own
 export const mDisplay = 200;
 export const mScale = 201;
 export const mArt = 202;
+export const mLook = 203;
 
 // Grouped by what a choice costs: the black-and-white Macs each start the program again, while the
 // Mac II's color screen and Glider for Windows' change among themselves at once.
@@ -126,7 +158,8 @@ function newSubmenu(id: Integer, title: string): MenuHandle {
 }
 
 /**
- * Makes the submenus: Display & Keyboard and Scale, and Art if the program opens art. Returns their
+ * Makes the submenus: Display & Keyboard and Scale, Look if the page offers looks, and Art if the
+ * program opens art. Returns their
  * IDs and titles, for the program to put in a menu of its own as hierarchical items.
  */
 export function SetUpSubmenus(art: ArtChoice | null, color: (m: MenuHandle) => void = () => {}): [id: Integer, title: string][] {
@@ -141,6 +174,19 @@ export function SetUpSubmenus(art: ArtChoice | null, color: (m: MenuHandle) => v
 		[mDisplay, 'Display & Keyboard'],
 		[mScale, 'Scale'],
 	];
+	if (host?.look !== undefined) {
+		// Titles by SetItem, which reads no metacharacters: AppendMenu would take "(CRT)" for "dimmed".
+		const look = newSubmenu(mLook, 'Look');
+		const titled = (title: string): void => {
+			AppendMenu(look, 'x');
+			SetItem(look, CountMItems(look), title);
+		};
+		enlargements.forEach(([, title]) => titled(title));
+		AppendMenu(look, '(-');
+		touches.forEach(([, title]) => titled(title));
+		colorItems(look);
+		submenus.push([mLook, 'Look']);
+	}
 	if (art !== null) {
 		const menu = newSubmenu(mArt, 'Art');
 		const files = (getVolume()?.list() ?? [])
@@ -222,6 +268,7 @@ export function RefreshScales(): void {
 			DisableItem(menu, k + firstScaleItem);
 		}
 	});
+
 	colorItems(menu);
 	checkChoices();
 }
@@ -246,6 +293,12 @@ function checkChoices(): void {
 		CheckItem(scale, 1, host.scale === 0);
 		CheckItem(scale, 2, host.scale === -1);
 		factors.forEach((f, k) => CheckItem(scale, k + firstScaleItem, host!.scale === f));
+	}
+	const lookMenu = made.get(mLook);
+	const look = host.look;
+	if (lookMenu !== undefined && look !== undefined) {
+		enlargements.forEach(([e], k) => CheckItem(lookMenu, k + 1, look.enlarge === e));
+		touches.forEach(([t], k) => CheckItem(lookMenu, enlargements.length + 2 + k, look[t]));
 	}
 	const art = made.get(mArt);
 	if (art !== undefined && artChoice !== null) {
@@ -276,6 +329,21 @@ export function DoAdditionMenu(theMenu: Integer, theItem: Integer): boolean {
 			}
 			host.restartOn(d);
 			return true;
+		}
+		case mLook: {
+			const look = host.look;
+			if (look !== undefined) {
+				const k = theItem - 1;
+				const enlarge = enlargements[k]?.[0];
+				const touch = touches[k - enlargements.length - 1]?.[0];
+				if (enlarge !== undefined) {
+					host.setLook?.({ ...look, enlarge });
+				} else if (touch !== undefined) {
+					host.setLook?.({ ...look, [touch]: !look[touch] });
+				}
+				checkChoices();
+			}
+			return false;
 		}
 		case mScale: {
 			const factor = theItem === 1 ? 0 : theItem === 2 ? -1 : (host.scales()[theItem - firstScaleItem]?.factor ?? null);
