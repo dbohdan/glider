@@ -26,7 +26,8 @@ check: node_modules/.installed
 lint: node_modules/.installed
 	$(BIN)/oxlint --type-aware --deny-warnings src tools test oracle
 
-test: node_modules/.installed
+# The browser tests load the built page.
+test: node_modules/.installed build
 	$(NODE) --test 'test/**/*.test.ts'
 
 resources: node_modules/.installed

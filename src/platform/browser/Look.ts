@@ -64,8 +64,9 @@ export class ScreenView {
 	/** Device pixels per Mac pixel. */
 	private factor = 1;
 	/** How many times the canvas holds the screen enlarged, across and down; 0 when it holds it as it is, for the browser to enlarge pixel for pixel. */
-	private across = 0;
-	private down = 0;
+	// -1 until the first update sizes the canvas: 0 is a size (as it is), and a canvas starts at 300 by 150.
+	private across = -1;
+	private down = -1;
 	private lines: CanvasPattern | null = null;
 	private readonly width: number;
 	private readonly height: number;
