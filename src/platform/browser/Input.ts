@@ -1,5 +1,8 @@
 // Port: the keyboard and mouse. Browser keys become Mac key codes and characters (a US layout);
-// the Command key is ⌘ on a Mac and Control elsewhere.
+// the Command key is ⌘ on a Mac and Control elsewhere. On a touch screen a finger is the mouse,
+// its touch the button held down, so that menus open, track, and choose by press, drag, and
+// release, as they do with a mouse (a tap opens a menu and lets it go with nothing chosen); and
+// a tap on the screen while a dialog takes text brings up the device's keyboard.
 
 import { hostKeyDown, hostKeyUp, keysDown, macRomanCode, mouse, mouseMoved, postOSEvent } from '../../mac/Toolbox.ts';
 
@@ -62,6 +65,29 @@ export interface InputOptions {
 	capture: () => boolean;
 	/** Called on any input, to let waiting code run. */
 	wake: () => void;
+	/** Whether the program takes text now (a dialog's edit text item), for a touch screen's keyboard. */
+	textField: () => boolean;
+}
+
+/** Mac virtual key codes of the characters a touch screen's keyboard types (the US layout's keys). */
+const charKeys = new Map<string, number>();
+for (const [code, key] of Object.entries(keyCodes)) {
+	const ch = code.startsWith('Key') ? code.slice(3).toLowerCase() : code.startsWith('Digit') ? code.slice(5) : null;
+	if (ch !== null) {
+		charKeys.set(ch, key);
+		charKeys.set(ch.toUpperCase(), key);
+	}
+}
+for (const [ch, code] of [[' ', 'Space'], ['-', 'Minus'], ['=', 'Equal'], ['[', 'BracketLeft'], [']', 'BracketRight'], ['\\', 'Backslash'], [';', 'Semicolon'], ["'", 'Quote'], [',', 'Comma'], ['.', 'Period'], ['/', 'Slash'], ['`', 'Backquote']] as const) {
+	charKeys.set(ch, keyCodes[code]!);
+}
+charKeys.set('\b', keyCodes['Backspace']!);
+
+/** Types a character, as a key pressed and let go. */
+function typeChar(ch: string): void {
+	const code = charKeys.get(ch) ?? 0;
+	hostKeyDown(code, macRomanCode(ch));
+	hostKeyUp(code);
 }
 
 export function attachInput(o: InputOptions): void {
@@ -75,7 +101,9 @@ export function attachInput(o: InputOptions): void {
 		}
 		// An arrow key is the arrow key whatever key sent it: remote desktops (xrdp) send the arrows
 		// as the numeric keypad's with NumLock off ("Numpad4" for "ArrowLeft"), as do PC keypads.
-		const key = e.key.startsWith('Arrow') ? e.key : e.code;
+		// A touch screen's keyboard sends no code; its Return is read by the key it names, and its
+		// characters by what they put in the text field (below).
+		const key = e.key.startsWith('Arrow') || (e.code === '' && e.key === 'Enter') ? e.key : e.code;
 		return (o.plusKeyboard ? plusArrows[key] : undefined) ?? keyCodes[key];
 	};
 	window.addEventListener('keydown', (e) => {
@@ -177,4 +205,88 @@ export function attachInput(o: InputOptions): void {
 		o.wake();
 	});
 	o.screen.addEventListener('contextmenu', (e) => e.preventDefault());
+	attachTouch(o, place);
+}
+
+/**
+ * A finger on the screen as the mouse: the first one down, until it lifts; the others are not
+ * read. A finger taps the mouse's button where it touches, so it moves the mouse there first.
+ * (A touch's pointer events, their defaults prevented, bring no mouse events of their own.)
+ */
+function attachTouch(o: InputOptions, place: (e: MouseEvent) => void): void {
+	let finger: number | null = null;
+	o.screen.addEventListener('pointerdown', (e) => {
+		if (e.pointerType === 'mouse' || finger !== null) {
+			return;
+		}
+		e.preventDefault();
+		finger = e.pointerId;
+		o.screen.setPointerCapture(e.pointerId);
+		place(e);
+		mouse.button = true;
+		postOSEvent(1, 0);
+		o.wake();
+	});
+	o.screen.addEventListener('pointermove', (e) => {
+		if (e.pointerId === finger) {
+			place(e);
+			o.wake();
+		}
+	});
+	const lift = (e: PointerEvent): void => {
+		if (e.pointerId !== finger) {
+			return;
+		}
+		finger = null;
+		place(e);
+		mouse.button = false;
+		postOSEvent(2, 0);
+		// Only in a tap's own handler may a page bring up the keyboard (iOS), so a dialog that opens
+		// taking text brings it up at the next tap.
+		if (o.textField()) {
+			keyboard.focus({ preventScroll: true });
+		}
+		o.wake();
+	};
+	o.screen.addEventListener('pointerup', lift);
+	o.screen.addEventListener('pointercancel', lift);
+
+	// The keyboard types into a text field off the screen. What changes in the field is typed on
+	// the Mac: characters added, and for each one taken away, Delete. Reading changes rather than
+	// key events follows keyboards that compose words or correct them.
+	const keyboard = document.createElement('input');
+	keyboard.className = 'keyboard';
+	keyboard.setAttribute('autocomplete', 'off');
+	keyboard.setAttribute('autocorrect', 'off');
+	keyboard.setAttribute('autocapitalize', 'off');
+	keyboard.setAttribute('aria-hidden', 'true');
+	keyboard.spellcheck = false;
+	keyboard.tabIndex = -1;
+	document.body.append(keyboard);
+	let typed = '';
+	keyboard.addEventListener('input', () => {
+		const now = keyboard.value;
+		let same = 0;
+		while (same < typed.length && same < now.length && typed[same] === now[same]) {
+			same++;
+		}
+		for (let i = same; i < typed.length; i++) {
+			typeChar('\b');
+		}
+		for (const ch of now.slice(same)) {
+			typeChar(ch);
+		}
+		typed = now;
+		o.wake();
+	});
+	keyboard.addEventListener('blur', () => {
+		keyboard.value = '';
+		typed = '';
+	});
+	// The keyboard goes as the dialog does.
+	setInterval(() => {
+		if (document.activeElement === keyboard && !o.textField()) {
+			keyboard.blur();
+		}
+	}, 250);
 }

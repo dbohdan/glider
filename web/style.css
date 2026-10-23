@@ -11,12 +11,80 @@ body {
 	align-items: center;
 	justify-content: center;
 	overflow: hidden;
+	box-sizing: border-box;
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
 }
 
+/* A finger on the screen is the mouse: no scrolling or zooming by touch. */
 .screen {
 	image-rendering: pixelated;
 	cursor: none;
+	touch-action: none;
 }
+
+/* The text field a touch screen's keyboard types into, off the screen. 16px keeps iOS from zooming to it. */
+.keyboard {
+	position: fixed;
+	left: 0;
+	top: 0;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	border: 0;
+	opacity: 0;
+	font-size: 16px;
+	pointer-events: none;
+}
+
+/*
+ * The virtual gamepad (src/platform/browser/Pads.ts), in the margins beside the screen: the arrows
+ * on one side, energy and band on the other, pause above them in landscape or between in portrait.
+ * The sizes match Pads.ts's button, gap, and margin.
+ */
+.pad {
+	touch-action: none;
+}
+
+.pad[hidden] {
+	display: none;
+}
+
+.pad-group {
+	position: fixed;
+	display: flex;
+	gap: 10px;
+}
+
+.pad-button {
+	width: 56px;
+	height: 56px;
+	box-sizing: border-box;
+	border-radius: 8px;
+	background: #fff center no-repeat;
+	image-rendering: pixelated;
+}
+
+/* Inverted while held, as Glider's Configure dialog inverts the icon clicked. */
+.pad-button.pressed {
+	filter: invert(1);
+	outline: 2px solid #fff;
+	outline-offset: -2px;
+}
+
+.pad-landscape .pad-arrows { left: 12px; bottom: 20%; }
+.pad-landscape .pad-actions { right: 12px; bottom: 20%; }
+.pad-landscape .pad-pause { right: 45px; top: 12px; }
+.pad-landscape.pad-swapped .pad-arrows { left: auto; right: 12px; }
+.pad-landscape.pad-swapped .pad-actions { right: auto; left: 12px; }
+.pad-landscape.pad-swapped .pad-pause { right: auto; left: 45px; }
+
+.pad-portrait .pad-arrows { left: 12px; bottom: 78px; }
+.pad-portrait .pad-actions { right: 12px; bottom: 78px; }
+.pad-portrait .pad-pause { left: 50%; bottom: 12px; transform: translateX(-50%); }
+.pad-portrait.pad-swapped .pad-arrows { left: auto; right: 12px; }
+.pad-portrait.pad-swapped .pad-actions { right: auto; left: 12px; }
 
 .message {
 	position: fixed;

@@ -348,6 +348,15 @@ function editRects(te: TERec, r: Rect): void {
 	}
 }
 
+/**
+ * Port: whether the front window is a dialog with an edit text item taking keys. The page then
+ * brings up a touch screen's keyboard when the screen is tapped.
+ */
+export function textFieldActive(): boolean {
+	const w = FrontWindow();
+	return w instanceof DialogRecord && w.visible && w.editField >= 0 && w.textH !== null && w.textH.active;
+}
+
 /** Makes an edit text item the current one, moving the text record to it. */
 function setEditField(d: DialogRecord, index: number): void {
 	if (d.editField === index && d.textH !== null) {

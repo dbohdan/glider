@@ -3,7 +3,10 @@
 // and Art, the art files on the disk, the other kind dimmed) in the Options menu after Controls,
 // colored as Controls is. And Bass Beat, a
 // checkbox in Sound Settings under Music On, as Glider for Windows has, which turns the bass during
-// play off without the jingle on entering a room. And Sound Settings' 4-Channel is remembered.
+// play off without the jingle on entering a room. And Sound Settings' 4-Channel is remembered. And
+// two control methods in the Controls submenu after Joystick, now "Joystick (Mouse)": Gamepad, the
+// browser's, and Virtual Gamepad, buttons the page draws beside the screen; Configure chooses the
+// side of the virtual one's arrows.
 //
 // The additions are on only when the page gives a host (setAdditionsHost). The tests boot Glider
 // without one, so that it stays as the oracle measures it.
@@ -13,6 +16,7 @@ import {
 	ChangedResource,
 	ControlRecord,
 	type ControlHandle,
+	CheckItem,
 	CountMItems,
 	DelMCEntries,
 	DialogRecord,
@@ -20,6 +24,8 @@ import {
 	GetCtlValue,
 	GetDItem,
 	GetMCEntry,
+	GetMenu,
+	GetPicture,
 	Handle,
 	HideDItem,
 	InsMenuItem,
@@ -32,6 +38,7 @@ import {
 	type Rect,
 	SetCtlValue,
 	SetDItem,
+	SetItem,
 	SetMCEntries,
 	SizeWindow,
 	UseResFile,
@@ -40,10 +47,16 @@ import {
 	checkBoxProc,
 	chkCtrl,
 	ctrlItem,
+	itemDisable,
+	picItem,
+	radCtrl,
+	radioButProc,
+	statText,
 } from '../mac/Toolbox.ts';
 import { PBoolean, PInteger, PRecord, readLayout, sizeOf, writeLayout } from '../mac/PascalLayout.ts';
-import { G, iControls, iHoldKeyboard, mControls, mOption, moveOptionItems } from './Globals.ts';
-import { additionsHost, setSubmenu, SetUpSubmenus } from '../additions/Additions.ts';
+import { addControlItems, G, iControls, iGamepad, iHoldKeyboard, iLastControl, iRelMouse, iVirtualPad, mControls, mOption, moveOptionItems } from './Globals.ts';
+import { additionsHost, type PadSide, setSubmenu, SetUpSubmenus } from '../additions/Additions.ts';
+import { noPad, type PadState } from '../additions/Pads.ts';
 
 export { AfterRestartQuit, DoAdditionMenu } from '../additions/Additions.ts';
 
@@ -94,7 +107,9 @@ export function SetUpAdditions(options: MenuHandle): void {
 			SetMCEntries([{ ...controls, mctItem: item }]);
 		}
 	});
+	SetUpControls(GetMenu(mControls)!);
 	ReadWebPrefs();
+	UsePads();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -102,9 +117,11 @@ export function SetUpAdditions(options: MenuHandle): void {
 
 /**
  * The additions' preferences, a resource of Glider's beside its own 'Gprf' ('Wprf' 128, "Web
- * Edition preferences"), which the browser keeps and exports with them.
+ * Edition preferences"), which the browser keeps and exports with them. Version 1 had Bass Beat;
+ * version 2 adds the control method and the virtual gamepad's side.
  */
-const webPrefsLayout = PRecord({ version: PInteger, bassBeatIs: PBoolean });
+const webPrefsLayout1 = PRecord({ version: PInteger, bassBeatIs: PBoolean });
+const webPrefsLayout = PRecord({ version: PInteger, bassBeatIs: PBoolean, controlIs: PInteger, padSideIs: PInteger });
 const webPrefsType = 'Wprf';
 
 let bassBeat = true;
@@ -129,10 +146,30 @@ function ReadWebPrefs(): void {
 	const save = CurResFile();
 	UseResFile(G.gliderResNum);
 	const h = Get1Resource(webPrefsType, 128);
-	if (h !== null && h.data.length >= sizeOf(webPrefsLayout)) {
-		bassBeat = readLayout(webPrefsLayout, h.data, 0).bassBeatIs;
+	let control = 0;
+	if (h !== null && h.data.length >= sizeOf(webPrefsLayout1)) {
+		bassBeat = readLayout(webPrefsLayout1, h.data, 0).bassBeatIs;
+		if (h.data.length >= sizeOf(webPrefsLayout)) {
+			const prefs = readLayout(webPrefsLayout, h.data, 0);
+			control = prefs.controlIs;
+			padSide = prefs.padSideIs === 1 ? 'right' : 'left';
+		}
 	}
 	UseResFile(save);
+	// The control method Glider read from its own preferences, unless the additions' say another; a
+	// touch screen starts with the Virtual Gamepad.
+	if (control < iHoldKeyboard || control > iLastControl) {
+		control = startingControl(G.controlMethod);
+	}
+	for (let i = iHoldKeyboard; i <= iLastControl; i++) {
+		CheckItem(GetMenu(mControls)!, i, false);
+	}
+	G.controlMethod = control;
+}
+
+/** The control method Glider starts with when the additions' preferences have none: its own's, or on a touch screen, the Virtual Gamepad. */
+function startingControl(fromGprf: Integer): Integer {
+	return additionsHost()?.pads?.touchScreen === true ? iVirtualPad : fromGprf;
 }
 
 /** Writes the additions' preferences into Glider, as SavePrefs writes Glider's; only once one differs from its default. */
@@ -143,12 +180,12 @@ export function SaveWebPrefs(): void {
 	const save = CurResFile();
 	UseResFile(G.gliderResNum);
 	let h = Get1Resource(webPrefsType, 128);
-	if (h === null && bassBeat) {
+	if (h === null && bassBeat && padSide === 'left' && G.controlMethod === startingControl(OriginalControl(G.controlMethod))) {
 		UseResFile(save);
 		return;
 	}
 	const data = new Uint8Array(sizeOf(webPrefsLayout));
-	writeLayout(webPrefsLayout, { version: 1, bassBeatIs: bassBeat }, data, 0);
+	writeLayout(webPrefsLayout, { version: 2, bassBeatIs: bassBeat, controlIs: G.controlMethod, padSideIs: padSide === 'right' ? 1 : 0 }, data, 0);
 	if (h === null) {
 		h = new Handle(data);
 		AddResource(h, webPrefsType, 128, '');
@@ -213,4 +250,121 @@ export function HitBassBeat(d: DialogRecord, itemHit: Integer): void {
 /** Sound Settings' Cancel puts Bass Beat back. */
 export function CancelBassBeat(): void {
 	bassBeat = bassBeatBefore;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Gamepad and Virtual Gamepad
+
+/** The side of the virtual gamepad's arrows. */
+let padSide: PadSide = 'left';
+/** The side Configure shows, until its Okay. */
+let newPadSide: PadSide = 'left';
+
+/**
+ * Puts the additions' control methods in the Controls submenu ('MENU' 131) after Joystick, which
+ * is renamed for what it is, a mouse used as a joystick. The items after it (the line, Configure)
+ * move down, their colors ('mctb' 131) with them; the new items take Joystick's.
+ */
+function SetUpControls(controls: MenuHandle): void {
+	SetItem(controls, iRelMouse, 'Joystick (Mouse)');
+	const added = 2;
+	for (let i = CountMItems(controls); i > iRelMouse; i--) {
+		const e = GetMCEntry(mControls, i);
+		if (e !== null) {
+			DelMCEntries(mControls, i);
+			SetMCEntries([{ ...e, mctItem: i + added }]);
+		}
+	}
+	InsMenuItem(controls, 'Gamepad;Virtual Gamepad', iRelMouse);
+	const joystick = GetMCEntry(mControls, iRelMouse);
+	if (joystick !== null) {
+		SetMCEntries([iGamepad, iVirtualPad].map((item) => ({ ...joystick, mctItem: item })));
+	}
+	addControlItems(added);
+}
+
+/**
+ * The control method Glider's own preferences keep: the additions' methods are kept as Hold
+ * Keyboard, which their keys work as, so that the original reading the preferences has a control;
+ * the additions' preferences keep the method itself.
+ */
+export function OriginalControl(method: Integer): Integer {
+	return method > iRelMouse ? iHoldKeyboard : method;
+}
+
+/** Tells the page which gamepads Glider reads now, as the control method changes. */
+export function UsePads(): void {
+	additionsHost()?.pads?.use(G.controlMethod === iGamepad, G.controlMethod === iVirtualPad ? padSide : null);
+}
+
+/** What the chosen gamepad says this frame; nothing for Glider's own control methods. */
+export function PadInput(): PadState {
+	const pads = additionsHost()?.pads;
+	if (pads === undefined) {
+		return noPad;
+	}
+	return G.controlMethod === iGamepad ? pads.gamepad() : G.controlMethod === iVirtualPad ? pads.virtualPad() : noPad;
+}
+
+/** Configure's radio buttons for the virtual gamepad's side, after Glider's 15 items, its label (16) and brace (17). */
+const padLeftItem = 18;
+const padRightItem = 19;
+/** How far Configure grows for them: a group as tall as Mouse Button's, under it. */
+const padRow = 36;
+
+/**
+ * Puts "Virtual Pad: { Arrows Left / Arrows Right }" in Configure ('DLOG' and 'DITL' 137)
+ * under Mouse Button's group, made as that one is: a label, the brace (its 'PICT' 256), two radio
+ * buttons. The dialog grows a row; as it is made, before Glider centers it.
+ */
+export function AddPadSide(d: DialogRecord): void {
+	if (additionsHost() === null) {
+		return;
+	}
+	const kind = ref<Integer>(0);
+	const h = ref<ItemHandle>(null);
+	const box: Rect = { top: 0, left: 0, bottom: 0, right: 0 };
+	const below = (item: Integer): Rect => {
+		GetDItem(d, item, kind, h, box);
+		return { ...box, top: box.top + padRow, bottom: box.bottom + padRow };
+	};
+	const label = below(14);
+	const brace = below(15);
+	// The radio buttons' titles are longer than Mouse Button's; under the Okay button there is room.
+	const left = { ...below(12), right: 190 };
+	const right = { ...below(13), right: 190 };
+	const text = new Handle(Uint8Array.from('Virtual Pad:', (c) => c.charCodeAt(0)));
+	d.items.push({ handle: text, rect: label, type: statText + itemDisable });
+	d.items.push({ handle: GetPicture(256), rect: brace, type: picItem + itemDisable });
+	newPadSide = padSide;
+	for (const [rect, title, side] of [
+		[left, 'Arrows Left', 'left'],
+		[right, 'Arrows Right', 'right'],
+	] as const) {
+		const control = NewControl(d, rect, title, true, newPadSide === side ? 1 : 0, 0, 1, radioButProc, 0);
+		d.items.push({ handle: control, rect, type: ctrlItem + radCtrl });
+	}
+	const port = d.portRect;
+	SizeWindow(d, port.right - port.left, port.bottom - port.top + padRow, false);
+}
+
+/** Answers a click in Configure: an Arrows radio button is chosen. */
+export function HitPadSide(d: DialogRecord, itemHit: Integer): void {
+	if (additionsHost() === null || (itemHit !== padLeftItem && itemHit !== padRightItem)) {
+		return;
+	}
+	newPadSide = itemHit === padLeftItem ? 'left' : 'right';
+	const kind = ref<Integer>(0);
+	const h = ref<ItemHandle>(null);
+	const box: Rect = { top: 0, left: 0, bottom: 0, right: 0 };
+	for (const item of [padLeftItem, padRightItem]) {
+		GetDItem(d, item, kind, h, box);
+		SetCtlValue(h.v as ControlHandle, item === itemHit ? 1 : 0);
+	}
+}
+
+/** Configure's Okay keeps the side chosen. */
+export function KeepPadSide(): void {
+	padSide = newPadSide;
+	UsePads();
 }

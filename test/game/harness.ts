@@ -170,6 +170,25 @@ export function startsInFourChannels(additions: boolean): Promise<boolean> {
 	return inWorker({ fourChannelsSaved: true, additions });
 }
 
+/** What a game played with the virtual gamepad showed (padGame in caseWorker.ts). */
+export interface PadGame {
+	/** The control method Glider started with, on a touch screen. */
+	control: number;
+	/** The Controls submenu's items. */
+	items: string[];
+	/** What Glider last asked the page to show: whether it reads the gamepad, and the virtual one's side. */
+	use: [boolean, string | null];
+	/** The glider's left edge before steering, after steering right, and after steering left. */
+	lefts: [number, number, number];
+	/** Whether the virtual gamepad's pause button paused the game. */
+	paused: boolean;
+}
+
+/** Plays a game with the virtual gamepad, on a touch screen. */
+export function padGame(): Promise<PadGame> {
+	return inWorker({ padGame: true });
+}
+
 function inWorker<T>(job: object): Promise<T> {
 	return new Promise((resolve, reject) => {
 		const worker = new Worker(new URL('./caseWorker.ts', import.meta.url), { workerData: job });

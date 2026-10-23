@@ -23,6 +23,7 @@ import {
 } from '../mac/Toolbox.ts';
 import { getVolume } from '../mac/Files.ts';
 import { parseResourceFork } from '../mac/ResourceFork.ts';
+import type { PadState } from './Pads.ts';
 
 /** The machine and screen the page runs: the Mac II's screen may show Glider for Windows' colors. */
 export type Display = 'plus' | 'ii' | 'ii-bw' | 'win-16' | 'win-256';
@@ -41,6 +42,26 @@ export interface AdditionsHost {
 	/** The chosen scale's factor; 0 for the largest that fits. */
 	readonly scale: number;
 	setScale(factor: number): void;
+	/** The page's gamepads, for Glider's Gamepad and Virtual Gamepad controls; none without them. */
+	readonly pads?: PadsHost;
+}
+
+/** Which side of the screen the virtual gamepad's arrows are on; the energy and band buttons are on the other. */
+export type PadSide = 'left' | 'right';
+
+/** What the page does for the gamepads (src/additions/Pads.ts). */
+export interface PadsHost {
+	/** Whether the page is on a touch screen, where Glider starts with the Virtual Gamepad. */
+	readonly touchScreen: boolean;
+	/** The browser's gamepads now. */
+	gamepad(): PadState;
+	/** The virtual gamepad now. */
+	virtualPad(): PadState;
+	/**
+	 * The gamepads the program reads now: the virtual one shows, its arrows on a side, or not
+	 * (null); each one's pause button is the Tab key while it is read.
+	 */
+	use(gamepad: boolean, virtual: PadSide | null): void;
 }
 
 let host: AdditionsHost | null = null;

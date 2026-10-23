@@ -50,6 +50,10 @@ Each gallery says how its pictures are laid out.
 
 [![The Room Editor's help on a Mac II](2026-10-22-help-window/01-help-mac-ii.png)](2026-10-22-help-window/)
 
+**[Gamepads and touch screens](2026-10-23-gamepads/)**, 23 October 2026: the port's Gamepad and Virtual Gamepad controls, and a finger as the mouse, on an emulated phone.
+
+[![The virtual gamepad beside the Mac Plus's screen on a phone](2026-10-23-gamepads/04-two-fingers.png)](2026-10-23-gamepads/)
+
 **[Glider for Windows](windows/)**: the 1994 Windows release, for the port's planned Windows look.
 
 [![The House, room 5, in Glider for Windows](windows/room-05-youre-invited.png)](windows/)

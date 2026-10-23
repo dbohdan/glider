@@ -97,6 +97,8 @@ import {
 	kDuhDumSound,
 	kEKeyMap,
 	kFloorLimit,
+	iGamepad,
+	iVirtualPad,
 	kMaxThrust,
 	kMinBassLoop,
 	kQKeyMap,
@@ -131,6 +133,8 @@ import {
 } from './Globals.ts';
 import { DoTheBass, DoTheSound, DrawHiScores, Randomize, SetPage, ShowMenuBar, SpinBall } from './GlobalUtils.ts';
 import { SaveGame } from './FileInNOut.ts';
+import { PadInput } from './Additions.ts';
+import { thrustOf } from '../additions/Pads.ts';
 import {
 	ArrangeTiles,
 	BumpTheScore,
@@ -1124,6 +1128,55 @@ function GetInput(): void {
 				}
 			}
 			break; // end - relMouse
+
+		// Port: the additions' Gamepad and Virtual Gamepad (Additions.ts): Hold Keyboard's steering at
+		// the gamepad's thrust (a stick's in proportion, as Mouse's), and the keys as Hold Keyboard
+		// reads them, the gamepad's buttons with them.
+		case iGamepad:
+		case iVirtualPad: {
+			const pad = PadInput();
+			let thrust = thrustOf(pad.steer, kMaxThrust);
+			if (thrust === 0 && theKeys[G.leftKey]) {
+				thrust = -kMaxThrust;
+			} else if (thrust === 0 && theKeys[G.rightKey]) {
+				thrust = kMaxThrust;
+			}
+			if (thrust < 0) {
+				if (theGlider.isRight) {
+					theGlider.isForward = false;
+					theGlider.srcNum = 1;
+				} else {
+					theGlider.isForward = true;
+					theGlider.srcNum = 2;
+				}
+				theGlider.forVel = thrust;
+			} else if (thrust > 0) {
+				if (theGlider.isRight) {
+					theGlider.isForward = true;
+					theGlider.srcNum = 0;
+				} else {
+					theGlider.isForward = false;
+					theGlider.srcNum = 3;
+				}
+				theGlider.forVel = thrust;
+			} else {
+				theGlider.isForward = true;
+				theGlider.srcNum = theGlider.isRight ? 0 : 2;
+				theGlider.forVel = 0;
+			}
+
+			if ((theKeys[G.bandKey] || pad.band) && !G.bandBorne) {
+				FireBand();
+			}
+			if (theKeys[G.energyKey] || pad.energy) {
+				if ((theGlider.isRight && theGlider.isForward) || (!theGlider.isRight && !theGlider.isForward)) {
+					PushIt(16);
+				} else {
+					PushIt(-16);
+				}
+			}
+			break;
+		}
 
 		default:
 	} // case

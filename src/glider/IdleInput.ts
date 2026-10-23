@@ -59,7 +59,7 @@ import {
 	type WindowPtr,
 	Yield,
 } from '../mac/Toolbox.ts';
-import { AfterRestartQuit, DoAdditionMenu } from './Additions.ts';
+import { AfterRestartQuit, DoAdditionMenu, UsePads } from './Additions.ts';
 import {
 	DemoVersion,
 	G,
@@ -77,7 +77,7 @@ import {
 	iLoadHouse,
 	iNothing,
 	iQuit,
-	iRelMouse,
+	iLastControl,
 	iRestoreDeep,
 	iSaveGame,
 	iSaveGameAs,
@@ -541,12 +541,14 @@ export async function HandleMenu(theMenu: Integer, theItem: Integer): Promise<vo
 			break;
 
 		case mControls:
-			if (theItem >= iHoldKeyboard && theItem <= iRelMouse) {
-				for (i = iHoldKeyboard; i <= iRelMouse; i++) {
+			// Port: to iLastControl, not iRelMouse: the additions' control methods follow Joystick.
+			if (theItem >= iHoldKeyboard && theItem <= iLastControl) {
+				for (i = iHoldKeyboard; i <= iLastControl; i++) {
 					CheckItem(GetMenu(mControls)!, i, false);
 				}
 				CheckItem(GetMenu(mControls)!, theItem, true);
 				G.controlMethod = theItem;
+				UsePads(); // Port: the additions' gamepads
 			} else if (theItem === iConfigure) {
 				await DoCustomizeKeys();
 			}

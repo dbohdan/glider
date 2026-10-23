@@ -20,8 +20,8 @@ Moreover, it includes the Room Editor.
 
 ## Playing
 
-You need a keyboard or a mouse (when you switch Glider to mouse steering).
-Touch devices like phones and tablets are not supported yet.
+You can play with a keyboard, a mouse, a gamepad, or a touch screen.
+On a phone or a tablet, Glider starts with on-screen buttons, and a finger works as the mouse: press a menu's title and drag to the item, as with a mouse held down.
 The game first starts in a mode pretending to be a Mac II with 16 colors.
 You can change this in the Options menu (see [Additions](#additions)).
 
@@ -37,6 +37,12 @@ The default key settings for Glider are (⌘ is Command on a Mac and Control els
 
 Configure… in the Options menu changes the keys.
 When mouse controls are enabled, a click on the game screen in your browser captures the pointer and Escape releases it.
+Options > Controls also has two controls the original does not:
+
+- Gamepad: a gamepad your browser knows (most do, after you press one of its buttons). The D-pad or the left stick flies, the bottom and left face buttons boost, the right and top ones fire bands, and Start pauses.
+- Virtual Gamepad: left, right, boost, band, and pause buttons beside the game screen, for touch screens; they take clicks too. Configure… puts the arrows on the left or the right.
+
+The keys work with both.
 For more about the controls, see Glider's own Help screens (also in the Options menu).
 
 Quitting Glider goes to a Finder-esque desktop with three icons: Glider, the Room Editor, and a link to the source code repository.

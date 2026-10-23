@@ -1,0 +1,35 @@
+# Gamepads and touch screens
+
+Two control methods the port adds to Glider, in its Controls submenu after Joystick: Gamepad, the browser's (the Gamepad API), and Virtual Gamepad, five buttons the page draws beside the Mac's screen. A finger on the screen is the mouse. These are the port's own, with nothing in the oracle to match; the pictures are of the built page in Chromium, emulating a phone (844 by 390 CSS pixels, 3 device pixels to one) or a desktop with a stand-in gamepad, and of the port's dialogs.
+
+**01.** A phone held sideways, on the Mac Plus. The arrows on the left, energy and band on the right, pause above them, all in the margins: the screen still gets its 3 device pixels to a Mac pixel. The buttons' faces are Glider's own icons from its Configure dialog ('ICON' 980 to 983); pause has two bars drawn for it. The Virtual Gamepad is chosen for a touch screen the first time Glider starts. Before the menus are made it shows nothing, so the "New keyboard" alert of the first start is tapped away without it.
+
+![A phone in landscape](01-phone-landscape-mac-plus.png)
+
+**02.** Upright, the buttons go below the screen, pause centered under them, and the screen centers in what is left. Integer scaling gives a Mac Plus 2 device pixels a pixel here, a Mac II only 1.
+
+![A phone in portrait](02-phone-portrait-mac-plus.png)
+
+**03.** A finger pressed on Game and dragged down: the menu tracks as with a mouse held down, and lifting the finger on New Game chooses it.
+
+![The Game menu, held open by a finger](03-menu-by-finger.png)
+
+**04.** Two fingers at once, on right and energy: each is followed by its pointer ID, and a held button is inverted, as Configure inverts the icon clicked.
+
+![Right and energy held](04-two-fingers.png)
+
+**05.** The pause button is the Tab key: Glider pauses and shows its menu bar, which reaches Save Game, End Game, and Quit.
+
+![Paused by the pause button](05-paused-by-button.png)
+
+**06.** The Controls submenu on a Mac II: Joystick renamed "Joystick (Mouse)" for what it is, the mouse used as a joystick, and the two new items, colored as Joystick is. Without the page's host, as in the oracle cases, the submenu is the original's.
+
+![The Controls submenu](06-controls-submenu-mac-ii.png)
+
+**07.** Configure, a row taller, with "Virtual Pad: { Arrows Left / Arrows Right }" under Mouse Button's group, made as that one is (a label, the brace 'PICT' 256, two radio buttons). "Virtual Gamepad:" did not fit the label's two lines, nor "Arrows Right" Mouse Button's radio buttons; the new ones run under the Okay button, where there is room.
+
+![Configure on a Mac Plus](07-configure-mac-plus.png)
+
+**08.** On a desktop with a mouse, Gamepad chosen: the virtual buttons stay hidden. With a stand-in gamepad on the standard mapping, the D-pad flew the glider at full thrust and Start paused the game.
+
+![Gamepad chosen in the Controls submenu](08-gamepad-chosen.png)

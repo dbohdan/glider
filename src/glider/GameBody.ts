@@ -60,7 +60,7 @@ import {
 	WriteResource,
 } from '../mac/Toolbox.ts';
 import { PBoolean, PInteger, PRecord, PString, readLayout, writeLayout } from '../mac/PascalLayout.ts';
-import { SaveWebPrefs } from './Additions.ts';
+import { OriginalControl, SaveWebPrefs } from './Additions.ts';
 import { DemoVersion, G, helpScreensMode, highScoreMode, kErrLoadingRes, kErrMemLow, kErrSavingPrefs, kSleep } from './Globals.ts';
 import { DrawHiScores, GenericAlert, RedrawWindowFrame, ShowMenuBar, SpinBall } from './GlobalUtils.ts';
 import { DisplayAHelpScreen, DoIdle, DropIdle, InitIdle } from './IdleUtils.ts';
@@ -115,7 +115,7 @@ async function SavePrefs(): Promise<void> {
 			prefs.theName = G.playerName;
 			prefs.resName = G.resourceName;
 			prefs.sndVolume = GetSoundVol();
-			prefs.controlIs = G.controlMethod;
+			prefs.controlIs = OriginalControl(G.controlMethod); // Port: one the original knows (Additions.ts)
 			prefs.leftIs = G.leftKey;
 			prefs.rightIs = G.rightKey;
 			prefs.energyIs = G.energyKey;

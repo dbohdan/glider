@@ -10,7 +10,7 @@ import { type AdditionsHost, type Display, RefreshScales, setAdditionsHost } fro
 import { main as editor } from '../../editor/GameBody.ts';
 import { main as glider } from '../../glider/GameBody.ts';
 import { wantsMouseCapture } from '../../glider/Globals.ts';
-import { ExitToShellSignal, setBeeper, setBrushes } from '../../mac/Toolbox.ts';
+import { ExitToShellSignal, setBeeper, setBrushes, textFieldActive } from '../../mac/Toolbox.ts';
 import { parseResourceFork } from '../../mac/ResourceFork.ts';
 import { loadVolume, type VolumeManifest } from '../../mac/Volume.ts';
 import { bootMachine, type MachineKind } from '../Machine.ts';
@@ -20,6 +20,7 @@ import { chosenDisplay, chosenScale, keepDisplay, keepScale } from './Settings.t
 import { beep } from './Beep.ts';
 import { BrowserHost } from './Clock.ts';
 import { attachInput } from './Input.ts';
+import { BrowserPads, type IconBits } from './Pads.ts';
 import { BrowserSound } from './Sound.ts';
 import { FileStore } from './Storage.ts';
 import { download, inflate, pickFiles } from './PageFiles.ts';
@@ -33,10 +34,14 @@ async function fetchBytes(path: string): Promise<Uint8Array> {
 	return new Uint8Array(await r.arrayBuffer());
 }
 
-/** The largest whole number of device pixels per Mac pixel that fits the window. */
+/** The room the virtual gamepad takes beside the screen, in CSS pixels. */
+let padRoom = (): { width: number; height: number } => ({ width: 0, height: 0 });
+
+/** The largest whole number of device pixels per Mac pixel that fits the window, beside the virtual gamepad. */
 function fitFactor(width: number, height: number): number {
 	const ratio = window.devicePixelRatio || 1;
-	return Math.max(1, Math.floor(Math.min((window.innerWidth * ratio) / width, (window.innerHeight * ratio) / height)));
+	const room = padRoom();
+	return Math.max(1, Math.floor(Math.min(((window.innerWidth - room.width) * ratio) / width, ((window.innerHeight - room.height) * ratio) / height)));
 }
 
 /** The colors a display shows the Mac II's 16 as, if not its own. */
@@ -101,14 +106,35 @@ async function start(): Promise<void> {
 		scale = (scaleChoice === 0 ? fit : Math.min(scaleChoice, fit)) / (window.devicePixelRatio || 1);
 		canvas.style.width = `${machine.width * scale}px`;
 		canvas.style.height = `${machine.height * scale}px`;
+		// The screen centered in the room the gamepad leaves: it takes the sides alike, or the bottom.
+		document.body.style.paddingBottom = `${padRoom().height}px`;
 	};
 	layout();
 	window.addEventListener('resize', () => {
 		layout();
 		RefreshScales();
 	});
-	attachInput({ screen: canvas, scale: () => scale, plusKeyboard: kind === 'plus', width: machine.width, height: machine.height, capture: wantsMouseCapture, wake: () => host.wake() });
+	attachInput({ screen: canvas, scale: () => scale, plusKeyboard: kind === 'plus', width: machine.width, height: machine.height, capture: wantsMouseCapture, wake: () => host.wake(), textField: textFieldActive });
+	// Glider's gamepads, with its Configure dialog's icons on the virtual one's buttons.
+	const gliderFile = volume.list().find((f) => f.name === 'Glider 4.05');
+	const gliderRsrc = !onDesktop && !onEditor && gliderFile !== undefined ? parseResourceFork(gliderFile.rsrc) : null;
+	const icon = (id: number): IconBits | undefined => gliderRsrc?.get('ICON', id)?.data;
+	const pads =
+		gliderRsrc === null
+			? undefined
+			: new BrowserPads({
+					icons: { left: icon(980), right: icon(981), energy: icon(982), band: icon(983) },
+					layout: () => {
+						layout();
+						RefreshScales();
+					},
+					wake: () => host.wake(),
+				});
+	if (pads !== undefined) {
+		padRoom = () => pads.reserve();
+	}
 	const frame = (): void => {
+		pads?.poll();
 		sound.update();
 		renderScreen(machine, image.data, true, substitute);
 		ctx.putImageData(image, 0, 0);
@@ -157,6 +183,7 @@ async function start(): Promise<void> {
 			}
 			layout();
 		},
+		pads,
 	};
 	setAdditionsHost(additions);
 

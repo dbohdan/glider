@@ -99,7 +99,7 @@ import {
 	keyDown,
 	pString,
 } from '../mac/Toolbox.ts';
-import { AddBassBeat, CancelBassBeat, HitBassBeat } from './Additions.ts';
+import { AddBassBeat, AddPadSide, CancelBassBeat, HitBassBeat, HitPadSide, KeepPadSide } from './Additions.ts';
 import {
 	balloonMode,
 	battry,
@@ -1226,6 +1226,8 @@ export async function DoCustomizeKeys(): Promise<void> {
 	UseResFile(G.gliderResNum);
 
 	const theDlgPtr = GetNewDialog(rCustomKeysID, null, inFront)!;
+	// Port: the virtual gamepad's side under Mouse Button, the port's addition (Additions.ts).
+	AddPadSide(theDlgPtr);
 	tempRect = cloneRect(theDlgPtr.portRect);
 	tempRect.top = div(screenBits.bounds.bottom - screenBits.bounds.top - (tempRect.bottom - tempRect.top), 2);
 	tempRect.left = div(screenBits.bounds.right - screenBits.bounds.left - (tempRect.right - tempRect.left), 2);
@@ -1352,6 +1354,8 @@ export async function DoCustomizeKeys(): Promise<void> {
 			SetCtlValue(itemH.v as ControlHandle, 0);
 		}
 
+		HitPadSide(theDlgPtr, itemHit); // Port: the addition's radio buttons
+
 		if (itemHit === bandRadio) {
 			newButtonFires = true;
 			GetDItem(theDlgPtr, bandRadio, itemT, itemH, tempRect);
@@ -1416,6 +1420,7 @@ export async function DoCustomizeKeys(): Promise<void> {
 				G.rightName = newRightName;
 				G.energyName = newEnergyName;
 				G.bandName = newBandName;
+				KeepPadSide(); // Port: the addition's
 			}
 		}
 
