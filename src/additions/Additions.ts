@@ -139,10 +139,12 @@ export const mScale = 201;
 export const mArt = 202;
 export const mFilters = 203;
 
-// Grouped by what a choice costs: the black-and-white Macs each start the program again, while the
-// Mac II's color screen and Glider for Windows' change among themselves at once.
+// Grouped by what a choice costs: a line between two items means that going from one to the other
+// starts the program again. The black-and-white Macs are each a group of their own, while the Mac
+// II's color screen and Glider for Windows' change among themselves at once.
 const displays: [Display | null, string][] = [
 	['plus', 'Mac Plus'],
+	[null, '(-'],
 	['ii-bw', 'Mac II, Black & White'],
 	[null, '(-'],
 	['ii', 'Mac II, 16 Colors'],
