@@ -3,11 +3,12 @@
 // so the browser keeps them (localStorage), for this browser only; the address's `machine` and
 // `scale` parameters win over them.
 
-import { type Display, type Look, plainLook } from '../../additions/Additions.ts';
+import { type Display, type Filters, noFilters } from '../../additions/Additions.ts';
 
 const displays: Display[] = ['plus', 'ii', 'ii-bw', 'win-16', 'win-256'];
 const displayKey = 'glider4.display';
 const scaleKey = 'glider4.scale';
+// Named for the Look submenu, as the Filters submenu was first called; kept so that choices made then stay.
 const lookKey = 'glider4.look';
 
 function stored(key: string): string | null {
@@ -65,25 +66,25 @@ export function keepScale(factor: number): boolean {
 }
 
 /** How the screen is shown: the one kept, else plain sharp pixels. */
-export function chosenLook(): Look {
+export function chosenFilters(): Filters {
 	try {
-		const kept = JSON.parse(stored(lookKey) ?? 'null') as Partial<Look> | null;
+		const kept = JSON.parse(stored(lookKey) ?? 'null') as Partial<Filters> | null;
 		if (kept !== null && typeof kept === 'object') {
-			const look = { ...plainLook };
+			const filters = { ...noFilters };
 			if (kept.enlarge === 'sharp' || kept.enlarge === 'smooth' || kept.enlarge === 'soft') {
-				look.enlarge = kept.enlarge;
+				filters.enlarge = kept.enlarge;
 			}
 			for (const t of ['scanlines', 'glow', 'corners', 'tint'] as const) {
-				look[t] = kept[t] === true;
+				filters[t] = kept[t] === true;
 			}
-			return look;
+			return filters;
 		}
 	} catch {
-		// not JSON: the plain look
+		// not JSON: no filters
 	}
-	return { ...plainLook };
+	return { ...noFilters };
 }
 
-export function keepLook(look: Look): boolean {
-	return keep(lookKey, JSON.stringify(look));
+export function keepFilters(filters: Filters): boolean {
+	return keep(lookKey, JSON.stringify(filters));
 }

@@ -1,7 +1,7 @@
 // The browser page, built (`make build`, which `make test` runs first) and loaded in Chromium: the
-// screen's canvas holds the whole Mac screen in every look, at whole and fractional scales, on a
+// screen's canvas holds the whole Mac screen with every filter, at whole and fractional scales, on a
 // laptop, a high-density laptop and a phone. A canvas left at its default 300 by 150 once showed
-// only the screen's top left corner, enlarged, at the default look and scale.
+// only the screen's top left corner, enlarged, with the default filters and scale.
 //
 // Playwright's own Chromium is used if installed (`npx playwright install chromium`), else the one
 // at $CHROMIUM or $PLAYWRIGHT_BROWSERS_PATH/chromium; without any, the test is skipped.
@@ -34,7 +34,7 @@ interface Case {
 	dpr: number;
 	touch: boolean;
 	query: string;
-	look?: object;
+	filters?: object;
 	/** The Mac's screen size. */
 	mac: [number, number];
 }
@@ -49,11 +49,11 @@ const cases: Case[] = [
 ];
 for (const enlarge of ['sharp', 'smooth', 'soft']) {
 	for (const scale of [-1, 0]) {
-		cases.push({ name: `${enlarge} with scanlines and glow, scale ${scale}`, viewport: tablet, dpr: 2, touch: false, query: `?scale=${scale}`, look: { enlarge, scanlines: true, glow: true }, mac: [640, 480] });
+		cases.push({ name: `${enlarge} with scanlines and glow, scale ${scale}`, viewport: tablet, dpr: 2, touch: false, query: `?scale=${scale}`, filters: { enlarge, scanlines: true, glow: true }, mac: [640, 480] });
 	}
 }
 
-test('the page shows the whole screen in every look and scale', async (t) => {
+test('the page shows the whole screen with every filter and scale', async (t) => {
 	if (!existsSync(join(dist, 'index.html'))) {
 		t.skip('the page is not built (make build)');
 		return;
@@ -71,8 +71,8 @@ test('the page shows the whole screen in every look and scale', async (t) => {
 			await t.test(c.name, async () => {
 				const context = await browser.newContext({ viewport: c.viewport, deviceScaleFactor: c.dpr, isMobile: c.touch, hasTouch: c.touch });
 				try {
-					if (c.look !== undefined) {
-						await context.addInitScript((look) => localStorage.setItem('glider4.look', JSON.stringify(look)), c.look);
+					if (c.filters !== undefined) {
+						await context.addInitScript((filters) => localStorage.setItem('glider4.look', JSON.stringify(filters)), c.filters);
 					}
 					const page = await context.newPage();
 					const errors: string[] = [];

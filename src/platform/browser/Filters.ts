@@ -1,6 +1,6 @@
 // Port: how the page shows the Mac's screen (PORT.md, decision 4): enlarged sharp, smooth, or soft
-// as on a CRT, with scanlines, a glow, rounded corners, and a phosphor's tint if chosen (the Scale
-// submenu's looks, src/additions/Additions.ts). The Mac's pixels are the same whichever: only their
+// as on a CRT, with scanlines, a glow, rounded corners, and a phosphor's tint if chosen (the
+// Filters submenu, src/additions/Additions.ts). The Mac's pixels are the same whichever: only their
 // showing changes. Without shaders: the 2D canvas enlarges the screen with sharp pixels by whole
 // numbers, each axis its own, and the browser shrinks that smoothly to the size shown, so that how
 // much each axis is enlarged first sets how soft its edges are; the rest is CSS.
@@ -8,14 +8,14 @@
 // The numbers are to be tuned by playing: the address can set them (?soft=1&scanlines=0.35&glow=0.35
 // &blur=0.75&corners=10&tint=e8eeff).
 
-import type { Look } from '../../additions/Additions.ts';
+import type { Filters } from '../../additions/Additions.ts';
 
-/** The looks' numbers, as the address may set them. */
+/** The filters' numbers, as the address may set them. */
 interface Tuning {
 	/**
 	 * Soft: how many times the screen is enlarged sharp across before the browser smooths it; an
 	 * edge is soft over 1/soft of a Mac pixel. At 1, a dither's checks blend toward gray along each
-	 * row, as a CRT's limited bandwidth blended them; at 2, the look is hard to tell from sharp.
+	 * row, as a CRT's limited bandwidth blended them; at 2, the result is hard to tell from sharp.
 	 */
 	soft: number;
 	/** Scanlines: how dark the line between two of the Mac's rows is, 0 to 1. */
@@ -60,7 +60,7 @@ export class ScreenView {
 	private readonly glowCtx: CanvasRenderingContext2D;
 	private readonly tint = document.createElement('div');
 	private readonly tuning: Tuning;
-	private look: Look = { enlarge: 'sharp', scanlines: false, glow: false, corners: false, tint: false };
+	private filters: Filters = { enlarge: 'sharp', scanlines: false, glow: false, corners: false, tint: false };
 	/** Device pixels per Mac pixel. */
 	private factor = 1;
 	/** How many times the canvas holds the screen enlarged, across and down; 0 when it holds it as it is, for the browser to enlarge pixel for pixel. */
@@ -91,8 +91,8 @@ export class ScreenView {
 		this.update();
 	}
 
-	setLook(look: Look): void {
-		this.look = { ...look };
+	setFilters(filters: Filters): void {
+		this.filters = { ...filters };
 		this.update();
 	}
 
@@ -106,12 +106,12 @@ export class ScreenView {
 		const ratio = window.devicePixelRatio || 1;
 		const css = this.factor / ratio;
 		const whole = Number.isInteger(this.factor);
-		const scanlines = this.look.scanlines && this.factor >= scanlinesFrom;
+		const scanlines = this.filters.scanlines && this.factor >= scanlinesFrom;
 		let across: number;
 		let down: number;
-		if (this.look.enlarge === 'smooth') {
+		if (this.filters.enlarge === 'smooth') {
 			[across, down] = [1, 1];
-		} else if (this.look.enlarge === 'soft') {
+		} else if (this.filters.enlarge === 'soft') {
 			[across, down] = [this.tuning.soft, Math.ceil(this.factor)];
 		} else {
 			// Sharp: at a whole number the browser enlarges the canvas pixel for pixel (0); between
@@ -137,11 +137,11 @@ export class ScreenView {
 			e.style.width = `${this.width * css}px`;
 			e.style.height = `${this.height * css}px`;
 		}
-		this.glow.hidden = !this.look.glow;
+		this.glow.hidden = !this.filters.glow;
 		this.glow.style.opacity = String(this.tuning.glow);
 		this.glow.style.filter = `blur(${this.tuning.blur * css}px)`;
-		this.tint.hidden = !this.look.tint;
-		this.element.style.borderRadius = this.look.corners ? `${this.tuning.corners * css}px` : '';
+		this.tint.hidden = !this.filters.tint;
+		this.element.style.borderRadius = this.filters.corners ? `${this.tuning.corners * css}px` : '';
 	}
 
 	/** A Mac row's worth of the canvas's rows, the last quarter darkened. */
@@ -169,7 +169,7 @@ export class ScreenView {
 				this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 			}
 		}
-		if (this.look.glow) {
+		if (this.filters.glow) {
 			this.glowCtx.putImageData(image, 0, 0);
 		}
 	}

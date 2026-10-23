@@ -24,13 +24,13 @@ body {
 	touch-action: none;
 }
 
-/* At a fractional scale the canvas is drawn at the next whole one and shrunk smoothly (Look.ts). */
+/* At a fractional scale the canvas is drawn at the next whole one and shrunk smoothly (Filters.ts). */
 .screen.smooth {
 	image-rendering: auto;
 }
 
 /*
- * The screen's looks (Look.ts): the frame clips the screen to rounded corners; over the screen, a
+ * The screen's filters (Filters.ts): the frame clips the screen to rounded corners; over the screen, a
  * blurred copy lightens it (glow), and a phosphor's white multiplies it (tint).
  */
 .screen-frame {

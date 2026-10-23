@@ -16,8 +16,8 @@ import { loadVolume, type VolumeManifest } from '../../mac/Volume.ts';
 import { bootMachine, type MachineKind } from '../Machine.ts';
 import { renderScreen } from '../Screen.ts';
 import { type RGB8, windowsBrushes, windowsColors } from '../WindowsColors.ts';
-import { chosenDisplay, chosenLook, chosenScale, keepDisplay, keepLook, keepScale } from './Settings.ts';
-import { ScreenView } from './Look.ts';
+import { chosenDisplay, chosenFilters, chosenScale, keepDisplay, keepFilters, keepScale } from './Settings.ts';
+import { ScreenView } from './Filters.ts';
 import { beep } from './Beep.ts';
 import { BrowserHost } from './Clock.ts';
 import { attachInput } from './Input.ts';
@@ -95,10 +95,10 @@ async function start(): Promise<void> {
 	setBeeper(beep);
 	const sound = new BrowserSound();
 
-	// The screen as the chosen look shows it (Look.ts); sharp pixels unless another is chosen.
+	// The screen through the chosen filters (Filters.ts); sharp pixels unless others are chosen.
 	const view = new ScreenView(machine.width, machine.height, params);
-	let look = chosenLook();
-	view.setLook(look);
+	let filters = chosenFilters();
+	view.setFilters(filters);
 	document.body.append(view.element);
 	const canvas = view.canvas;
 	const image = new ImageData(machine.width, machine.height);
@@ -186,13 +186,13 @@ async function start(): Promise<void> {
 			layout();
 		},
 		pads,
-		get look() {
-			return look;
+		get filters() {
+			return filters;
 		},
-		setLook: (l) => {
-			look = l;
-			keepLook(l);
-			view.setLook(l);
+		setFilters: (f) => {
+			filters = f;
+			keepFilters(f);
+			view.setFilters(f);
 		},
 	};
 	setAdditionsHost(additions);

@@ -82,7 +82,7 @@ The port adds several features to Glider 4.05.
   The default is the largest size that fits on touch screens and the largest whole number elsewhere.
   A size between whole numbers is drawn sharp: each Mac pixel enlarged to the next whole number, then shrunk smoothly to fit.
   Sizes that do not fit are dimmed.
-- Options > Look: how the screen is shown, for trying out.
+- Options > Filters: how the screen is shown.
   Sharp pixels (the default), Smooth, or Soft (CRT), which blends pixels across each row as a cathode-ray tube did and keeps the rows crisp.
   Any of Scanlines, Glow, Rounded Corners, and Phosphor Tint can be added.
   The address can tune them: `?soft=1&scanlines=0.35&glow=0.35&blur=0.75&corners=10&tint=e8eeff`.
