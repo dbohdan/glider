@@ -39,15 +39,18 @@ export interface AdditionsHost {
 	restartOn(display: Display | null): void;
 	/** The scales the page offers, whole device pixels to a Mac pixel: their names, and whether they fit the window now. */
 	scales(): { factor: number; name: string; fits: boolean }[];
-	/** The chosen scale's factor; 0 for the largest that fits. */
+	/** The chosen scale's factor; 0 for the largest that fits, −1 for the largest whole number of device pixels that fits. */
 	readonly scale: number;
 	setScale(factor: number): void;
 	/** The page's gamepads, for Glider's Gamepad and Virtual Gamepad controls; none without them. */
 	readonly pads?: PadsHost;
 }
 
-/** Which side of the screen the virtual gamepad's arrows are on; the energy and band buttons are on the other. */
-export type PadSide = 'left' | 'right';
+/**
+ * Where the virtual gamepad's arrows are: on the screen's left or right, energy and band on the
+ * other side; or apart, ← and band on the left, energy and → on the right.
+ */
+export type PadSide = 'left' | 'right' | 'apart';
 
 /** What the page does for the gamepads (src/additions/Pads.ts). */
 export interface PadsHost {
@@ -193,6 +196,9 @@ function artDepth(rsrc: Uint8Array): Integer {
 	}
 }
 
+/** The Scale submenu's first numbered item, after the two Largest That Fits and a line. */
+const firstScaleItem = 4;
+
 /** Puts the Scale submenu's items in again, for the page's size now: the page calls it when its window changes. */
 export function RefreshScales(): void {
 	const menu = made.get(mScale) ?? null;
@@ -202,7 +208,7 @@ export function RefreshScales(): void {
 	while (CountMItems(menu) > 0) {
 		DelMenuItem(menu, 1);
 	}
-	AppendMenu(menu, 'Largest That Fits;(-');
+	AppendMenu(menu, 'Largest That Fits;Largest That Fits (Integer);(-');
 	const scales = host.scales();
 	if (scales.length > 0) {
 		AppendMenu(menu, scales.map((s) => s.name).join(';'));
@@ -210,7 +216,7 @@ export function RefreshScales(): void {
 	// Those that do not fit the window are dimmed, as art of the other kind is.
 	scales.forEach((s, k) => {
 		if (!s.fits) {
-			DisableItem(menu, k + 3);
+			DisableItem(menu, k + firstScaleItem);
 		}
 	});
 	colorItems(menu);
@@ -235,7 +241,8 @@ function checkChoices(): void {
 	if (scale !== undefined) {
 		const factors = host.scales().map((s) => s.factor);
 		CheckItem(scale, 1, host.scale === 0);
-		factors.forEach((f, k) => CheckItem(scale, k + 3, host!.scale === f));
+		CheckItem(scale, 2, host.scale === -1);
+		factors.forEach((f, k) => CheckItem(scale, k + firstScaleItem, host!.scale === f));
 	}
 	const art = made.get(mArt);
 	if (art !== undefined && artChoice !== null) {
@@ -268,7 +275,7 @@ export function DoAdditionMenu(theMenu: Integer, theItem: Integer): boolean {
 			return true;
 		}
 		case mScale: {
-			const factor = theItem === 1 ? 0 : (host.scales()[theItem - 3]?.factor ?? null);
+			const factor = theItem === 1 ? 0 : theItem === 2 ? -1 : (host.scales()[theItem - firstScaleItem]?.factor ?? null);
 			if (factor !== null) {
 				host.setScale(factor);
 				checkChoices();

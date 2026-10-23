@@ -49,7 +49,8 @@ Options > Controls adds two new control methods:
   The D-pad or the left stick directs flight, the bottom and left face buttons boost, the right and top face buttons fire bands, and Start pauses.
 - Virtual Gamepad: displays virtual buttons beside the game screen for touch screens.
   The buttons can be clicked, too.
-  Configure… lets you change whether the arrows are on on the left or the right.
+  Configure… lets you change whether the arrows are on the left, on the right, or apart.
+  Apart puts ← and band on the left and boost and → on the right; a thumb on the gap between two buttons presses both.
 
 The keyboards keys also work with both of these options.
 For more about the controls, see Glider's own Help screens (also in the Options menu).
@@ -77,7 +78,8 @@ The port adds several features to Glider 4.05.
   The options are: a black-and-white Mac Plus (512&times;342) with its own keyboard, a Mac II in 16 colors or in black and white (640&times;480), or the visuals of _Glider for Windows_ (1994) in 16- or 256-color mode with the rest from the Mac II.
   Switching between color and B&W quits and restarts the game.
   You will be prompted to save like when you choose Quit in the menu.
-- Options > Scale: integer pixel scaling, the largest that fits the window by default.
+- Options > Scale: the largest size that fits the window by default, or the largest whole number of pixels per Mac pixel, or a size you choose.
+  A size between whole numbers is drawn sharp: each Mac pixel enlarged to the next whole number, then shrunk smoothly to fit.
   Sizes that do not fit are dimmed.
 - Options > Art: choose the art files on the disk, the original's and any you import.
   The other kind (color or black and white) is dimmed.
@@ -98,7 +100,7 @@ You can also change what happens on startup by appending a query to the URL:
 
 - `?startup=desktop` starts on the desktop.
 - `?machine=plus` (or `ii`, `ii-bw`, `win-16`, `win-256`) chooses the machine.
-- `?scale=2` sets the scale.
+- `?scale=2` sets the scale in device pixels per Mac pixel; `0` is the largest that fits and `-1` the largest whole number that fits.
 
 The browser remembers the machine and the scale you choose in the menus.
 

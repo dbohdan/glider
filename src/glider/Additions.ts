@@ -46,9 +46,15 @@ import {
 	WriteResource,
 	checkBoxProc,
 	chkCtrl,
+	ClipRect,
 	ctrlItem,
+	DrawPicture,
+	GetClip,
 	itemDisable,
-	picItem,
+	NewRgn,
+	type Picture,
+	SetClip,
+	userItem,
 	radCtrl,
 	radioButProc,
 	statText,
@@ -152,7 +158,7 @@ function ReadWebPrefs(): void {
 		if (h.data.length >= sizeOf(webPrefsLayout)) {
 			const prefs = readLayout(webPrefsLayout, h.data, 0);
 			control = prefs.controlIs;
-			padSide = prefs.padSideIs === 1 ? 'right' : 'left';
+			padSide = padSides[prefs.padSideIs]?.[0] ?? 'left';
 		}
 	}
 	UseResFile(save);
@@ -185,7 +191,7 @@ export function SaveWebPrefs(): void {
 		return;
 	}
 	const data = new Uint8Array(sizeOf(webPrefsLayout));
-	writeLayout(webPrefsLayout, { version: 2, bassBeatIs: bassBeat, controlIs: G.controlMethod, padSideIs: padSide === 'right' ? 1 : 0 }, data, 0);
+	writeLayout(webPrefsLayout, { version: 2, bassBeatIs: bassBeat, controlIs: G.controlMethod, padSideIs: padSides.findIndex(([side]) => side === padSide) }, data, 0);
 	if (h === null) {
 		h = new Handle(data);
 		AddResource(h, webPrefsType, 128, '');
@@ -306,16 +312,23 @@ export function PadInput(): PadState {
 	return G.controlMethod === iGamepad ? pads.gamepad() : G.controlMethod === iVirtualPad ? pads.virtualPad() : noPad;
 }
 
-/** Configure's radio buttons for the virtual gamepad's side, after Glider's 15 items, its label (16) and brace (17). */
-const padLeftItem = 18;
-const padRightItem = 19;
-/** How far Configure grows for them: a group as tall as Mouse Button's, under it. */
+/** The virtual gamepad's sides, in Configure's radio buttons and the additions' preferences' order. */
+const padSides: [PadSide, string][] = [
+	['left', 'Arrows Left'],
+	['right', 'Arrows Right'],
+	['apart', 'Arrows Apart'],
+];
+/** Configure's first radio button for the side, after Glider's 15 items, its label (16) and brace (17). */
+const padFirstItem = 18;
+/** How far the group is below Mouse Button's, and how far Configure grows for it: a row more than Mouse Button's two. */
 const padRow = 36;
+const padGrowth = padRow + 16;
 
 /**
- * Puts "Virtual Pad: { Arrows Left / Arrows Right }" in Configure ('DLOG' and 'DITL' 137)
- * under Mouse Button's group, made as that one is: a label, the brace (its 'PICT' 256), two radio
- * buttons. The dialog grows a row; as it is made, before Glider centers it.
+ * Puts "Virtual Pad: { Arrows Left / Arrows Right / Arrows Apart }" in Configure ('DLOG' and
+ * 'DITL' 137) under Mouse Button's group, made as that one is: a label, the brace (its 'PICT' 256,
+ * drawn taller), radio buttons. The dialog grows; as it is made, before Glider
+ * centers it.
  */
 export function AddPadSide(d: DialogRecord): void {
 	if (additionsHost() === null) {
@@ -328,39 +341,79 @@ export function AddPadSide(d: DialogRecord): void {
 		GetDItem(d, item, kind, h, box);
 		return { ...box, top: box.top + padRow, bottom: box.bottom + padRow };
 	};
+	const rows = padSides.length - 2; // the rows past Mouse Button's two
 	const label = below(14);
+	label.top += 8 * rows; // centered on the group, as Mouse Button's label is on its
+	label.bottom += 8 * rows;
 	const brace = below(15);
+	brace.bottom += 16 * rows;
+	const bracePicture = GetPicture(256);
 	// The radio buttons' titles are longer than Mouse Button's; under the Okay button there is room.
-	const left = { ...below(12), right: 190 };
-	const right = { ...below(13), right: 190 };
+	const first = { ...below(12), right: 190 };
 	const text = new Handle(Uint8Array.from('Virtual Pad:', (c) => c.charCodeAt(0)));
 	d.items.push({ handle: text, rect: label, type: statText + itemDisable });
-	d.items.push({ handle: GetPicture(256), rect: brace, type: picItem + itemDisable });
+	d.items.push({ handle: () => drawBrace(bracePicture, brace), rect: brace, type: userItem + itemDisable });
 	newPadSide = padSide;
-	for (const [rect, title, side] of [
-		[left, 'Arrows Left', 'left'],
-		[right, 'Arrows Right', 'right'],
-	] as const) {
+	padSides.forEach(([side, title], k) => {
+		const rect = { ...first, top: first.top + 16 * k, bottom: first.bottom + 16 * k };
 		const control = NewControl(d, rect, title, true, newPadSide === side ? 1 : 0, 0, 1, radioButProc, 0);
 		d.items.push({ handle: control, rect, type: ctrlItem + radCtrl });
-	}
+	});
 	const port = d.portRect;
-	SizeWindow(d, port.right - port.left, port.bottom - port.top + padRow, false);
+	SizeWindow(d, port.right - port.left, port.bottom - port.top + padGrowth, false);
+}
+
+/** Rows of the brace ('PICT' 256, 31 pixels tall) in its straight parts, above its point and below. */
+const braceAbove = 7;
+const braceBelow = 23;
+const braceHeight = 31;
+
+/**
+ * Draws the brace, made for two lines, as tall as a box: its straight parts are made longer, half
+ * the extra rows above its point and half below, each a copy of a straight row. In pieces, each
+ * piece the picture drawn at its own size and clipped to the piece's rows: stretching the picture
+ * would thicken its curves.
+ */
+function drawBrace(picture: Picture | null, box: Rect): void {
+	if (picture === null) {
+		return;
+	}
+	const extra = box.bottom - box.top - braceHeight;
+	const above = extra >> 1;
+	const below = extra - above;
+	const save = NewRgn();
+	GetClip(save);
+	const piece = (offset: Integer, fromRow: Integer, toRow: Integer): void => {
+		const top = box.top + offset;
+		ClipRect({ top: box.top + fromRow, left: box.left, bottom: box.top + toRow, right: box.right });
+		DrawPicture(picture, { top, left: box.left, bottom: top + braceHeight, right: box.right });
+	};
+	piece(0, 0, braceAbove + 1);
+	for (let i = 1; i <= above; i++) {
+		piece(i, braceAbove + i, braceAbove + i + 1);
+	}
+	piece(above, braceAbove + 1 + above, braceBelow + 1 + above);
+	for (let i = 1; i <= below; i++) {
+		piece(above + i, braceBelow + above + i, braceBelow + above + i + 1);
+	}
+	piece(extra, braceBelow + 1 + extra, braceHeight + extra);
+	SetClip(save);
 }
 
 /** Answers a click in Configure: an Arrows radio button is chosen. */
 export function HitPadSide(d: DialogRecord, itemHit: Integer): void {
-	if (additionsHost() === null || (itemHit !== padLeftItem && itemHit !== padRightItem)) {
+	const chosen = padSides[itemHit - padFirstItem];
+	if (additionsHost() === null || chosen === undefined) {
 		return;
 	}
-	newPadSide = itemHit === padLeftItem ? 'left' : 'right';
+	newPadSide = chosen[0];
 	const kind = ref<Integer>(0);
 	const h = ref<ItemHandle>(null);
 	const box: Rect = { top: 0, left: 0, bottom: 0, right: 0 };
-	for (const item of [padLeftItem, padRightItem]) {
-		GetDItem(d, item, kind, h, box);
-		SetCtlValue(h.v as ControlHandle, item === itemHit ? 1 : 0);
-	}
+	padSides.forEach((_, k) => {
+		GetDItem(d, padFirstItem + k, kind, h, box);
+		SetCtlValue(h.v as ControlHandle, padFirstItem + k === itemHit ? 1 : 0);
+	});
 }
 
 /** Configure's Okay keeps the side chosen. */

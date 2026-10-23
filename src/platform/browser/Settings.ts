@@ -43,11 +43,11 @@ export function keepDisplay(display: Display): boolean {
 	return keep(displayKey, display);
 }
 
-/** The scale: whole device pixels per Mac pixel, 0 for the largest that fits. */
+/** The scale: whole device pixels per Mac pixel, 0 for the largest that fits, −1 for the largest whole number that fits. */
 export function chosenScale(params: URLSearchParams): number {
 	for (const v of [params.get('scale'), stored(scaleKey)]) {
 		const n = Number(v);
-		if (v !== null && Number.isInteger(n) && n >= 0) {
+		if (v !== null && Number.isInteger(n) && n >= -1) {
 			return n;
 		}
 	}

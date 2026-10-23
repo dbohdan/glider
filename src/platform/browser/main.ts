@@ -1,5 +1,5 @@
 // Port: the browser page's entry point: loads the volume and the System, boots the machine, shows
-// its screen at an integer scale, and runs the program `?startup=` names: Glider (`glider4`, or no
+// its screen at the largest scale that fits or one chosen, and runs the program `?startup=` names: Glider (`glider4`, or no
 // parameter), the Room Editor (`room-editor`), or the desktop (`desktop`). Each program runs in a
 // page load of its own (PORT.md, decision 16): quitting a program loads the desktop's page, and
 // opening one on the desktop loads its page. Each has the port's additions (src/additions/): the page
@@ -37,11 +37,12 @@ async function fetchBytes(path: string): Promise<Uint8Array> {
 /** The room the virtual gamepad takes beside the screen, in CSS pixels. */
 let padRoom = (): { width: number; height: number } => ({ width: 0, height: 0 });
 
-/** The largest whole number of device pixels per Mac pixel that fits the window, beside the virtual gamepad. */
-function fitFactor(width: number, height: number): number {
+/** The largest number of device pixels per Mac pixel that fits the window, beside the virtual gamepad: whole, or any. */
+function fitFactor(width: number, height: number, whole = true): number {
 	const ratio = window.devicePixelRatio || 1;
 	const room = padRoom();
-	return Math.max(1, Math.floor(Math.min(((window.innerWidth - room.width) * ratio) / width, ((window.innerHeight - room.height) * ratio) / height)));
+	const fit = Math.min(((window.innerWidth - room.width) * ratio) / width, ((window.innerHeight - room.height) * ratio) / height);
+	return whole ? Math.max(1, Math.floor(fit)) : Math.max(0.25, fit);
 }
 
 /** The colors a display shows the Mac II's 16 as, if not its own. */
@@ -100,10 +101,29 @@ async function start(): Promise<void> {
 	document.body.append(canvas);
 	const ctx = canvas.getContext('2d')!;
 	const image = ctx.createImageData(machine.width, machine.height);
+	// At a scale of whole device pixels the browser enlarges the canvas pixel for pixel. At any other,
+	// the screen is drawn at the next whole scale with its pixels kept sharp, and the browser shrinks
+	// that smoothly to the size that fits ("sharp bilinear"): nearest-neighbor at a fractional
+	// scale would make some Mac pixels a device pixel wider than others, and Glider's gray dithers
+	// would show stripes. The screen itself is the Mac's, pixel for pixel, either way.
+	const source = document.createElement('canvas');
+	source.width = machine.width;
+	source.height = machine.height;
+	const sourceCtx = source.getContext('2d')!;
+	let prescale = 1;
 	let scale = 1;
 	const layout = (): void => {
-		const fit = fitFactor(machine.width, machine.height);
-		scale = (scaleChoice === 0 ? fit : Math.min(scaleChoice, fit)) / (window.devicePixelRatio || 1);
+		const ratio = window.devicePixelRatio || 1;
+		const factor = scaleChoice === 0 ? fitFactor(machine.width, machine.height, false) : scaleChoice === -1 ? fitFactor(machine.width, machine.height) : Math.min(scaleChoice, fitFactor(machine.width, machine.height));
+		scale = factor / ratio;
+		const whole = Number.isInteger(factor);
+		const next = whole ? 1 : Math.ceil(factor);
+		if (next !== prescale) {
+			prescale = next;
+			canvas.width = machine.width * prescale;
+			canvas.height = machine.height * prescale;
+		}
+		canvas.classList.toggle('smooth', !whole);
 		canvas.style.width = `${machine.width * scale}px`;
 		canvas.style.height = `${machine.height * scale}px`;
 		// The screen centered in the room the gamepad leaves: it takes the sides alike, or the bottom.
@@ -137,7 +157,13 @@ async function start(): Promise<void> {
 		pads?.poll();
 		sound.update();
 		renderScreen(machine, image.data, true, substitute);
-		ctx.putImageData(image, 0, 0);
+		if (prescale === 1) {
+			ctx.putImageData(image, 0, 0);
+		} else {
+			sourceCtx.putImageData(image, 0, 0);
+			ctx.imageSmoothingEnabled = false;
+			ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+		}
 		requestAnimationFrame(frame);
 	};
 	requestAnimationFrame(frame);

@@ -33,3 +33,12 @@ Two control methods the port adds to Glider, in its Controls submenu after Joyst
 **08.** On a desktop with a mouse, Gamepad chosen: the virtual buttons stay hidden. With a stand-in gamepad on the standard mapping, the D-pad flew the glider at full thrust and Start paused the game.
 
 ![Gamepad chosen in the Controls submenu](08-gamepad-chosen.png)
+
+**09.** Later the same day, after playing on an Android phone and an iPad: an iPad held sideways (1194 by 770 CSS pixels, 2 device pixels to one), the Mac II at the largest size that fits, 1.41 CSS pixels to a Mac pixel, drawn sharp and shrunk smoothly; whole numbers of device pixels had given it 1. The arrows are apart: ← and band on the left, energy and → on the right, pause over energy. One finger holds ←; another is on the seam between energy and →, which presses both. A held button's rounded rectangle goes black around its icon, calmer than the whole button inverted.
+
+![The iPad, the arrows apart, two buttons pressed on their seam](09-ipad-arrows-apart-seam.png)
+
+**10.** Configure with Arrows Apart. The brace, Glider's picture for two lines, is drawn taller in pieces, a row of each straight part repeated, so its curves keep their weight.
+
+![Configure with three sides](10-configure-arrows-apart-mac-plus.png)
+
