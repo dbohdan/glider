@@ -1,14 +1,14 @@
 // Port: how the page shows the Mac's screen (PORT.md, decision 4): enlarged sharp, smooth, or soft
-// as on a CRT, with scanlines, a glow, rounded corners, and a phosphor's tint if chosen (the
-// Filters submenu, src/additions/Additions.ts). The Mac's pixels are the same whichever: only their
+// as on a CRT, with scanlines, a glow, rounded corners, a phosphor's tint, and the Mac's gamma if
+// chosen (the Filters submenu, src/additions/Additions.ts). The Mac's pixels are the same whichever: only their
 // showing changes. Without shaders: the 2D canvas enlarges the screen with sharp pixels by whole
 // numbers, each axis its own, and the browser shrinks that smoothly to the size shown, so that how
 // much each axis is enlarged first sets how soft its edges are; the rest is CSS.
 //
 // The numbers are to be tuned by playing: the address can set them (?soft=1&scanlines=0.35&glow=0.35
-// &blur=0.75&corners=10&tint=e8eeff).
+// &blur=0.75&corners=10&tint=e8eeff&gamma=1.8).
 
-import type { Filters } from '../../additions/Additions.ts';
+import { type Filters, noFilters } from '../../additions/Additions.ts';
 
 /** The filters' numbers, as the address may set them. */
 interface Tuning {
@@ -27,6 +27,8 @@ interface Tuning {
 	corners: number;
 	/** The phosphor's white, as hex RGB. */
 	tint: string;
+	/** Mac Gamma: the Mac's display gamma, shown on a display of 2.2 (sRGB's, near enough). */
+	gamma: number;
 }
 
 function tuning(params: URLSearchParams): Tuning {
@@ -42,8 +44,11 @@ function tuning(params: URLSearchParams): Tuning {
 		blur: num('blur', 0.75, 0, 8),
 		corners: num('corners', 10, 0, 100),
 		tint: tint !== null && /^[0-9a-f]{6}$/i.test(tint) ? tint : 'e8eeff',
+		gamma: num('gamma', 1.8, 1, 3),
 	};
 }
+
+const gammaId = 'mac-gamma';
 
 /** Scanlines show only where a Mac pixel is this many device pixels tall or more; below, they would only darken it. */
 const scanlinesFrom = 2.5;
@@ -60,7 +65,7 @@ export class ScreenView {
 	private readonly glowCtx: CanvasRenderingContext2D;
 	private readonly tint = document.createElement('div');
 	private readonly tuning: Tuning;
-	private filters: Filters = { enlarge: 'sharp', scanlines: false, glow: false, corners: false, tint: false };
+	private filters: Filters = { ...noFilters };
 	/** Device pixels per Mac pixel. */
 	private factor = 1;
 	/** How many times the canvas holds the screen enlarged, across and down; 0 when it holds it as it is, for the browser to enlarge pixel for pixel. */
@@ -87,6 +92,7 @@ export class ScreenView {
 		this.sourceCtx = this.source.getContext('2d')!;
 		this.glowCtx = this.glow.getContext('2d')!;
 		this.element.append(this.canvas, this.glow, this.tint);
+		document.body.append(this.gammaFilter());
 		this.tint.style.backgroundColor = `#${this.tuning.tint}`;
 		this.update();
 	}
@@ -142,6 +148,32 @@ export class ScreenView {
 		this.glow.style.filter = `blur(${this.tuning.blur * css}px)`;
 		this.tint.hidden = !this.filters.tint;
 		this.element.style.borderRadius = this.filters.corners ? `${this.tuning.corners * css}px` : '';
+		this.element.style.filter = this.filters.gamma ? `url(#${gammaId})` : '';
+	}
+
+	/**
+	 * Mac Gamma's SVG filter: each channel raised to the power of the Mac's gamma over 2.2, which
+	 * lights the midtones as the Mac's display showed them (values in sRGB, as the canvas holds them).
+	 */
+	private gammaFilter(): SVGSVGElement {
+		const ns = 'http://www.w3.org/2000/svg';
+		const svg = document.createElementNS(ns, 'svg');
+		svg.setAttribute('width', '0');
+		svg.setAttribute('height', '0');
+		svg.style.position = 'absolute';
+		const filter = document.createElementNS(ns, 'filter');
+		filter.id = gammaId;
+		filter.setAttribute('color-interpolation-filters', 'sRGB');
+		const transfer = document.createElementNS(ns, 'feComponentTransfer');
+		for (const channel of ['R', 'G', 'B']) {
+			const f = document.createElementNS(ns, `feFunc${channel}`);
+			f.setAttribute('type', 'gamma');
+			f.setAttribute('exponent', String(this.tuning.gamma / 2.2));
+			transfer.append(f);
+		}
+		filter.append(transfer);
+		svg.append(filter);
+		return svg;
 	}
 
 	/** A Mac row's worth of the canvas's rows, the last quarter darkened. */

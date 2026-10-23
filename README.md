@@ -84,8 +84,8 @@ The port adds several features to Glider 4.05.
   Sizes that do not fit are dimmed.
 - Options > Filters: how the screen is shown.
   Sharp pixels (the default), Smooth, or Soft (CRT), which blends pixels across each row as a cathode-ray tube did and keeps the rows crisp.
-  Any of Scanlines, Glow, Rounded Corners, and Phosphor Tint can be added.
-  The address can tune them: `?soft=1&scanlines=0.35&glow=0.35&blur=0.75&corners=10&tint=e8eeff`.
+  Any of Scanlines, Glow, Rounded Corners, and Phosphor Tint can be added, and on the Mac II in color, Mac Gamma, which lightens the midtones as a Mac's display showed them (a gamma of about 1.8 where today's displays have 2.2).
+  The address can tune them: `?soft=1&scanlines=0.35&glow=0.35&blur=0.75&corners=10&tint=e8eeff&gamma=1.8`.
 - Options > Art: choose the art files on the disk, the original's and any you import.
   The other kind (color or black and white) is dimmed.
   Glider and the Room Editor each has their own separate setting.

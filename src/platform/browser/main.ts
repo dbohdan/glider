@@ -6,7 +6,7 @@
 // runs the Mac and screen they choose, at their scale, and starts the program again on another Mac.
 
 import { main as desktop, setDesktopHost } from '../../desktop/Desktop.ts';
-import { type AdditionsHost, type Display, RefreshScales, setAdditionsHost } from '../../additions/Additions.ts';
+import { type AdditionsHost, type Display, type Filters, gammaApplies, RefreshScales, setAdditionsHost } from '../../additions/Additions.ts';
 import { main as editor } from '../../editor/GameBody.ts';
 import { main as glider } from '../../glider/GameBody.ts';
 import { wantsMouseCapture } from '../../glider/Globals.ts';
@@ -98,7 +98,9 @@ async function start(): Promise<void> {
 	// The screen through the chosen filters (Filters.ts); sharp pixels unless others are chosen.
 	const view = new ScreenView(machine.width, machine.height, params);
 	let filters = chosenFilters();
-	view.setFilters(filters);
+	// The filters as shown: Mac Gamma only on the display it applies to, though kept for when it is chosen again.
+	const shown = (): Filters => ({ ...filters, gamma: filters.gamma && gammaApplies(display) });
+	view.setFilters(shown());
 	document.body.append(view.element);
 	const canvas = view.canvas;
 	const image = new ImageData(machine.width, machine.height);
@@ -155,6 +157,7 @@ async function start(): Promise<void> {
 			substitute = substituteFor(d);
 			// The room on the screen keeps the fills it was drawn with; the next room drawn has the new ones.
 			brushesFor(d);
+			view.setFilters(shown());
 			keepDisplay(d);
 			if (params.has('machine')) {
 				const url = new URL(location.href);
@@ -192,7 +195,7 @@ async function start(): Promise<void> {
 		setFilters: (f) => {
 			filters = f;
 			keepFilters(f);
-			view.setFilters(f);
+			view.setFilters(shown());
 		},
 	};
 	setAdditionsHost(additions);

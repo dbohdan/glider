@@ -54,3 +54,7 @@ Two control methods the port adds to Glider, in its Controls submenu after Joyst
 
 ![The Look submenu](13-look-submenu.png)
 
+**14.** Mac Gamma on the Mac II in color, at 1 device pixel to a CSS pixel: the same title screen without it and with it. The midtones are lighter, as the Mac's own display (a gamma of about 1.8) showed them on a screen of today (2.2): 128 gray becomes 145, the floor's brown (144, 113, 58) becomes (159, 131, 75). Black and white stay as they are. (Paper gliders fly across the title screen, so the two differ where one is.)
+
+![Mac Gamma off and on](14-mac-gamma-mac-ii.png)
+

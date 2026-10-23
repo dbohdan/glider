@@ -74,7 +74,7 @@ export function chosenFilters(): Filters {
 			if (kept.enlarge === 'sharp' || kept.enlarge === 'smooth' || kept.enlarge === 'soft') {
 				filters.enlarge = kept.enlarge;
 			}
-			for (const t of ['scanlines', 'glow', 'corners', 'tint'] as const) {
+			for (const t of ['scanlines', 'glow', 'corners', 'tint', 'gamma'] as const) {
 				filters[t] = kept[t] === true;
 			}
 			return filters;

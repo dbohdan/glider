@@ -49,7 +49,7 @@ const cases: Case[] = [
 ];
 for (const enlarge of ['sharp', 'smooth', 'soft']) {
 	for (const scale of [-1, 0]) {
-		cases.push({ name: `${enlarge} with scanlines and glow, scale ${scale}`, viewport: tablet, dpr: 2, touch: false, query: `?scale=${scale}`, filters: { enlarge, scanlines: true, glow: true }, mac: [640, 480] });
+		cases.push({ name: `${enlarge} with every touch, scale ${scale}`, viewport: tablet, dpr: 2, touch: false, query: `?scale=${scale}`, filters: { enlarge, scanlines: true, glow: true, corners: true, tint: true, gamma: true }, mac: [640, 480] });
 	}
 }
 

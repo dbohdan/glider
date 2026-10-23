@@ -14,6 +14,7 @@ import {
 	CountMItems,
 	DelMenuItem,
 	DisableItem,
+	EnableItem,
 	hMenuCmd,
 	InsertMenu,
 	type Integer,
@@ -61,9 +62,20 @@ export interface Filters {
 	glow: boolean;
 	corners: boolean;
 	tint: boolean;
+	/** The color Mac II's midtones as lit as on its own display, whose gamma was about 1.8 where today's is 2.2. */
+	gamma: boolean;
 }
 
-export const noFilters: Filters = { enlarge: 'sharp', scanlines: false, glow: false, corners: false, tint: false };
+export const noFilters: Filters = { enlarge: 'sharp', scanlines: false, glow: false, corners: false, tint: false, gamma: false };
+
+/**
+ * Whether Mac Gamma applies to a display: only to the Mac II in color. The Mac Plus and the Mac II in
+ * black and white have no midtones, and Glider for Windows ran on PCs, whose displays had no such
+ * correction.
+ */
+export function gammaApplies(display: Display): boolean {
+	return display === 'ii';
+}
 
 // The filters, in the Filters submenu: one way to enlarge, then touches to add.
 const enlargements: [Filters['enlarge'], string][] = [
@@ -71,11 +83,12 @@ const enlargements: [Filters['enlarge'], string][] = [
 	['smooth', 'Smooth'],
 	['soft', 'Soft (CRT)'],
 ];
-const touches: ['scanlines' | 'glow' | 'corners' | 'tint', string][] = [
+const touches: ['scanlines' | 'glow' | 'corners' | 'tint' | 'gamma', string][] = [
 	['scanlines', 'Scanlines'],
 	['glow', 'Glow'],
 	['corners', 'Rounded Corners'],
 	['tint', 'Phosphor Tint'],
+	['gamma', 'Mac Gamma'],
 ];
 
 /**
@@ -298,7 +311,14 @@ function checkChoices(): void {
 	const filters = host.filters;
 	if (filtersMenu !== undefined && filters !== undefined) {
 		enlargements.forEach(([e], k) => CheckItem(filtersMenu, k + 1, filters.enlarge === e));
-		touches.forEach(([t], k) => CheckItem(filtersMenu, enlargements.length + 2 + k, filters[t]));
+		touches.forEach(([t], k) => {
+			const item = enlargements.length + 2 + k;
+			CheckItem(filtersMenu, item, filters[t]);
+			// Mac Gamma is dimmed where it does not apply, as art of the other kind is.
+			if (t === 'gamma') {
+				(gammaApplies(host!.display) ? EnableItem : DisableItem)(filtersMenu, item);
+			}
+		});
 	}
 	const art = made.get(mArt);
 	if (art !== undefined && artChoice !== null) {
