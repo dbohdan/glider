@@ -7,6 +7,9 @@ import { AppendMenu, CheckItem, ClearMenuBar, DelMenuItem, DisableItem, DrawMenu
 import { bootMachine, type Box, cursorBox, differences, oracleRunAvailable, oracleShot, writeComparison } from './machine.ts';
 import type { Image } from '../../oracle/Image.ts';
 import { mouse } from '../../src/mac/OS.ts';
+import { flushFonts } from '../../src/mac/Fonts.ts';
+import { initResources } from '../../src/mac/Resources.ts';
+import { systemFork } from '../../tools/build-resources.ts';
 
 /** Sets up Glider's menus as Glider 4.06's SetUpMenus leaves them on these machines. */
 function setUpGliderMenus(m: Machine): void {
@@ -98,6 +101,10 @@ for (const [m, caseName] of [
 }
 
 test('InsMenuItem and DelMenuItem move the items after them, enabled or not', () => {
+	// The port's own System, as the page has it: AppendMenu measures the items in the system font.
+	// (The oracle's, which the tests above boot, is not there when the oracle is not set up, as in CI.)
+	initResources(systemFork());
+	flushFonts();
 	const m = NewMenu(200, 'Test');
 	AppendMenu(m, 'One;(Two;Three');
 	InsMenuItem(m, 'New;(Dim', 1);

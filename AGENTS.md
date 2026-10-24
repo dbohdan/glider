@@ -9,6 +9,7 @@ How to work on this project: methods that have proven themselves, and traps that
 - `make check lint test` before every commit; it needs Node 24.
   The game and Toolbox tests compare against oracle runs in `oracle/cache/`, and skip themselves when the oracle has not run (`make oracle`, then `node oracle/main.ts shoot CASE...`).
   The browser test (`test/browser/`) loads the built page in Chromium (`make test` builds it first), Playwright's own or the one at `$CHROMIUM` or `$PLAYWRIGHT_BROWSERS_PATH/chromium`, and skips itself without one.
+- CI has neither the oracle nor Chromium, so the oracle and browser tests skip there, and a test that passed locally only because a test before it had booted the oracle's Mac fails. Before pushing to `master`, run the suite as CI does: `mv oracle/cache oracle/cache.aside`, then `env -u PLAYWRIGHT_BROWSERS_PATH -u CHROMIUM make check lint test build`, then remove the `oracle/cache` the run creates (the smoke test writes its screenshots there) before moving the real one back, or `mv` puts it inside the new one.
 - Check the page's defaults, not only the settings being worked on: a fresh browser with nothing kept, on a laptop at 1 device pixel to a CSS pixel as well as on a phone. A change tried only at fractional scales left the default whole-number scale showing a 300-by-150 corner of the screen.
 - Keep `PORT.md`'s journal: what was found, how, and what was wrong before. Methods go here.
 - Never commit commercial files (other Glider releases, manuals, ROMs, System software); the oracle setup fetches them.
