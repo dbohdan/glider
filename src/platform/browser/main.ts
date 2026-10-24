@@ -86,6 +86,10 @@ async function start(): Promise<void> {
 	const kind: MachineKind = display === 'plus' ? 'plus' : 'ii';
 	brushesFor(display);
 	const manifest = (await (await fetch('data/volume.json')).json()) as VolumeManifest;
+	// What the page was built from, for the desktop's About (tools/build-resources.ts); none if it is missing.
+	const build = await fetch('data/build.json')
+		.then((r) => (r.ok ? (r.json() as Promise<{ date: string; commit: string }>) : undefined))
+		.catch(() => undefined);
 	const volume = await loadVolume(manifest, (p) => fetchBytes(`data/${p}`));
 	const store = await FileStore.open();
 	await store.restore(volume, kind);
@@ -230,6 +234,7 @@ async function start(): Promise<void> {
 				return files.length;
 			},
 			resetPlayerData: () => store.reset(volume),
+			...(build === undefined ? {} : { build }),
 		});
 	}
 	const program = onDesktop ? 'desktop' : onEditor ? 'room-editor' : 'glider4';

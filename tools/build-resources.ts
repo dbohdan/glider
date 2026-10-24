@@ -1,6 +1,7 @@
 // Builds the bundled Mac volume: the files Glider finds next to itself, packed as MacBinary,
 // plus a manifest. Usage: node tools/build-resources.ts <output directory>
 
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseMacBinary, writeMacBinary, type MacFile } from '../src/mac/MacBinary.ts';
@@ -175,7 +176,29 @@ function main(outDir: string): void {
 	const glider = bundledFiles().find((f) => f.type === 'APPL')!;
 	writeFileSync(join(outDir, 'icon.png'), applicationIcon(glider));
 	writeFileSync(join(outDir, 'card.png'), socialCard(glider));
+	writeFileSync(join(outDir, 'build.json'), JSON.stringify(buildInfo()) + '\n');
 	console.log(`Wrote ${manifest.files.length} files to ${volumeDir}`);
+}
+
+/**
+ * What the desktop's About box says the page was built from, so that copies hosted elsewhere can be
+ * told apart: the day it was built, in UTC (SOURCE_DATE_EPOCH's, if set, for reproducible builds),
+ * and the commit, "-dirty" if the working tree had changes; "unknown" outside a Git checkout.
+ */
+export function buildInfo(): { date: string; commit: string } {
+	const epoch = Number(process.env['SOURCE_DATE_EPOCH']);
+	const date = (Number.isFinite(epoch) && process.env['SOURCE_DATE_EPOCH'] !== '' ? new Date(epoch * 1000) : new Date()).toISOString().slice(0, 10);
+	const git = (...args: string[]): string => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+	let commit = 'unknown';
+	try {
+		commit = git('rev-parse', '--short=7', 'HEAD');
+		if (git('status', '--porcelain', '--untracked-files=no') !== '') {
+			commit += '-dirty';
+		}
+	} catch {
+		// not a Git checkout, or no git
+	}
+	return { date, commit };
 }
 
 if (import.meta.main) {

@@ -181,6 +181,10 @@ The [galleries](docs/images/README.md) recall the port's history in screenshots.
 
 Every push to `master` is checked, without the oracle, and deployed to GitHub Pages ([`.github/workflows/pages.yml`](.github/workflows/pages.yml)).
 
+To host a copy, serve `dist/` as static files.
+The desktop's About (in the Apple menu) says what a copy was built from: the day, in UTC, and the commit, marked "-dirty" if the working tree had changes.
+Build from a Git checkout, or the commit shows as "unknown"; `SOURCE_DATE_EPOCH` sets the day for a reproducible build.
+
 ## The repository
 
 John Calhoun's original sources, as released:

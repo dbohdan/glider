@@ -101,6 +101,8 @@ export interface DesktopHost {
 	exportFiles(): number;
 	/** Puts back the game's preferences and the bundled houses' high scores. */
 	resetPlayerData(): Promise<void>;
+	/** What the page was built from, for About: the day (UTC) and the commit; unknown if the page does not say. */
+	readonly build?: { date: string; commit: string };
 }
 
 let host: DesktopHost = {
@@ -406,6 +408,7 @@ async function doMenu(result: number): Promise<void> {
 	const menu = result >> 16;
 	const item = result & 0xffff;
 	if (menu === appleID && item === 1) {
+		ParamText(host.build?.date ?? 'unknown', host.build?.commit ?? 'unknown', '', '');
 		await NoteAlert(aboutAlertID, null);
 	} else if (menu === fileID && item === 1) {
 		const icon = icons.find((i) => i.selected);
