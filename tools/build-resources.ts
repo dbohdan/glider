@@ -8,7 +8,7 @@ import { ResourceFork, writeResourceFork } from '../src/mac/ResourceFork.ts';
 import { bdfToFontResource, readBdf } from './Bdf.ts';
 import type { VolumeManifest } from '../src/mac/Volume.ts';
 import { parseDeRez } from './DeRez.ts';
-import { applicationIcon } from './Favicon.ts';
+import { applicationIcon, socialCard } from './Favicon.ts';
 import { desktopFile } from './DesktopResources.ts';
 import { putStandardFileResources } from './SystemResources.ts';
 
@@ -172,7 +172,9 @@ function main(outDir: string): void {
 	});
 	writeFileSync(join(outDir, 'volume.json'), JSON.stringify(manifest, null, '\t') + '\n');
 	writeFileSync(join(outDir, 'System.rsrc'), writeResourceFork(systemFork()));
-	writeFileSync(join(outDir, 'icon.png'), applicationIcon(bundledFiles().find((f) => f.type === 'APPL')!));
+	const glider = bundledFiles().find((f) => f.type === 'APPL')!;
+	writeFileSync(join(outDir, 'icon.png'), applicationIcon(glider));
+	writeFileSync(join(outDir, 'card.png'), socialCard(glider));
 	console.log(`Wrote ${manifest.files.length} files to ${volumeDir}`);
 }
 

@@ -1,5 +1,6 @@
 // The page's icon: Glider's own application icon, its 32-by-32 color icon ('icl8') with the black
-// and white icon's mask ('ICN#') for transparency, as a PNG.
+// and white icon's mask ('ICN#') for transparency, as a PNG. And the image for links to the page on
+// social media (Open Graph, Twitter cards): the same icon enlarged.
 
 import { crc32, deflateSync } from 'node:zlib';
 import { ByteWriter } from '../src/mac/Binary.ts';
@@ -46,6 +47,34 @@ function writeRGBAPNG(width: number, height: number, rgba: Uint8Array): Uint8Arr
 
 /** The application's icon (id 128) as a PNG. */
 export function applicationIcon(app: MacFile): Uint8Array {
+	return writeRGBAPNG(32, 32, iconPixels(app));
+}
+
+/**
+ * The image for links to the page: the icon enlarged 16 times, pixel for pixel, centered on white,
+ * 1200 by 630, the size Open Graph images are made for. Card services crop it to their shape
+ * (Bluesky's about 1.91 to 1, X's summary square), and the whole icon stays in either; enlarged by
+ * them instead, 32 pixels would blur.
+ */
+export function socialCard(app: MacFile): Uint8Array {
+	const [width, height, scale] = [1200, 630, 16];
+	const icon = iconPixels(app);
+	const rgba = new Uint8Array(width * height * 4).fill(255);
+	const left = (width - 32 * scale) / 2;
+	const top = Math.floor((height - 32 * scale) / 2);
+	for (let y = 0; y < 32 * scale; y++) {
+		for (let x = 0; x < 32 * scale; x++) {
+			const i = (Math.floor(y / scale) * 32 + Math.floor(x / scale)) * 4;
+			if (icon[i + 3] !== 0) {
+				rgba.set(icon.subarray(i, i + 4), ((top + y) * width + left + x) * 4);
+			}
+		}
+	}
+	return writeRGBAPNG(width, height, rgba);
+}
+
+/** The application's icon (id 128) as 32 by 32 RGBA pixels, transparent outside its mask. */
+function iconPixels(app: MacFile): Uint8Array {
 	const fork = parseResourceFork(app.rsrc);
 	const get = (type: string) => fork.resources.find((r) => r.type === type && r.id === 128)!.data;
 	const pixels = get('icl8');
@@ -57,5 +86,5 @@ export function applicationIcon(app: MacFile): Uint8Array {
 		const opaque = (mask[i >> 3]! >> (7 - (i & 7))) & 1;
 		rgba.set([r, g, b, opaque ? 255 : 0], i * 4);
 	}
-	return writeRGBAPNG(32, 32, rgba);
+	return rgba;
 }
