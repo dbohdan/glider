@@ -100,6 +100,8 @@ The port adds several features to Glider 4.05.
   Disabling it silences the bass during play.
   The jingle on entering a room is unaffected.
   Unlike on Windows, this setting is on by default because the Mac game plays the bass.
+- Locked houses: the Room Editor's Open dialog marks the houses it will not open (those locked with House Info's Lock House) with a padlock.
+  You can still try to open one.
 - Preferences for each Mac: the Mac Plus and the Mac II each keep their own copy of Glider's preferences.
   (Just the preferences.
   Houses and saved games are shared.)

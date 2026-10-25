@@ -54,6 +54,10 @@ Each gallery says how its pictures are laid out.
 
 [![The virtual gamepad beside the Mac Plus's screen on a phone](2026-10-23-gamepads/04-two-fingers.png)](2026-10-23-gamepads/)
 
+**[Locked houses in the Room Editor](2026-10-25-locked-houses/)**, 25 October 2026: a padlock on the houses the editor will not open, in its Open dialog, and the message it gives anyway.
+
+[![The Room Editor's Open dialog with padlocks on locked houses](2026-10-25-locked-houses/01-open-mac-plus.png)](2026-10-25-locked-houses/)
+
 **[Glider for Windows](windows/)**: the 1994 Windows release, for the port's planned Windows look.
 
 [![The House, room 5, in Glider for Windows](windows/room-05-youre-invited.png)](windows/)

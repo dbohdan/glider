@@ -4,6 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { editorPadFlight, padGame, startsInFourChannels } from './harness.ts';
 import { iVirtualPad } from '../../src/glider/Globals.ts';
+import { houseLocked } from '../../src/editor/Additions.ts';
+import { bundledFiles } from '../../tools/build-resources.ts';
 import { type GamepadLike, noPad, readGamepads, thrustOf } from '../../src/additions/Pads.ts';
 
 test("with the additions, Glider starts in Sound Settings' saved 4-Channel; without, in 2-Channel as the original", async () => {
@@ -50,5 +52,16 @@ test("the Room Editor's Controls has Gamepad, which flies its test flights", asy
 	const [before, right, left] = flight.lefts;
 	assert.ok(right > before, `steered right from ${before} to ${right}`);
 	assert.ok(left < right, `steered left from ${right} to ${left}`);
+});
+
+test("the Room Editor's Open marks the houses Lock House locked: the bundled ones, as their time stamps say", () => {
+	const locked = bundledFiles()
+		.filter((f) => f.type === 'GLhs' && houseLocked(f))
+		.map((f) => f.name);
+	assert.ok(locked.includes('The House') && locked.includes('Mad House'));
+	for (const open of ['The House (July 1991)', 'Glass House', 'Hands-off House', 'House Full of Stuff 2']) {
+		assert.ok(!locked.includes(open), `${open} is not locked`);
+	}
+	assert.equal(houseLocked({ ...bundledFiles().find((f) => f.name === 'The House')!, type: 'TEXT' }), false);
 });
 

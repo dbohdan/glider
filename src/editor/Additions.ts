@@ -1,6 +1,8 @@
 // Port: the port's additions to the Room Editor (PORT.md, decision 14) beyond the Options menu every
 // program has (src/additions/Additions.ts): Gamepad in the Controls submenu ('MENU' 133) after
-// Joystick, now "Joystick (Mouse)", for test flights, as Glider has it (src/glider/Additions.ts).
+// Joystick, now "Joystick (Mouse)", for test flights, as Glider has it (src/glider/Additions.ts);
+// and a padlock on locked houses in Open's list, so that which ones the editor refuses shows before
+// trying (trying still gives the editor's own alert).
 // The editor's preferences ('Gprf') keep a control the original knows; the additions' ('Wprf' 128,
 // in the editor's file as Glider's are in Glider's) keep the gamepad.
 //
@@ -20,8 +22,10 @@ import {
 	SetItem,
 	UseResFile,
 	WriteResource,
+	setLockedTest,
 } from '../mac/Toolbox.ts';
-import { PInteger, PRecord, readLayout, sizeOf, writeLayout } from '../mac/PascalLayout.ts';
+import type { MacFile } from '../mac/MacBinary.ts';
+import { PInteger, PLongInt, PRecord, readLayout, sizeOf, writeLayout } from '../mac/PascalLayout.ts';
 import { additionsHost } from '../additions/Additions.ts';
 import { noPad, type PadState } from '../additions/Pads.ts';
 import { addControlItems, G, iGamepad, iHoldKey, iLastControl, iRelMouse, mControls } from './Globals.ts';
@@ -39,6 +43,7 @@ export function SetUpAdditions(): void {
 	if (additionsHost() === null) {
 		return;
 	}
+	setLockedTest(houseLocked);
 	const controls = GetMenu(mControls)!;
 	SetItem(controls, iRelMouse, 'Joystick (Mouse)');
 	InsMenuItem(controls, 'Gamepad', iRelMouse);
@@ -58,6 +63,18 @@ export function SetUpAdditions(): void {
 		}
 	}
 	UsePads();
+}
+
+/** The start of a house's record ('GLhs', its data fork): enough for its time stamp. */
+const houseStartLayout = PRecord({ version: PInteger, numberORooms: PInteger, timeStamp: PLongInt });
+
+/**
+ * Whether a file is a house the editor will not open: Lock House keeps its time stamp as GetDateTime
+ * gives it, which is not positive (Mac seconds passed 2^31 in 1972), while saving an unlocked house
+ * stores it negated; OpenFile refuses one whose time stamp is 0 or less (alert 24).
+ */
+export function houseLocked(file: MacFile): boolean {
+	return file.type === 'GLhs' && file.data.length >= sizeOf(houseStartLayout) && readLayout(houseStartLayout, file.data, 0).timeStamp <= 0;
 }
 
 /** The control method the editor's own preferences keep: the gamepad as Hold Keyboard, whose keys work with it. */

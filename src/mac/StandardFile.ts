@@ -131,6 +131,25 @@ const smallIcons = [
 ];
 const documentIcon = 0;
 const applicationIcon = 4;
+
+/**
+ * Port: a padlock for locked files (setLockedTest), in the style of PACK 3's small icons and as
+ * tall as its document's page; the port's own, since System 6 has none. Its body is solid, with a
+ * keyhole, to read at 16 pixels.
+ */
+const padlock = [0x0000, 0x0000, 0x03c0, 0x0420, 0x0420, 0x0420, 0x0ff0, 0x0ff0, 0x0e70, 0x0e70, 0x0ff0, 0x0ff0, 0x0ff0, 0x0000, 0x0000, 0x0000];
+
+/** Port: which files the program shows as locked in Open's list; none unless it says. */
+let lockedTest: ((file: MacFile) => boolean) | null = null;
+
+/**
+ * Port: has Open's list mark the files a test finds locked with a padlock at the row's right end.
+ * The rows stay selectable: the program says why it will not open one. Not in System 6; the
+ * port's additions set it (the Room Editor's locked houses).
+ */
+export function setLockedTest(test: ((file: MacFile) => boolean) | null): void {
+	lockedTest = test;
+}
 /**
  * The volume's icon: PACK 3 shows a hard disk for a volume of 2 MB or more, a floppy disk for a
  * smaller one. The port's volume is a hard disk, as the oracle's 8 MB disks are.
@@ -139,9 +158,14 @@ const volumeIcon = 5;
 
 /** Copies a small icon into the current port with its top left at (h, v). */
 function plotSmallIcon(icon: number, h: number, v: number): void {
+	plotIconRows(smallIcons[icon]!, h, v);
+}
+
+/** Copies 16 rows of 16 bits into the current port with their top left at (h, v). */
+function plotIconRows(rows: number[], h: number, v: number): void {
 	const p = NewPtr(32);
 	const bytes = bytesAt(p, 32);
-	smallIcons[icon]!.forEach((w, i) => {
+	rows.forEach((w, i) => {
 		bytes[i * 2] = w >> 8;
 		bytes[i * 2 + 1] = w & 0xff;
 	});
@@ -262,6 +286,8 @@ interface Row {
 	icon: number;
 	dimmed: boolean;
 	type: OSType;
+	/** Port: shown with a padlock (setLockedTest). */
+	locked: boolean;
 }
 
 /** PACK 3's list: rows of one line in `view`, from row `top`, with at most one selected. */
@@ -331,9 +357,15 @@ function drawCell(l: SFList, row: number): void {
 	}
 	EraseRect(cell);
 	PenNormal();
-	plotSmallIcon(entry.icon, cell.left + 3, cell.top + Math.max(0, (l.lineHeight - 16) >> 1));
+	const iconTop = cell.top + Math.max(0, (l.lineHeight - 16) >> 1);
+	plotSmallIcon(entry.icon, cell.left + 3, iconTop);
 	MoveTo(cell.left + 22, cell.top + l.ascent);
-	drawTruncated(entry.name, cell.left + 22, cell.right);
+	// Port: a locked file's padlock at the row's right end, 3 pixels in as the icon is; its name ends before it.
+	const nameRight = entry.locked ? cell.right - 19 : cell.right;
+	drawTruncated(entry.name, cell.left + 22, nameRight);
+	if (entry.locked) {
+		plotIconRows(padlock, cell.right - 19, iconTop);
+	}
 	if (entry.dimmed) {
 		PenPat(gray);
 		PenMode(patBic);
@@ -475,7 +507,7 @@ function gather(s: SFDialog): Row[] {
 		} else if (f.finderFlags & 0x4000) {
 			continue;
 		}
-		rows.push({ name: f.name, icon: f.type === 'APPL' ? applicationIcon : documentIcon, dimmed: !s.isGet, type: f.type });
+		rows.push({ name: f.name, icon: f.type === 'APPL' ? applicationIcon : documentIcon, dimmed: !s.isGet, type: f.type, locked: s.isGet && lockedTest !== null && lockedTest(f) });
 	}
 	return sortRows(rows);
 }
@@ -816,7 +848,7 @@ async function popUpMenu(s: SFDialog): Promise<void> {
 	const r = { top: box.top, left: box.left, bottom: box.top + s.list.lineHeight, right: Math.min(box.left + width, portWidth - 16) };
 	const font: FontInfo = { ascent: s.list.ascent, descent: s.list.lineHeight - s.list.ascent, widMax: 0, leading: 0 };
 	const menu = newList(r, font, null);
-	menu.rows = [{ name, icon: volumeIcon, dimmed: false, type: '\0\0\0\0' }];
+	menu.rows = [{ name, icon: volumeIcon, dimmed: false, type: '\0\0\0\0', locked: false }];
 	menu.selected = 0;
 	EraseRect(s.popUpArea);
 	const frame = { ...r };
