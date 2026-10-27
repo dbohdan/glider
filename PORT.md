@@ -256,6 +256,7 @@ do {
 - [x] **11. Windows look:** palettes and brushes.
   - [x] Glider for Windows' colors on the Mac II's screen, with a 16-color driver and in 256 colors (`src/platform/WindowsColors.ts`), from the Display & Keyboard submenu (once Machine).
   - [x] Its brushes: the tables, shelves and cabinets Glider draws in code, filled with the checkerboards Windows dithers brown and light brown into, and their light brown highlights in gray (the nearest of the 16 to Windows' static gray).
+  - Deferred indefinitely: a True Color look, whose solid brown and light brown need colors beyond the Mac II's 16 that the substitution draws through. Not to be done: Windows 98's 256 colors, which are the 16-color look but for one highlight color (`docs/versions.md`, "Displays").
   - Out of scope: Glider/WIN's art, its own behaviors (the planes' banners, flight recording, relinking houses), and its Windows 3.1 interface. Its art is the Mac's 4.04 sheet with new sprites for those behaviors (docs/versions.md), so without them it brings little the colors do not, and they would be new code from a release with no source, with a second user interface around them.
 - [x] **12. Room Editor.** Cutting and pasting rooms, Save As and changing a key in Customize Keys are checked now (`editorRooms`); a house's first file (New House) only by `editorNewHouse`'s screens, not its saved record.
   - [x] Translated, unit by unit, into `src/editor/` (10,970 lines from 9,750 of Pascal), and started with `?startup=room-editor`.
