@@ -75,6 +75,7 @@ Do not relitigate these without discussing them first.
 ## Related work
 
 - [kodogo/Glider](https://github.com/kodogo/Glider) is an earlier JavaScript port of Glider 4.0's source, more native to the browser and less exact. This port was made independently of it; the README should cite it as precedent.
+- An earlier Glider for the web, though not of Glider 4.0 and not a port: Mark Arenz's Flash reimplementation of Glider PRO for his site ridiculopathy.com, in 2006 by Wikipedia's account (uncited). The movie is Flash 8 (SWF version 8, so after September 2005), and a copy kept since 2 January 2007 is byte for byte the `glider.swf` Arenz published in 2022 with the rest of his Flash games ([markarenz/rid-flash-archive](https://github.com/markarenz/rid-flash-archive)). It has Glider PRO's art and sounds and its houses as "classics" (Slumberland, "by John Calhoun, Paul Finn, Ward Hartenstein & Steve Sullivan", and Castle O' The Air), and it went further than the original in one way: a house editor in the browser, whose houses players saved to the site, with ratings and high scores, to play each other's. The site's server is gone; the classic houses still play in [Ruffle](https://ruffle.rs/), per Arenz's README. Wikipedia and a MacUpdate review say he made it with Calhoun; the movie itself credits only the houses.
 
 ## Translation conventions
 
