@@ -1,9 +1,14 @@
-/* The page around the emulated screen: black, with the screen centered. */
+/*
+ * The page around the emulated screen: black, with the screen centered. No double-tap zoom anywhere
+ * (iOS Safari zoomed the page when the virtual gamepad's buttons were tapped in quick succession,
+ * taps landing between or beside them); pinching still zooms.
+ */
 html, body {
 	margin: 0;
 	height: 100%;
 	background: #000;
 	color: #fff;
+	touch-action: manipulation;
 }
 
 body {
