@@ -234,6 +234,8 @@ The roadmap is in [`PORT.md`](PORT.md).
   - European Union: design rights, and Germany's protection of typefaces, end after 25 years at most.
   - This is the project's reading of the law, not legal advice.
 - The Source Code icon holds the branch mark of [Jason Long's Git logo](https://git-scm.com/downloads/logos) ([CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)).
-- Earlier work: [kodogo/Glider](https://github.com/kodogo/Glider) ported Glider 4.0's source to JavaScript before this port, which was made independently of it.
+- Earlier work:
+  - [kodogo/Glider](https://github.com/kodogo/Glider) ported Glider 4.0's source to JavaScript before this port, which was made independently of it.
+  - [elasota/Aerofoil](https://github.com/elasota/Aerofoil) is a multiplatform desktop/mobile/browser port of Glider PRO.
 - The oracle runs [Mini vMac](https://www.gryphel.com/c/minivmac/), from [Infinite Mac](https://github.com/mihaip/infinite-mac)'s fork, on the ROMs and System software Infinite Mac hosts.
 - The archive readers were written from the formats as [The Unarchiver](https://github.com/MacPaw/XADMaster) reads them and checked against it and [hfsutils](https://www.mars.org/home/rob/proj/hfs/).
