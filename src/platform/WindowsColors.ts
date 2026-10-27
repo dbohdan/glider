@@ -5,9 +5,10 @@
 //
 // The values are what a VGA card puts on the screen: its DAC has 6 bits a component, so a program's
 // 0x80 shows as 130 and 0xC0 as 195 ((d << 2) | (d >> 4), as measured in DOSBox). With a 16-color
-// driver, Windows' standard colors; in 256 colors, Glider/WIN's own palette, whose dark colors are
-// brightened to 0xC0 (measured for dark red and olive; purple and green, which the screenshots do
-// not show, are taken to be brightened the same way).
+// driver, Windows' standard colors; in 256 colors under Windows 3.1, whose display driver loads the
+// six dark static colors into the DAC at 0xC0 (all six measured in v86 with Glider/WIN running, the
+// grays left as they are; Glider draws with the static colors). Windows 98's 256 colors and True
+// Color keep the dark colors at 0x80, as the 16-color variant has them.
 
 import { type Brushes, type Pattern, type RGBColor, standardClut4 } from '../mac/Toolbox.ts';
 

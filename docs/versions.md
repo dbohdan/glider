@@ -245,9 +245,7 @@ Findings:
 - **The displayed palette differs from the bitmaps' color tables.**
   Aligning room 3 with its background bitmap shows: dark red `#800000` → (195, 0, 0), olive `#808000` → (195, 195, 0), gray `#808080` → (130, 130, 130), light gray `#C0C0C0` → (195, 195, 195).
   The dark colors are brightened to about `0xC0`, but the grays are not.
-  _Inference:_ in 256-color mode the game realizes its own logical palette with brighter dark colors and draws its bitmaps through it, so the bitmaps' own color tables are ignored.
-  No such table was found as plain bytes in `GLIDER.EXE`.
-  With a 16-color VGA driver a program cannot change the palette, so those players would have seen the standard `0x80` colors.
+  This was first taken for a palette of the game's own; it is the display driver's (see "Displays", below).
 - **Code-drawn surfaces are dithered**, as noted above.
   Shadows are checkerboard patterns, some using the static gray.
 - **The high score table** has the Mac's layout (ring-binder holes, light blue rules, violet margin line, yellow highlight for the new entry) in a different serif font.
@@ -255,6 +253,25 @@ Findings:
   It is a gray box with a red border, yellow text ("You've earned the 5th spot on the high score list with 2720 points!"), a thumbs-up icon, and the default name "Glider Pilot...".
   The Mac uses `DITL` 129 and the default "Your name here...".
 - **The HUD** matches the Mac color HUD in layout: room name in red on black, room number, score in cyan, battery charge in yellow, and the remaining gliders.
+
+### Displays
+
+Glider/WIN was run in 2026 in [v86](https://copy.sh/v86/), with copy.sh's Windows 3.1 and Windows 98 disk images and the CD's files copied onto them, in headless Chromium; the VGA's DAC was read from the emulator (6-bit levels) and the screen at 24 bits from its canvas.
+Gallery: [`images/2026-10-27-windows-colors/`](images/2026-10-27-windows-colors/).
+
+- **All its art draws with Windows' static colors.**
+  Its bitmaps are 4-bit with the standard VGA color table, darks at `0x80`; in 256 colors each of their 16 colors lands on the static color of the same index (dark red on 1, olive on 3, even where another palette entry is nearer).
+  It realizes no palette of its own.
+- **Windows 3.1, 256 colors** (the "Generic SuperVGA 256 color driver", `SVGA256.DRV`, 1024×768): the driver loads the six dark static colors into the DAC at level 48 (`0xC0`), dark red, green, olive, navy, purple and teal alike, before Glider runs (the DAC reads so at Program Manager); light gray stays at 48 and gray at 32.
+  The driver's own static-color tables say `0x80`; another table in it, of 16 colors with `0xC0` darks, matches what it loads.
+  The archive.org DOSBox screenshots, from another driver, show the same `0xC0`.
+  The light brown highlights are the static gray (DAC 40, 40, 41).
+- **Windows 98, 256 colors** (VBEMP, a VESA driver, 800×600): the static colors are the standard ones, darks at `0x80` (DAC 32).
+  Brown and light brown fills dither as in Windows 3.1, but the light brown highlights take a nearer entry of the system palette, (255, 127, 63), which was there on the desktop before Glider ran, instead of the static gray.
+- **Windows 98, True Color** (24 bits): the bitmaps' colors exactly, darks at `0x80`.
+  Nothing is dithered: brown fills are solid (128, 64, 0); light brown fills and highlights are solid (255, 128, 64).
+- **Windows 98, 16 colors**, in v86, showed darks such as (168, 0, 87) and (0, 168, 87): v86's VGA, not Windows (the blue in every dark color is EGA's secondary blue), so it was not used.
+- **Shadows** are a pattern laid over the room whose phase follows the window's position on the screen, unlike the fills, which keep theirs with the play area: one pixel apart between the 1024×768 and 800×600 runs.
 
 ### Border graphic origin
 

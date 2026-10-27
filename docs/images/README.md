@@ -58,6 +58,10 @@ Each gallery says how its pictures are laid out.
 
 [![The Room Editor's Open dialog with padlocks on locked houses](2026-10-25-locked-houses/01-open-mac-plus.png)](2026-10-25-locked-houses/)
 
+**[Glider for Windows' colors, three ways](2026-10-27-windows-colors/)**, 27 October 2026: Glider/WIN run in an emulated PC under Windows 3.1 and Windows 98, in 256 colors and in True Color, to settle the port's Windows palettes.
+
+[![Glider for Windows under Windows 3.1 in 256 colors](2026-10-27-windows-colors/01-windows-3.1-256-colors.png)](2026-10-27-windows-colors/)
+
 **[Glider for Windows](windows/)**: the 1994 Windows release, for the port's planned Windows look.
 
 [![The House, room 5, in Glider for Windows](windows/room-05-youre-invited.png)](windows/)
